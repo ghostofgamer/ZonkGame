@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>{{{ PRODUCT_NAME }}}</title>
+    <!-- Yandex Games SDK -->
+    <script>
+      // SDK инициализируется сразу при загрузке страницы, не дожидаясь Unity:
+      // платформа проверяет, что YaGames.init() вызван, и до этого держит лоадер в ожидании.
+      // Промис создаётся заранее, поэтому мост из C# может запросить SDK раньше,
+      // чем sdk.js успеет загрузиться, и просто дождётся результата.
+      window.ysdkReady = new Promise(function (resolve, reject) {
+        window.__ysdkResolve = resolve;
+        window.__ysdkReject = reject;
+      });
+      window.ysdkReady.catch(function () { /* обработку берёт на себя мост */ });
+
+      function initSDK() {
+        YaGames.init()
+          .then(function (sdk) {
+            window.ysdk = sdk;
+
+            // Язык читается здесь, на старте страницы, а не из Unity.
+            // Требование п. 2.14: автоопределение должно происходить во время запуска.
+            // Платформа отслеживает само обращение к environment.i18n.lang,
+            // по нему индикатор 文 на debug-панели становится зелёным.
+            var lang = 'ru';
+            try {
+              lang = sdk.environment.i18n.lang || 'ru';
+            } catch (e) {
+              console.error('[Yandex] cannot read environment.i18n.lang', e);
+            }
+            window.ysdkLang = lang;
+            console.log('[Yandex] language detected:', lang);
+
+            window.__ysdkResolve(sdk);
+          })
+          .catch(function (error) {
+            console.error('[Yandex] YaGames.init failed', error);
+            window.__ysdkReject(error);
+          });
+      }
+    </script>
+    <!--
+      Относительный путь обязателен для игры, загруженной на серверы Яндекса.
+      Абсолютный адрес хранилища SDK здесь писать нельзя даже в комментарии:
+      Консоль разработчика проверяет файлы на такие адреса и отклоняет архив.
+      Абсолютный путь нужен только при размещении на своём домене, см. AGENTS.md.
+    -->
+    <script async src="/sdk.js" onload="initSDK()"></script>
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: {{{ BACKGROUND_FILLED ? BACKGROUND : '#231F20' }}}; }
+      #unity-canvas { width: 100%; height: 100%; display: block; }
+    </style>
+  </head>
+  <body>
+    <canvas id="unity-canvas" width={{{ WIDTH }}} height={{{ HEIGHT }}} tabindex="-1"></canvas>
+    <script src="Build/{{{ LOADER_FILENAME }}}"></script>
+    <script>
+      createUnityInstance(document.querySelector("#unity-canvas"), {
+        arguments: [],
+        dataUrl: "Build/{{{ DATA_FILENAME }}}",
+        frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_THREADS
+        workerUrl: "Build/{{{ WORKER_FILENAME }}}",
+#endif
+#if USE_WASM
+        codeUrl: "Build/{{{ CODE_FILENAME }}}",
+#endif
+#if MEMORY_FILENAME
+        memoryUrl: "Build/{{{ MEMORY_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+        symbolsUrl: "Build/{{{ SYMBOLS_FILENAME }}}",
+#endif
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+      }).then(function (instance) {
+        window.unityInstance = instance;
+      }).catch(function (message) {
+        console.error(message);
+      });
+    </script>
+  </body>
+</html>

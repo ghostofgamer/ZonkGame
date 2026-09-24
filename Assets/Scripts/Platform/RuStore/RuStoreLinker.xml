@@ -1,0 +1,11 @@
+<linker>
+  <!--
+    Подключается только в Android-сборку через Base.Editor.PlatformLinkXml.
+    Не называть link.xml: такой файл Unity подхватывает во все сборки, и код Яндекса попал бы в WebGL.
+
+    Android-часть Яндекс Рекламы построена на AndroidJavaProxy: Java вызывает методы C# по имени,
+    и при Managed Stripping Level = High их вырезает. В пакете своего link.xml нет.
+  -->
+  <assembly fullname="YandexMobileAds" preserve="all" />
+  <assembly fullname="AppMetricaAdRevenueAdapter" preserve="all" />
+</linker>

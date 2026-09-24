@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>{{{ PRODUCT_NAME }}}</title>
+    <!--
+      VK Bridge 3.0.2 (@vkontakte/vk-bridge, dist/browser.min.js, MIT) лежит рядом с index.html.
+      Своя копия вместо CDN: VK предупреждает, что CDN может быть недоступен в регионе игрока.
+      Обновлять: скачать browser.min.js нужной версии из npm-пакета и заменить файл.
+    -->
+    <script src="vk-bridge.min.js"></script>
+    <script>
+      // VKWebAppInit отправляется сразу при загрузке страницы, не дожидаясь Unity:
+      // VK требует его первым событием и не позже 30 секунд после запуска.
+      // Мост из C# дожидается этого промиса, а не отправляет init сам.
+      window.vkInitPromise = (typeof vkBridge !== 'undefined')
+        ? vkBridge.send('VKWebAppInit')
+        : Promise.reject(new Error('vkBridge is not loaded: vk-bridge.min.js is missing'));
+      window.vkInitPromise.catch(function (e) { console.error('[VK] VKWebAppInit failed', e); });
+
+      // Параметры запуска (vk_language, vk_platform, vk_user_id и другие) приходят в адресе страницы.
+      window.vkLaunchParams = (function () {
+        var params = {};
+        try {
+          new URLSearchParams(window.location.search).forEach(function (value, key) { params[key] = value; });
+        } catch (e) {
+          console.error('[VK] cannot parse launch params', e);
+        }
+        return params;
+      })();
+      console.log('[VK] launch: lang=' + window.vkLaunchParams.vk_language + ' platform=' + window.vkLaunchParams.vk_platform);
+    </script>
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: {{{ BACKGROUND_FILLED ? BACKGROUND : '#231F20' }}}; }
+      #unity-canvas { width: 100%; height: 100%; display: block; }
+    </style>
+  </head>
+  <body>
+    <canvas id="unity-canvas" width={{{ WIDTH }}} height={{{ HEIGHT }}} tabindex="-1"></canvas>
+    <script src="Build/{{{ LOADER_FILENAME }}}"></script>
+    <script>
+      createUnityInstance(document.querySelector("#unity-canvas"), {
+        arguments: [],
+        dataUrl: "Build/{{{ DATA_FILENAME }}}",
+        frameworkUrl: "Build/{{{ FRAMEWORK_FILENAME }}}",
+#if USE_THREADS
+        workerUrl: "Build/{{{ WORKER_FILENAME }}}",
+#endif
+#if USE_WASM
+        codeUrl: "Build/{{{ CODE_FILENAME }}}",
+#endif
+#if MEMORY_FILENAME
+        memoryUrl: "Build/{{{ MEMORY_FILENAME }}}",
+#endif
+#if SYMBOLS_FILENAME
+        symbolsUrl: "Build/{{{ SYMBOLS_FILENAME }}}",
+#endif
+        streamingAssetsUrl: "StreamingAssets",
+        companyName: {{{ JSON.stringify(COMPANY_NAME) }}},
+        productName: {{{ JSON.stringify(PRODUCT_NAME) }}},
+        productVersion: {{{ JSON.stringify(PRODUCT_VERSION) }}},
+      }).then(function (instance) {
+        window.unityInstance = instance;
+      }).catch(function (message) {
+        console.error(message);
+      });
+    </script>
+  </body>
+</html>

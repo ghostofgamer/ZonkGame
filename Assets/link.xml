@@ -1,0 +1,22 @@
+<linker>
+  <!--
+    Защита от IL2CPP-стриппинга (Managed Stripping Level = High).
+    Zenject создаёт объекты через reflection, поэтому конструкторы и типы
+    из наших сборок должны сохраняться целиком. Zenject свой link.xml везёт сам.
+    При добавлении новой сборки с классами, которые биндятся в контейнер, добавить её сюда.
+  -->
+  <assembly fullname="Base.Core" preserve="all" />
+  <assembly fullname="Base.Services" preserve="all" />
+  <assembly fullname="Base.Platform.Abstractions" preserve="all" />
+  <assembly fullname="Base.Platform.Stub" preserve="all" />
+  <assembly fullname="Base.Platform.Yandex" preserve="all" />
+  <assembly fullname="Base.Platform.VKPlay" preserve="all" />
+  <assembly fullname="Base.Platform.RuStore" preserve="all" />
+  <assembly fullname="Base.Platform.VKGames" preserve="all" />
+  <assembly fullname="Base.Platform.Installers" preserve="all" />
+  <assembly fullname="UniTask" preserve="all" />
+  <!-- Zenject внедряет зависимости через reflection, а UI строится из кода: стриппинг им мешает. -->
+  <assembly fullname="Zenject" preserve="all" />
+  <assembly fullname="Zenject-usage" preserve="all" />
+  <assembly fullname="UnityEngine.UI" preserve="all" />
+</linker>
