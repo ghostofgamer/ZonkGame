@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 4401805192958754269}
   - component: {fileID: 6336786641077191707}
   - component: {fileID: 6455160313742897312}
+  - component: {fileID: 2718281828459045235}
   m_Layer: 0
   m_Name: ProjectContext
   m_TagString: Untagged
@@ -48,6 +49,7 @@ MonoBehaviour:
   _scriptableObjectInstallers: []
   _monoInstallers:
   - {fileID: 6455160313742897312}
+  - {fileID: 2718281828459045235}
   _installerPrefabs: []
   _parentNewObjectsUnderContext: 1
   _editorReflectionBakingCoverageMode: 0
@@ -74,3 +76,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c89d8532dcce0ee4a9c023c46204d4e0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Base.Platform.Installers::Base.Platform.Installers.PlatformInstaller
+--- !u!114 &2718281828459045235
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8308754191570724539}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 628b6ac3ffea4e26abc34b4047fe1974, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Zonk::Zonk.ZonkInstaller

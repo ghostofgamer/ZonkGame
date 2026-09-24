@@ -13,6 +13,19 @@
   в IL2CPP-сборке не создаст её классы.
 - **Что своё у каждой игры**: список в README, раздел «Новая игра из шаблона».
 
+## Игра: Зонк
+
+Этот репозиторий: игра «Зонк: Кости Фортуны» (Farkle), созданная из шаблона. Правила шаблона выше и ниже действуют без изменений.
+
+- Код игры: `Assets/Game/Zonk`, сборка и пространство имён `Zonk`. Сборка есть в `Assets/link.xml`.
+- `ZonkInstaller` (MonoInstaller) подключён в `Assets/Resources/ProjectContext.prefab` после `PlatformInstaller`:
+  в нём сервисы игры на всё время работы и миграции сохранений (`ISaveMigration`). Сервисы одной сцены
+  биндятся в `SceneContext` этой сцены.
+- Название, имя APK и пакет `ru.ghostofgamer.zonk` заданы в `Assets/Scripts/Editor/ProjectIdentity.cs`.
+  Пакет после публикации в RuStore не менять.
+- Игры ВКонтакте: ID 54765957 в `vk-hosting-config.json`.
+- Правки в `Assets/Scripts` касаются шаблона: переносить в репозиторий шаблона GameBase.
+
 ## Стек и соглашения
 
 - **Async: только UniTask.** Корутины не используются. Все асинхронные методы возвращают `UniTask` / `UniTask<T>`
@@ -109,13 +122,13 @@ Assets/
     VKGames/vk-bridge.min.js  VK Bridge 3.0.2 (MIT), своя копия вместо CDN
     VKPlay/index.html     шаблон для VK Play, API ещё не подключён
   Resources/
-    ProjectContext.prefab Zenject ProjectContext с PlatformInstaller
+    ProjectContext.prefab Zenject ProjectContext с PlatformInstaller и ZonkInstaller
     Fonts/Roboto-Regular.ttf  шрифт с кириллицей, Apache 2.0. Встроенный шрифт Unity в WebGL кириллицу не рисует
   Scenes/
     PlatformTest.unity    тестовая сцена с кнопками, первая в Build Settings, пока нет игровых сцен
     SampleScene.unity     остаток шаблона URP
   link.xml                защита сборок Base.* и UniTask от стриппинга
-  Game/<Название>/       код конкретной игры: своя сборка, свои сцены и ресурсы. В шаблоне папки нет
+  Game/Zonk/             код игры: сборка Zonk, ZonkInstaller, свои сцены и ресурсы
 Packages/manifest.json    UniTask (git), com.yandex.mobileads 8.4.0 (OpenUPM, тянет EDM4U). Zenject не здесь, а в Assets
                           из Asset Store. Реестр OpenUPM ограничен scope-ами com.yandex.mobileads и com.google.external-dependency-manager
 vk-hosting-config.json    выкладка Builds/VKGames на хостинг VK, ID игры

@@ -18,12 +18,12 @@ namespace Base.Editor
         public const string CompanyName = "ghostofgamer";
 
         /// <summary>Название игры: подпись под иконкой на Android и заголовок вкладки в браузере. Можно по-русски.</summary>
-        public const string ProductName = "BaseGame";
+        public const string ProductName = "Зонк: Кости Фортуны";
 
         /// <summary>Имя файла Android-сборки (Builds/RuStore/&lt;имя&gt;.apk). Латиница без пробелов.</summary>
-        public const string BuildFileName = "BaseGame";
+        public const string BuildFileName = "Zonk";
 
-        public const string AndroidPackage = "ru.ghostofgamer.basegame";
+        public const string AndroidPackage = "ru.ghostofgamer.zonk";
 
         public static void Apply()
         {
