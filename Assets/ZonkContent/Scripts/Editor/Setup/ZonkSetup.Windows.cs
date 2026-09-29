@@ -21,7 +21,7 @@ namespace Zonk.Editor.Setup
         public static readonly string[] WindowPrefabs =
         {
             "LoadingScreen", "RulesWindow", "MainMenuWindow", "SettingsWindow", "ConfirmWindow", "StoryWindow", "ResultsWindow",
-            "HotSeatSetupWindow", "CampaignWindow", "ShopWindow", "MatchHudWindow", "QuestsWindow",
+            "HotSeatSetupWindow", "CampaignWindow", "ShopWindow", "MatchHudWindow", "QuestsWindow", "LeaderboardWindow", "TutorialTipWindow", "LanguageWindow",
         };
 
         private static UiConfig _ui;
@@ -48,6 +48,9 @@ namespace Zonk.Editor.Setup
             WindowPrefab<ShopWindow>("ShopWindow", slideBottom, slideOutBottom, false, BuildShop);
             WindowPrefab<MatchHudWindow>("MatchHudWindow", fadeIn, fadeOut, false, BuildMatchHud);
             WindowPrefab<QuestsWindow>("QuestsWindow", popupIn, popupOut, true, BuildQuests);
+            WindowPrefab<LeaderboardWindow>("LeaderboardWindow", popupIn, popupOut, true, BuildLeaderboard);
+            WindowPrefab<TutorialTipWindow>("TutorialTipWindow", fadeIn, fadeOut, false, BuildTutorialTip);
+            WindowPrefab<LanguageWindow>("LanguageWindow", popupIn, popupOut, true, BuildLanguage);
         }
 
         private static void WindowPrefab<T>(string name, UiTransitionConfig show, UiTransitionConfig hide, bool popup,
@@ -68,7 +71,7 @@ namespace Zonk.Editor.Setup
 
         private static MainMenuWindow BuildMainMenu(RectTransform root)
         {
-            var panel = Box("Panel", root, _ui.Palette.Panel);
+            var panel = PanelAt(root);
             Corner(panel, new Vector2(0f, 0.5f), new Vector2(540f, 760f), new Vector2(48f, 0f));
             var column = Column(panel, 18, 28);
 
@@ -76,11 +79,12 @@ namespace Zonk.Editor.Setup
             Height(title, 150);
             var campaign = ButtonView("Campaign", column, 34, _ui.Palette.ButtonAccent);
             var quests = ButtonView("Quests", column, 34, _ui.Palette.Button);
+            var leaderboards = ButtonView("Leaderboards", column, 34, _ui.Palette.Button);
             var hotSeat = ButtonView("HotSeat", column, 34, _ui.Palette.Button);
             var shop = ButtonView("Shop", column, 34, _ui.Palette.Button);
             var settings = ButtonView("Settings", column, 30, _ui.Palette.ButtonMuted);
-            foreach (var button in new[] { campaign, quests, hotSeat, shop, settings })
-                Height(button, 72);
+            foreach (var button in new[] { campaign, quests, leaderboards, hotSeat, shop, settings })
+                Height(button, 66);
 
             // Значок «есть награда» у правого края кнопки заданий.
             var badge = Box("Badge", quests.transform, _ui.Palette.Bad);
@@ -113,17 +117,21 @@ namespace Zonk.Editor.Setup
             Corner((RectTransform)offer.transform, new Vector2(1f, 1f), new Vector2(480f, 76f), new Vector2(-24f, -248f));
 
             var window = root.gameObject.AddComponent<MainMenuWindow>();
-            window.EditorSetup(title, campaign, hotSeat, shop, settings, rules, quests, badge.gameObject, adOffers, adTemplate, offer);
+            window.EditorSetup(title, campaign, hotSeat, shop, settings, rules, quests, badge.gameObject, adOffers, adTemplate, offer, leaderboards);
             return window;
         }
 
         private static SettingsWindow BuildSettings(RectTransform root)
         {
             Dim(root, 0.55f);
-            var panel = CenterPanel(root, new Vector2(640f, 580f));
+            var panel = CenterPanel(root, new Vector2(640f, 680f));
             var column = Column(panel, 18, 32);
             var title = Text("Title", column, _ui.BoldFont, 44, _ui.Palette.Gold);
             Height(title, 80);
+
+            // Язык: флаг и название текущего языка, по нажатию — окно выбора.
+            var language = Nest(LanguageButtonGameObjectPart(), column, "Language").GetComponent<LanguageButtonView>();
+            Height(language, 80);
             var sound = ButtonView("Sound", column, 28, _ui.Palette.Button);
             var music = ButtonView("Music", column, 28, _ui.Palette.Button);
             var speed = ButtonView("Speed", column, 28, _ui.Palette.Button);
@@ -132,7 +140,7 @@ namespace Zonk.Editor.Setup
                 Height(button, 72);
 
             var window = root.gameObject.AddComponent<SettingsWindow>();
-            window.EditorSetup(title, sound, music, speed, back);
+            window.EditorSetup(title, sound, music, speed, back, language);
             return window;
         }
 
@@ -159,7 +167,7 @@ namespace Zonk.Editor.Setup
         private static StoryWindow BuildStory(RectTransform root)
         {
             Dim(root, 0.45f);
-            var panel = Box("Panel", root, _ui.Palette.Panel);
+            var panel = PanelAt(root);
             Corner(panel, new Vector2(0.5f, 0f), new Vector2(1560f, 400f), new Vector2(0f, 40f));
 
             var portrait = UiRect("Portrait", panel).gameObject.AddComponent<Image>();
@@ -203,6 +211,10 @@ namespace Zonk.Editor.Setup
             lineTemplate.fontSizeMax = 28;
             Height(lineTemplate, 50);
 
+            // Звёзды за соперника: копия детали Parts/Stars.
+            var stars = Nest(StarsGameObjectPart(), column, "Stars").GetComponent<StarsView>();
+            Height(stars, 48);
+
             var rewards = Column(column, 6, 0);
             rewards.name = "Rewards";
             var rewardTemplate = Text("RewardTemplate", rewards, _ui.BoldFont, 30, _ui.Palette.Good);
@@ -215,8 +227,11 @@ namespace Zonk.Editor.Setup
             var doubleReward = ButtonView("Double", column, 28, _ui.Palette.Button);
             Height(doubleReward, 72);
 
+            // Кошелёк в итогах: награды за партию видно, как монетки летят в него.
+            Wallet(root);
+
             var window = root.gameObject.AddComponent<ResultsWindow>();
-            window.EditorSetup(title, lines, lineTemplate, rewards, rewardTemplate, menu, again, doubleReward);
+            window.EditorSetup(title, lines, lineTemplate, rewards, rewardTemplate, menu, again, doubleReward, stars);
             return window;
         }
 
@@ -296,18 +311,36 @@ namespace Zonk.Editor.Setup
 
             var body = Row(column, 20);
             Height(body, 470);
+            // Список соперников: строки — префаб-деталь Parts/OpponentRow (вид настраивается в нём).
             var list = VerticalList("Opponents", body, 8, out var listContent);
             Width(list, -1, 1);
-            var opponentTemplate = ButtonView("OpponentTemplate", listContent, 24, _ui.Palette.Button);
-            Height(opponentTemplate, 64);
             var infoPanel = Box("Info", body, _ui.Palette.PanelLight);
             Width(infoPanel, -1, 1);
+            // Портрет соперника в правом верхнем углу, текст слева от него, условия звёзд строками внизу.
+            var portrait = UiRect("Portrait", infoPanel).gameObject.AddComponent<Image>();
+            portrait.preserveAspect = true;
+            Corner(portrait.rectTransform, new Vector2(1f, 1f), new Vector2(180f, 180f), new Vector2(-16f, -16f));
             var info = Text("InfoText", infoPanel, _ui.Font, 26, _ui.Palette.Text);
             info.alignment = TextAlignmentOptions.TopLeft;
             info.enableAutoSizing = true;
-            info.fontSizeMin = 18;
+            info.fontSizeMin = 16;
             info.fontSizeMax = 26;
-            Anchor(info.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-40f, -40f));
+            Anchor(info.rectTransform, Vector2.zero, Vector2.one, new Vector2(-98f, 75f), new Vector2(-236f, -190f));
+
+            var conditions = UiRect("StarConditions", infoPanel);
+            conditions.anchorMin = new Vector2(0f, 0f);
+            conditions.anchorMax = new Vector2(1f, 0f);
+            conditions.pivot = new Vector2(0.5f, 0f);
+            conditions.sizeDelta = new Vector2(-40f, 160f);
+            conditions.anchoredPosition = new Vector2(0f, 16f);
+            var conditionsLayout = conditions.gameObject.AddComponent<VerticalLayoutGroup>();
+            conditionsLayout.spacing = 2;
+            conditionsLayout.childControlWidth = true;
+            conditionsLayout.childControlHeight = true;
+            conditionsLayout.childForceExpandHeight = false;
+            var conditionsTitle = Text("Title", conditions, _ui.BoldFont, 22, _ui.Palette.Text);
+            conditionsTitle.alignment = TextAlignmentOptions.Left;
+            Height(conditionsTitle, 30);
 
             var diceHeader = Row(column, 12);
             diceHeader.name = "DiceHeader";
@@ -348,8 +381,8 @@ namespace Zonk.Editor.Setup
 
             Wallet(root);
             var window = root.gameObject.AddComponent<CampaignWindow>();
-            window.EditorSetup(previous, next, chapterTitle, listContent, opponentTemplate, info, myDiceLabel, myDice, back, play, presets,
-                stakeLabel, stakeList, stakeTemplate);
+            window.EditorSetup(previous, next, chapterTitle, listContent, null, info, myDiceLabel, myDice, back, play, presets,
+                stakeLabel, stakeList, stakeTemplate, portrait, OpponentRowPart(), conditions, StarConditionRowPart(), conditionsTitle);
             return window;
         }
 
@@ -359,7 +392,7 @@ namespace Zonk.Editor.Setup
             Corner(title.rectTransform, new Vector2(0.5f, 1f), new Vector2(900f, 80f), new Vector2(0f, -24f));
 
             // Нижняя панель на всю ширину с отступами по краям.
-            var panel = Box("Panel", root, _ui.Palette.Panel);
+            var panel = PanelAt(root);
             panel.anchorMin = new Vector2(0f, 0f);
             panel.anchorMax = new Vector2(1f, 0f);
             panel.pivot = new Vector2(0.5f, 0f);
@@ -376,8 +409,6 @@ namespace Zonk.Editor.Setup
             Height(body, 250);
             var items = HorizontalList("Items", body, 10, out var itemsContent);
             Width(items, -1, 3);
-            var card = ButtonView("CardTemplate", itemsContent, 22, _ui.Palette.Button);
-            Width(card, 200, 0);
 
             var detailsColumn = Column(body, 8, 8);
             Width(detailsColumn, 520, 0);
@@ -394,7 +425,7 @@ namespace Zonk.Editor.Setup
 
             Wallet(root);
             var window = root.gameObject.AddComponent<ShopWindow>();
-            window.EditorSetup(title, tabs, tabTemplate, back, itemsContent, card, itemName, details, detailButton, detailText);
+            window.EditorSetup(title, tabs, tabTemplate, back, itemsContent, null, itemName, details, detailButton, detailText, ShopCardPart());
             return window;
         }
 
@@ -465,7 +496,7 @@ namespace Zonk.Editor.Setup
 
             var list = VerticalList("Quests", column, 10, out var listContent);
             Height(list, 590);
-            var row = QuestRow(listContent);
+            var row = QuestRowPart();
 
             var buttons = Row(column, 24);
             Height(buttons, 80);
@@ -475,6 +506,88 @@ namespace Zonk.Editor.Setup
 
             var window = root.gameObject.AddComponent<QuestsWindow>();
             window.EditorSetup(title, daily, weekly, timer, listContent, row, back);
+            return window;
+        }
+
+        /// <summary>Выбор языка: сетка кнопок-деталей Parts/LanguageButton (флаг и название).</summary>
+        private static LanguageWindow BuildLanguage(RectTransform root)
+        {
+            Dim(root, 0.6f);
+            var panel = CenterPanel(root, new Vector2(1000f, 760f));
+            var column = Column(panel, 16, 32);
+            var title = Text("Title", column, _ui.BoldFont, 40, _ui.Palette.Gold);
+            Height(title, 64);
+
+            var list = UiRect("Languages", column);
+            Height(list, 480);
+            var grid = list.gameObject.AddComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(290f, 90f);
+            grid.spacing = new Vector2(16f, 16f);
+            grid.childAlignment = TextAnchor.UpperCenter;
+
+            var buttons = Row(column, 24);
+            Height(buttons, 80);
+            buttons.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
+            var close = ButtonView("Close", buttons, 30, _ui.Palette.ButtonMuted);
+            Width(close, 360, 0);
+
+            var window = root.gameObject.AddComponent<LanguageWindow>();
+            window.EditorSetup(title, list, LanguageButtonGameObjectPart().GetComponent<LanguageButtonView>(), close);
+            return window;
+        }
+
+        /// <summary>Подсказка обучения: табличка сверху под счётом, без затемнения — нажатия мимо проходят в игру.</summary>
+        private static TutorialTipWindow BuildTutorialTip(RectTransform root)
+        {
+            var panel = PanelAt(root);
+            Corner(panel, new Vector2(0.5f, 1f), new Vector2(1180f, 170f), new Vector2(0f, -150f));
+            var text = Text("Text", panel, _ui.Font, 28, _ui.Palette.Text);
+            text.alignment = TextAlignmentOptions.Left;
+            text.enableAutoSizing = true;
+            text.fontSizeMin = 18;
+            text.fontSizeMax = 28;
+            Anchor(text.rectTransform, Vector2.zero, Vector2.one, new Vector2(-120f, 0f), new Vector2(-280f, -24f));
+            var ok = ButtonView("Ok", panel, 26, _ui.Palette.ButtonAccent);
+            Corner((RectTransform)ok.transform, new Vector2(1f, 0.5f), new Vector2(200f, 72f), new Vector2(-20f, 0f));
+
+            var window = root.gameObject.AddComponent<TutorialTipWindow>();
+            window.EditorSetup(text, ok);
+            return window;
+        }
+
+        private static LeaderboardWindow BuildLeaderboard(RectTransform root)
+        {
+            Dim(root, 0.5f);
+            var panel = CenterPanel(root, new Vector2(1100f, 920f));
+            var column = Column(panel, 12, 28);
+
+            var title = Text("Title", column, _ui.BoldFont, 44, _ui.Palette.Gold);
+            Height(title, 64);
+
+            var tabs = Row(column, 12);
+            Height(tabs, 64);
+            var tabTemplate = ButtonView("TabTemplate", tabs, 24, _ui.Palette.ButtonMuted);
+
+            var status = Text("Status", column, _ui.Font, 24, _ui.Palette.TextMuted);
+            Height(status, 36);
+
+            var list = VerticalList("Rows", column, 6, out var listContent);
+            Height(list, 520);
+
+            var me = Text("Me", column, _ui.BoldFont, 28, _ui.Palette.Gold);
+            me.enableAutoSizing = true;
+            me.fontSizeMin = 18;
+            me.fontSizeMax = 28;
+            Height(me, 50);
+
+            var buttons = Row(column, 24);
+            Height(buttons, 80);
+            buttons.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
+            var back = ButtonView("Back", buttons, 30, _ui.Palette.ButtonMuted);
+            Width(back, 360, 0);
+
+            var window = root.gameObject.AddComponent<LeaderboardWindow>();
+            window.EditorSetup(title, tabs, tabTemplate, status, listContent, null, me, back, LeaderboardRowPart());
             return window;
         }
 
@@ -517,11 +630,20 @@ namespace Zonk.Editor.Setup
             return view;
         }
 
-        private static HudPlayerPanel HudPanel(string name, RectTransform root, Vector2 anchor, Vector2 offset)
+        /// <summary>Табличка игрока с нуля: так строится образец Parts/HudPlayerPanel.</summary>
+        private static HudPlayerPanel CreateHudPanel(Transform parent)
         {
-            var panel = Box(name, root, _ui.Palette.Panel);
-            Corner(panel, anchor, new Vector2(420f, 120f), offset);
+            var panel = Box("HudPlayerPanel", parent, _ui.Palette.Panel);
+            panel.sizeDelta = new Vector2(480f, 120f);
+
+            // Портрет слева (у соперника), имя и счёт правее.
+            var portrait = UiRect("Portrait", panel).gameObject.AddComponent<Image>();
+            portrait.preserveAspect = true;
+            Corner(portrait.rectTransform, new Vector2(0f, 0.5f), new Vector2(100f, 100f), new Vector2(10f, 0f));
+            portrait.gameObject.SetActive(false);
+
             var column = Column(panel, 2, 10);
+            column.offsetMin = new Vector2(116f, 0f);
             var playerName = Text("Name", column, _ui.BoldFont, 28, _ui.Palette.Text);
             playerName.enableAutoSizing = true;
             playerName.fontSizeMin = 18;
@@ -531,16 +653,17 @@ namespace Zonk.Editor.Setup
             Height(score, 56);
 
             var view = panel.gameObject.AddComponent<HudPlayerPanel>();
-            view.EditorSetup(panel.GetComponent<Image>(), playerName, score);
+            view.EditorSetup(panel.GetComponent<Image>(), playerName, score, portrait);
             return view;
         }
 
         // ---------- Общие детали ----------
 
-        private static void Wallet(RectTransform root)
+        /// <summary>Кошелёк с нуля: так строится образец Parts/Wallet. В окнах — Wallet (копия образца).</summary>
+        private static RectTransform CreateWallet(Transform parent)
         {
-            var panel = Box("Wallet", root, _ui.Palette.Panel);
-            Corner(panel, new Vector2(1f, 1f), new Vector2(480f, 64f), new Vector2(-24f, -24f));
+            var panel = Box("Wallet", parent, _ui.Palette.Panel);
+            panel.sizeDelta = new Vector2(480f, 64f);
             var row = Row(panel, 16);
             Stretch(row);
             var coins = Text("Coins", row, _ui.BoldFont, 26, _ui.Palette.Gold);
@@ -553,6 +676,7 @@ namespace Zonk.Editor.Setup
             }
 
             panel.gameObject.AddComponent<WalletView>().EditorSetup(coins, energy);
+            return panel;
         }
 
         private static DiceLoadoutView DiceRow(RectTransform parent)
@@ -569,7 +693,8 @@ namespace Zonk.Editor.Setup
             return view;
         }
 
-        private static UiButtonView ButtonView(string name, Transform parent, float fontSize, Color color)
+        /// <summary>Кнопка с нуля: так строится образец Parts/Button. В окнах — ButtonView (копия образца).</summary>
+        private static UiButtonView CreateButton(string name, Transform parent, float fontSize, Color color)
         {
             var rect = UiRect(name, parent);
             var image = rect.gameObject.AddComponent<Image>();
@@ -624,9 +749,10 @@ namespace Zonk.Editor.Setup
             return rect;
         }
 
+        /// <summary>Подложка окна по центру: копия образца Parts/WindowPanel (спрайт и цвет — в образце).</summary>
         private static RectTransform CenterPanel(RectTransform root, Vector2 size)
         {
-            var panel = Box("Panel", root, _ui.Palette.Panel);
+            var panel = PanelAt(root);
             Place(panel, new Vector2(0.5f, 0.5f), size);
             return panel;
         }

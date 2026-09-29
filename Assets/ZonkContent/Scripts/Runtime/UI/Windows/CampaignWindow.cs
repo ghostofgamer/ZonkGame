@@ -20,10 +20,19 @@ namespace Zonk.UI.Windows
         [SerializeField] private TMP_Text _chapterTitle;
         [SerializeField] private RectTransform _opponentList;
         [SerializeField] private UiButtonView _opponentTemplate;
+
+        [Tooltip("Префаб строки соперника (Prefabs/UI/Parts/OpponentRow). Пусто — старый шаблон-кнопка _opponentTemplate")]
+        [SerializeField] private OpponentRowView _opponentRowPrefab;
+
+        [Tooltip("Куда ставятся условия звёзд выбранного соперника и префаб строки условия (Parts/StarConditionRow)")]
+        [SerializeField] private RectTransform _conditionsList;
+        [SerializeField] private StarConditionRowView _conditionRowPrefab;
+        [SerializeField] private TMP_Text _conditionsTitle;
         [SerializeField] private TMP_Text _info;
         [SerializeField] private TMP_Text _myDiceLabel;
         [SerializeField] private DiceLoadoutView _myDice;
         [SerializeField] private DicePresetsView _presets;
+        [SerializeField] private UnityEngine.UI.Image _portrait;
         [SerializeField] private TMP_Text _stakeLabel;
         [SerializeField] private RectTransform _stakeList;
         [SerializeField] private UiButtonView _stakeTemplate;
@@ -37,14 +46,16 @@ namespace Zonk.UI.Windows
         private OpponentConfig _selected;
         private IDieMastery _mastery;
         private IWallet _wallet;
+        private IInventory _inventory;
         private readonly List<UiButtonView> _stakeButtons = new List<UiButtonView>();
 
         /// <summary>Ставка монетами на партию (0 — без ставки). Списывается при начале партии.</summary>
         public int Stake { get; private set; }
 
         [Zenject.Inject]
-        public void Construct(IDieMastery mastery, IWallet wallet)
+        public void Construct(IDieMastery mastery, IWallet wallet, IInventory inventory)
         {
+            _inventory = inventory;
             _mastery = mastery;
             _wallet = wallet;
         }
@@ -55,8 +66,14 @@ namespace Zonk.UI.Windows
         public void EditorSetup(UiButtonView previousChapter, UiButtonView nextChapter, TMP_Text chapterTitle,
             RectTransform opponentList, UiButtonView opponentTemplate, TMP_Text info, TMP_Text myDiceLabel, DiceLoadoutView myDice,
             UiButtonView back, UiButtonView play, DicePresetsView presets, TMP_Text stakeLabel, RectTransform stakeList,
-            UiButtonView stakeTemplate)
+            UiButtonView stakeTemplate, UnityEngine.UI.Image portrait, OpponentRowView opponentRowPrefab, RectTransform conditionsList,
+            StarConditionRowView conditionRowPrefab, TMP_Text conditionsTitle)
         {
+            _opponentRowPrefab = opponentRowPrefab;
+            _conditionsList = conditionsList;
+            _conditionRowPrefab = conditionRowPrefab;
+            _conditionsTitle = conditionsTitle;
+            _portrait = portrait;
             _stakeLabel = stakeLabel;
             _stakeList = stakeList;
             _stakeTemplate = stakeTemplate;
@@ -76,7 +93,8 @@ namespace Zonk.UI.Windows
 
         private void Awake()
         {
-            _opponentTemplate.gameObject.SetActive(false);
+            if (_opponentTemplate != null)
+                _opponentTemplate.gameObject.SetActive(false);
             _previousChapter.OnClick(() => ShowChapter(_chapterIndex - 1));
             _nextChapter.OnClick(() => ShowChapter(_chapterIndex + 1));
             _back.OnClick(() => _choice.Set(null));
@@ -91,6 +109,9 @@ namespace Zonk.UI.Windows
         {
             _progress = progress;
             _config = config;
+            if (_opponentTemplate != null)
+                StarsText.Prepare(_opponentTemplate.Label, config.Ui);
+            StarsText.Prepare(_info, config.Ui);
             _back.SetText(T("ui.back"));
             _myDiceLabel.text = T("campaign.myDice");
             ShowDice(loadout, config, ownedDice);
@@ -113,6 +134,60 @@ namespace Zonk.UI.Windows
         {
             _myDice.Setup(Localization, ownedDice, loadout.GetDice(), config.MaxSpecialDice, loadout.SetDie,
                 _mastery != null ? _mastery.GetLevel : (System.Func<DieConfig, int>)null, config.MasteryLevels);
+        }
+
+        private void ShowConditions(OpponentConfig opponent, int mask)
+        {
+            foreach (Transform child in _conditionsList)
+            {
+                if (child != _conditionRowPrefab.transform)
+                    Destroy(child.gameObject);
+            }
+
+            if (_conditionsTitle != null)
+                _conditionsTitle.text = T("campaign.starsTitle");
+
+            AddCondition((mask & 1) != 0, T("star.win"));
+            for (var i = 0; i < opponent.StarConditions.Count; i++)
+                AddCondition((mask & (1 << (i + 1))) != 0, StarsText.Condition(opponent.StarConditions[i], T));
+        }
+
+        private void AddCondition(bool got, string text)
+        {
+            var row = Instantiate(_conditionRowPrefab, _conditionsList);
+            row.gameObject.SetActive(true);
+            row.Setup(got, text, _config.Ui);
+        }
+
+        /// <summary>Награды одной строкой: «90 монет, Пятёрочная». Предмет, который уже есть, помечается.</summary>
+        private string RewardsText(IReadOnlyList<Reward> rewards)
+        {
+            if (rewards == null || rewards.Count == 0)
+                return string.Empty;
+
+            var parts = new List<string>();
+            foreach (var reward in rewards)
+            {
+                switch (reward)
+                {
+                    case CurrencyReward currency when currency.Currency != null && currency.Amount > 0:
+                        parts.Add(currency.Amount + " " + T(currency.Currency.NameKey));
+                        break;
+                    case ContentReward content when content.Item != null:
+                        var owned = _inventory != null && _inventory.IsOwned(content.Item);
+                        parts.Add(RewardNames.Describe(content.Item, T) + (owned ? " " + T("campaign.rewardOwned") : string.Empty));
+                        break;
+                }
+            }
+
+            return string.Join(", ", parts);
+        }
+
+        private static string StarLine(int mask, int bit, string condition)
+        {
+            var got = (mask & (1 << bit)) != 0;
+            var color = ColorUtility.ToHtmlStringRGB(got ? UiColors.Gold : UiColors.TextMuted);
+            return "<color=#" + color + ">" + StarsText.Star + " " + condition + "</color>";
         }
 
         /// <summary>Сколько чистыми получит игрок за победу при ставке stake (StakePayout соперника).</summary>
@@ -197,7 +272,7 @@ namespace Zonk.UI.Windows
 
             foreach (Transform child in _opponentList)
             {
-                if (child != _opponentTemplate.transform)
+                if (_opponentTemplate == null || child != _opponentTemplate.transform)
                     Destroy(child.gameObject);
             }
 
@@ -208,18 +283,34 @@ namespace Zonk.UI.Windows
                     continue;
 
                 var state = _progress.GetState(Chapter, opponent);
-                var button = _opponentTemplate.Spawn(_opponentList);
-                button.SetText(T(opponent.NameKey) + (opponent.IsBoss ? "  ★" : string.Empty) + "  —  " +
-                               T("campaign.state." + state.ToString().ToLowerInvariant()));
-                button.SetColor(state == OpponentState.Beaten ? UiColors.ButtonMuted
-                    : state == OpponentState.Available ? (opponent.IsBoss ? UiColors.ButtonAccent : UiColors.Button)
-                    : new Color(0.2f, 0.2f, 0.2f, 1f));
-                button.Interactable = state != OpponentState.Locked;
                 var captured = opponent;
-                button.OnClick(() => Select(captured));
+                var rowColor = state == OpponentState.Beaten ? UiColors.ButtonMuted
+                    : state == OpponentState.Available ? (opponent.IsBoss ? UiColors.ButtonAccent : UiColors.Button)
+                    : new Color(0.2f, 0.2f, 0.2f, 1f);
 
                 if (firstAvailable == null && state == OpponentState.Available)
                     firstAvailable = opponent;
+
+                // Строка из префаба: вид (звёзды картинками, портрет, шрифты) настраивается в Parts/OpponentRow.
+                if (_opponentRowPrefab != null)
+                {
+                    var row = Instantiate(_opponentRowPrefab, _opponentList);
+                    row.gameObject.SetActive(true);
+                    var rowStatus = (opponent.IsBoss ? T("campaign.boss") : string.Empty) +
+                                    (state == OpponentState.Locked ? " " + T("campaign.state.locked") : string.Empty);
+                    row.Setup(T(opponent.NameKey), rowStatus.Trim(), opponent.Portrait, _progress.GetStarMask(opponent),
+                        StarsText.MaxStars(opponent), _config.Ui, rowColor, state != OpponentState.Locked, () => Select(captured));
+                    continue;
+                }
+
+                var button = _opponentTemplate.Spawn(_opponentList);
+                // Имя, у босса пометка, звёзды у всех (серые — ещё не получены), у закрытого — «закрыт».
+                var stars = StarsText.Render(_progress.GetStarMask(opponent), StarsText.MaxStars(opponent));
+                var status = state == OpponentState.Locked ? stars + "  " + T("campaign.state.locked") : stars;
+                button.SetText(T(opponent.NameKey) + (opponent.IsBoss ? "  " + T("campaign.boss") : string.Empty) + "  " + status);
+                button.SetColor(rowColor);
+                button.Interactable = state != OpponentState.Locked;
+                button.OnClick(() => Select(captured));
             }
 
             Select(firstAvailable);
@@ -230,10 +321,18 @@ namespace Zonk.UI.Windows
             _selected = opponent;
             if (opponent == null)
             {
+                if (_portrait != null)
+                    _portrait.gameObject.SetActive(false);
                 _info.text = T("campaign.pick");
                 _play.SetText(T("campaign.play"));
                 _play.Interactable = false;
                 return;
+            }
+
+            if (_portrait != null)
+            {
+                _portrait.sprite = opponent.Portrait;
+                _portrait.gameObject.SetActive(opponent.Portrait != null);
             }
 
             var text = $"<b>{T(opponent.NameKey)}</b>\n{T(opponent.TitleKey)}\n\n";
@@ -243,6 +342,22 @@ namespace Zonk.UI.Windows
             var target = opponent.TargetScore > 0 ? opponent.TargetScore
                 : _config.CampaignMode != null && _config.CampaignMode.Rules != null ? _config.CampaignMode.Rules.TargetScore : 4000;
             text += T("campaign.target", target);
+
+            // Звёзды: что нужно для каждой; полученные — золотые.
+            var mask = _progress.GetStarMask(opponent);
+            text += "\n\n" + T("campaign.starsTitle");
+            text += "\n" + StarLine(mask, 0, T("star.win"));
+            for (var i = 0; i < opponent.StarConditions.Count; i++)
+                text += "\n" + StarLine(mask, i + 1, StarsText.Condition(opponent.StarConditions[i], T));
+
+            // Награда за победу: первая — полная, повторная — меньше (из конфига соперника), плюс монеты за новые звёзды.
+            var beaten = _progress.GetState(Chapter, opponent) == OpponentState.Beaten;
+            var rewards = RewardsText(beaten ? opponent.RepeatWinRewards : opponent.FirstWinRewards);
+            if (rewards.Length > 0)
+                text += "\n\n" + T(beaten ? "campaign.rewardRepeat" : "campaign.rewardFirst", rewards);
+            var starReward = RewardsText(_config.NewStarRewards);
+            if (starReward.Length > 0 && StarsText.CountBits(mask) < StarsText.MaxStars(opponent))
+                text += "\n" + T("campaign.rewardStar", starReward);
 
             if (Stake > 0)
                 text += "\n\n" + T("campaign.stakeInfo", Stake, Stake + StakeWin(opponent, Stake));

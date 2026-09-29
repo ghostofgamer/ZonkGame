@@ -18,6 +18,8 @@ namespace Zonk.Progress
         public const string Quests = "zonk_quests";
         public const string Mastery = "zonk_mastery";
         public const string AdBonus = "zonk_ad_bonus";
+        public const string Stats = "zonk_stats";
+        public const string Tutorial = "zonk_tutorial";
     }
 
     [Serializable]
@@ -91,6 +93,9 @@ namespace Zonk.Progress
         public List<string> Beaten = new List<string>();
         public List<string> SeenIntros = new List<string>();
         public List<string> SeenOutros = new List<string>();
+
+        /// <summary>Звёзды за соперников: маска, бит 0 — победа, бит N — условие N-1 (OpponentConfig.StarConditions).</summary>
+        public List<StarEntry> Stars = new List<StarEntry>();
     }
 
     [Serializable]
@@ -101,6 +106,9 @@ namespace Zonk.Progress
 
         /// <summary>Скорость анимаций: 1 = обычная, 2 = быстрая.</summary>
         public int Speed = 1;
+
+        /// <summary>Язык, выбранный игроком в настройках (код ISO 639-1). Пусто — язык площадки.</summary>
+        public string Language;
     }
 
     [Serializable]
@@ -195,5 +203,19 @@ namespace Zonk.Progress
     {
         public string Id;
         public int Count;
+    }
+
+    [Serializable]
+    public sealed class StarEntry
+    {
+        public string Id;
+        public int Mask;
+    }
+
+    /// <summary>Какие подсказки обучения уже показаны.</summary>
+    [Serializable]
+    public sealed class TutorialSave
+    {
+        public List<string> Seen = new List<string>();
     }
 }

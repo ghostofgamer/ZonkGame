@@ -16,7 +16,7 @@ MonoBehaviour:
   NameKey: opp.zina
   TitleKey: opp.zina.title
   RuleKey: 
-  Portrait: {fileID: 0}
+  Portrait: {fileID: 21300000, guid: 6147ff58ab1c7e64785a371346dd7777, type: 3}
   BodyColor: {r: 0.6, g: 0.45, b: 0.6, a: 1}
   Accessory: {fileID: 6428876330090902694, guid: 5b162329c97facd46a12a125e3424ca3, type: 3}
   IsBoss: 0
@@ -27,6 +27,9 @@ MonoBehaviour:
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StarConditions:
+  - rid: 4243792294545719582
+  - rid: 4243792294545719583
   StakePayout: 0.7
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 096e3e429b23d4c498ffca9732e7ea3b, type: 2}
@@ -49,3 +52,10 @@ MonoBehaviour:
       data:
         Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
         Amount: 22
+    - rid: 4243792294545719582
+      type: {class: NoSpecialDiceStar, ns: Zonk.Configs, asm: Zonk}
+      data: 
+    - rid: 4243792294545719583
+      type: {class: WinByMarginStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Margin: 1000

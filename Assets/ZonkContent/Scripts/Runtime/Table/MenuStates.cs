@@ -53,11 +53,13 @@ namespace Zonk.Table
         private readonly LoadingScreenHolder _loading;
         private readonly ShopFocus _focus;
         private readonly ShopService _shop;
+        private readonly TutorialDirector _tutorial;
         private bool _first = true;
 
         public MenuState(IUiService ui, TableView table, StageDresser dresser, IPlatformService platform, LoadingScreenHolder loading,
-            ShopFocus focus, ShopService shop)
+            ShopFocus focus, ShopService shop, TutorialDirector tutorial)
         {
+            _tutorial = tutorial;
             _focus = focus;
             _shop = shop;
             _ui = ui;
@@ -91,6 +93,7 @@ namespace Zonk.Table
             var loading = _loading.HideAsync(ct);
             var menu = await _ui.OpenAsync<MainMenuWindow>(ct);
             await loading;
+            _tutorial.Show(TutorialTrigger.MainMenu);
 
             MainMenuChoice choice;
             try
@@ -102,6 +105,7 @@ namespace Zonk.Table
             finally
             {
                 _ui.CloseAsync(menu, CancellationToken.None).Forget();
+                _tutorial.Hide();
             }
 
             switch (choice)
@@ -112,6 +116,7 @@ namespace Zonk.Table
                 case MainMenuChoice.Rules: return TableStateIds.Rules;
                 case MainMenuChoice.Quests: return TableStateIds.Quests;
                 case MainMenuChoice.Offer: return TableStateIds.Shop;
+                case MainMenuChoice.Leaderboards: return TableStateIds.Leaderboards;
                 default: return TableStateIds.Settings;
             }
         }
@@ -252,6 +257,34 @@ namespace Zonk.Table
         public async UniTask<string> RunAsync(CancellationToken ct)
         {
             var window = await _ui.OpenAsync<QuestsWindow>(ct);
+            try
+            {
+                await window.WaitCloseRequestAsync(ct);
+            }
+            finally
+            {
+                await _ui.CloseAsync(window, CancellationToken.None);
+            }
+
+            return TableStateIds.Menu;
+        }
+    }
+
+    /// <summary>Рекорды (таблицы лидеров) поверх стола. Закрытие по кнопке окна, затем обратно в меню.</summary>
+    public sealed class LeaderboardsState : ITableState
+    {
+        private readonly IUiService _ui;
+
+        public LeaderboardsState(IUiService ui)
+        {
+            _ui = ui;
+        }
+
+        public string Id => TableStateIds.Leaderboards;
+
+        public async UniTask<string> RunAsync(CancellationToken ct)
+        {
+            var window = await _ui.OpenAsync<LeaderboardWindow>(ct);
             try
             {
                 await window.WaitCloseRequestAsync(ct);

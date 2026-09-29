@@ -63,6 +63,8 @@ namespace Zonk
             Container.Bind<IQuestService>().To<QuestService>().AsSingle();
             Container.Bind<IDieMastery>().To<DieMastery>().AsSingle();
             Container.Bind<MenuAdRewards>().AsSingle();
+            Container.Bind<PlayerStats>().AsSingle();
+            Container.BindInterfacesAndSelfTo<LanguagePreference>().AsSingle();
         }
 
         /// <summary>

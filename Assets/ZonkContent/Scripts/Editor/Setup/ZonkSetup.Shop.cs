@@ -107,6 +107,11 @@ namespace Zonk.Editor.Setup
                 t.Price.Options.Add(new PurchasePriceOption { ProductId = Base.Services.Monetization.EntitlementIds.NoAds });
             });
 
+            // Таблицы лидеров: технические имена должны совпадать с таблицами в консоли Яндекса.
+            Leaderboard("stars", "leaderboard.stars", "zonkStars", LeaderboardMetric.TotalStars, 0);
+            Leaderboard("wins", "leaderboard.wins", "zonkWins", LeaderboardMetric.CampaignWins, 1);
+            Leaderboard("best_turn", "leaderboard.bestTurn", "zonkBestTurn", LeaderboardMetric.BestTurn, 2);
+
             SetThemeInfo("theme_pirate", "theme.pirate.desc", 3);
             SetThemeInfo("theme_dice_pack", "theme.dicePack.desc", 2);
             SetStakePayouts();
@@ -137,6 +142,17 @@ namespace Zonk.Editor.Setup
                 opponent.StakePayout = opponent.IsBoss ? payout + 0.1f : payout;
                 EditorUtility.SetDirty(opponent);
             }
+        }
+
+        private static void Leaderboard(string id, string nameKey, string technicalName, LeaderboardMetric metric, int order)
+        {
+            Asset<LeaderboardConfig>(ConfigsFolder + "/Leaderboards/" + id + ".asset", l =>
+            {
+                Identity(l, "board_" + id, nameKey);
+                l.TechnicalName = technicalName;
+                l.Metric = metric;
+                l.Order = order;
+            });
         }
 
         private static Material ShopMat(string name, Color color, float smoothness, float metallic = 0f, Color? emission = null)

@@ -101,7 +101,10 @@ namespace Zonk.UI.Windows
             }
 
             for (var i = 0; i < _players.Length && i < participants.Count; i++)
+            {
                 _players[i].SetPlayer(participants[i].Name, participants[i].Color);
+                _players[i].SetPortrait(participants[i].Opponent != null ? participants[i].Opponent.Portrait : null);
+            }
         }
 
         public void Refresh(ZonkMatch match)

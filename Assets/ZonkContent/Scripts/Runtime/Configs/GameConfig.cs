@@ -52,6 +52,14 @@ namespace Zonk.Configs
         [Tooltip("Кнопка на каждую строку: валюта, сколько за просмотр и сколько раз в день")]
         public List<MenuAdOffer> MenuAdOffers = new List<MenuAdOffer>();
 
+        [Header("Звёзды за соперников")]
+        [Tooltip("Награда за каждую новую звезду")]
+        [SerializeReference, SubclassSelector]
+        public List<Reward> NewStarRewards = new List<Reward>();
+
+        [Header("Обучение")]
+        public TutorialConfig Tutorial;
+
         [Header("Задания")]
         [Tooltip("Сколько заданий выдаётся на день")]
         public int DailyQuestCount = 3;

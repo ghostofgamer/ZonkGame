@@ -16,7 +16,7 @@ MonoBehaviour:
   NameKey: opp.irma
   TitleKey: opp.irma.title
   RuleKey: 
-  Portrait: {fileID: 0}
+  Portrait: {fileID: 21300000, guid: 7ab494dde0c37d7438f8dd0ea69eba85, type: 3}
   BodyColor: {r: 0.5, g: 0.25, b: 0.2, a: 1}
   Accessory: {fileID: 6428876330090902694, guid: 5b162329c97facd46a12a125e3424ca3, type: 3}
   IsBoss: 0
@@ -27,6 +27,9 @@ MonoBehaviour:
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StarConditions:
+  - rid: 4243792294545719559
+  - rid: 4243792294545719560
   StakePayout: 0.65
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 5b73bd7a00b5bc949ae07e3ea2c1eb9b, type: 2}
@@ -54,3 +57,11 @@ MonoBehaviour:
       data:
         Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
         Amount: 18
+    - rid: 4243792294545719559
+      type: {class: WinByMarginStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Margin: 1500
+    - rid: 4243792294545719560
+      type: {class: HotDiceStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Count: 1

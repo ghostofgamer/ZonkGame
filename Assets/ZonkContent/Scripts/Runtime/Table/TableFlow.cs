@@ -18,6 +18,7 @@ namespace Zonk.Table
         public const string Settings = "settings";
         public const string Rules = "rules";
         public const string Quests = "quests";
+        public const string Leaderboards = "leaderboards";
     }
 
     /// <summary>

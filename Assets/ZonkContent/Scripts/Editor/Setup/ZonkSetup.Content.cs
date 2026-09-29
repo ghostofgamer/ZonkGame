@@ -506,6 +506,34 @@ namespace Zonk.Editor.Setup
             SetOpponentDice(hook, null, sharper, bone, edges);
             SetOpponentDice(captain, null, sharper, lucky, edges, odd, worn);
 
+            // Звёзды: первая — победа, ещё две — условия по характеру соперника. Ранние — мягкие, поздние — жёсткие.
+            SetStars(vitya, new WinByMarginStar { Margin = 500 }, new MaxZonksStar { Zonks = 3 });
+            SetStars(klava, new MaxTurnsStar { Turns = 16 }, new BigTurnStar { Points = 800 });
+            SetStars(petrovich, new MaxZonksStar { Zonks = 2 }, new WinByMarginStar { Margin = 1000 });
+            SetStars(semenych, new HotDiceStar { Count = 1 }, new MaxTurnsStar { Turns = 14 });
+            SetStars(agafya, new MaxZonksStar { Zonks = 1 }, new WinByMarginStar { Margin = 1000 });
+            SetStars(lutik, new BigTurnStar { Points = 1000 }, new MaxTurnsStar { Turns = 13 });
+            SetStars(gustav, new NoSpecialDiceStar(), new MaxZonksStar { Zonks = 2 });
+            SetStars(irma, new WinByMarginStar { Margin = 1500 }, new HotDiceStar { Count = 1 });
+            SetStars(zhora, new MaxTurnsStar { Turns = 11 }, new BigTurnStar { Points = 1500 });
+            SetStars(bo, new BigTurnStar { Points = 2000 }, new MaxZonksStar { Zonks = 1 });
+            SetStars(stepan, new MaxZonksStar { Zonks = 1 }, new MaxTurnsStar { Turns = 13 });
+            SetStars(zina, new NoSpecialDiceStar(), new WinByMarginStar { Margin = 1000 });
+            SetStars(surfer, new HotDiceStar { Count = 2 }, new BigTurnStar { Points = 1500 });
+            SetStars(efim, new MaxTurnsStar { Turns = 11 }, new WinByMarginStar { Margin = 1500 });
+            SetStars(claw, new NoSpecialDiceStar(), new MaxZonksStar { Zonks = 1 });
+            SetStars(pit, new MaxZonksStar { Zonks = 0 }, new BigTurnStar { Points = 1500 });
+            SetStars(bart, new WinByMarginStar { Margin = 2000 }, new HotDiceStar { Count = 1 });
+            SetStars(greta, new MaxTurnsStar { Turns = 10 }, new NoSpecialDiceStar());
+            SetStars(hook, new BigTurnStar { Points = 2000 }, new MaxZonksStar { Zonks = 1 });
+            SetStars(captain, new MaxTurnsStar { Turns = 11 }, new WinByMarginStar { Margin = 1500 });
+
+            if (set.Config.NewStarRewards.Count == 0)
+            {
+                set.Config.NewStarRewards.Add(new CurrencyReward { Currency = coins, Amount = 30 });
+                EditorUtility.SetDirty(set.Config);
+            }
+
             // Лимит особых костей поднят до 6 (каждая особая — в одном слоте). Старый ассет со значением 2 обновляется.
             if (set.Config.MaxSpecialDice == 2)
             {
@@ -554,6 +582,32 @@ namespace Zonk.Editor.Setup
 
             // Магазин за деньги: в каждой вкладке монеты, реклама и покупка; пакеты монет, стартовый набор, «Без рекламы».
             BuildShopCatalog(coins, energy, lucky);
+
+            // Портреты соперников: заглушки, нарисованные кодом (настоящий арт — в OpponentConfig.Portrait).
+            // Обучение: подсказки поверх первой партии и меню.
+            var tutorial = Asset<TutorialConfig>(ConfigsFolder + "/Game/Tutorial.asset", t =>
+            {
+                foreach (var trigger in new[]
+                         {
+                             TutorialTrigger.MainMenu, TutorialTrigger.BeforeFirstRoll, TutorialTrigger.ChooseDice, TutorialTrigger.AfterKeep,
+                             TutorialTrigger.Zonk, TutorialTrigger.Bank, TutorialTrigger.HotDice, TutorialTrigger.OpponentTurn,
+                             TutorialTrigger.FinalRound,
+                         })
+                {
+                    t.Steps.Add(new TutorialStep { Trigger = trigger, TextKey = "tutorial." + trigger });
+                }
+            });
+            if (set.Config.Tutorial == null)
+            {
+                set.Config.Tutorial = tutorial;
+                EditorUtility.SetDirty(set.Config);
+            }
+
+            BuildPortraits(art);
+            BuildCoinSprite(set.Ui);
+            BuildIconSprites(set.Ui);
+            BuildStarSprites(set.Ui);
+            EnsureLanguageFlags(set.Ui);
 
             // Экономика v2: уже созданным ассетам — новые цены и награды, если в них стоят прежние значения.
             RetuneEconomy(set.Config);
@@ -749,6 +803,16 @@ namespace Zonk.Editor.Setup
         /// Особые кости соперника. Ставятся, если у соперника пусто или стоит прежний набор генератора
         /// (previous): ручной выбор в ассете не затирается.
         /// </summary>
+        /// <summary>Условия звёзд соперника; только если список ещё пуст (ручная настройка не затирается).</summary>
+        private static void SetStars(OpponentConfig opponent, params StarCondition[] conditions)
+        {
+            if (opponent == null || opponent.StarConditions.Count > 0)
+                return;
+
+            opponent.StarConditions.AddRange(conditions);
+            EditorUtility.SetDirty(opponent);
+        }
+
         private static void SetOpponentDice(OpponentConfig opponent, DieConfig[] previous, params DieConfig[] dice)
         {
             if (opponent == null)

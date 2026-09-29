@@ -16,7 +16,7 @@ MonoBehaviour:
   NameKey: opp.stepan
   TitleKey: opp.stepan.title
   RuleKey: 
-  Portrait: {fileID: 0}
+  Portrait: {fileID: 21300000, guid: 5474176f154240d44aae3d3411853760, type: 3}
   BodyColor: {r: 0.8, g: 0.3, b: 0.25, a: 1}
   Accessory: {fileID: 0}
   IsBoss: 0
@@ -26,6 +26,9 @@ MonoBehaviour:
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StarConditions:
+  - rid: 4243792294545719590
+  - rid: 4243792294545719591
   StakePayout: 0.9
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 096e3e429b23d4c498ffca9732e7ea3b, type: 2}
@@ -48,3 +51,11 @@ MonoBehaviour:
       data:
         Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
         Amount: 22
+    - rid: 4243792294545719590
+      type: {class: MaxZonksStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Zonks: 1
+    - rid: 4243792294545719591
+      type: {class: MaxTurnsStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Turns: 13

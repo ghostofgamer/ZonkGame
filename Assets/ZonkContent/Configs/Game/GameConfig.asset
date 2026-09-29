@@ -54,6 +54,9 @@ MonoBehaviour:
     Amount: 1
     PerDay: 10
     HideWhenFull: 1
+  NewStarRewards:
+  - rid: 4243792294545719579
+  Tutorial: {fileID: 11400000, guid: d956509792e3a894f9493542fae33095, type: 2}
   DailyQuestCount: 3
   WeeklyQuestCount: 3
   QuestRerollsPerDay: 1
@@ -95,3 +98,8 @@ MonoBehaviour:
       data:
         Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
         Amount: 3
+    - rid: 4243792294545719579
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 30

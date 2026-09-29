@@ -53,6 +53,34 @@ namespace Zonk.UI
         [Tooltip("Иконка кнопки правил в меню: книжка с вопросом")]
         public Sprite RulesIcon;
 
+        [Tooltip("Монетка, которая летит в кошелёк при получении монет")]
+        public Sprite CoinSprite;
+
+        [Header("Языки")]
+        [Tooltip("Флаг каждого языка для кнопки языка в настройках и окна выбора. Нет флага — только название")]
+        public System.Collections.Generic.List<LanguageFlag> LanguageFlags = new System.Collections.Generic.List<LanguageFlag>();
+
+        [Header("Звёзды")]
+        [Tooltip("Полученная звезда (картинки звёзд в префабах Parts/Stars, OpponentRow, StarConditionRow)")]
+        public Sprite StarGold;
+
+        [Tooltip("Ещё не полученная звезда")]
+        public Sprite StarGray;
+
+        public Sprite FlagOf(string language)
+        {
+            foreach (var flag in LanguageFlags)
+            {
+                if (flag != null && flag.Code == language)
+                    return flag.Flag;
+            }
+
+            return null;
+        }
+
+        [Tooltip("Значки внутри текста (★ звезда и др.): белые, красятся цветом текста. Нужны, потому что в шрифте таких символов нет")]
+        public TMPro.TMP_SpriteAsset Icons;
+
         [Header("Книга правил")]
         public Rules.RulesBookConfig RulesBook;
 

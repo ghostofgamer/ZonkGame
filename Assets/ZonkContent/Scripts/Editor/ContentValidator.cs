@@ -94,6 +94,10 @@ namespace Zonk.Editor
                     case OpponentConfig opponent:
                         ValidateOpponent(opponent, texts, errors, warnings, config);
                         break;
+                    case LeaderboardConfig board:
+                        if (string.IsNullOrEmpty(board.TechnicalName))
+                            errors.Add($"{board.name}: TechnicalName (name of the table on the platform) is empty");
+                        break;
                     case CoinPackConfig pack:
                         if (string.IsNullOrEmpty(pack.ProductId) || pack.Currency == null || pack.Amount <= 0)
                             errors.Add($"{pack.name}: coin pack needs ProductId, currency and amount");
@@ -281,6 +285,10 @@ namespace Zonk.Editor
                 errors.Add($"{opponent.name}: boss has a rule but no RuleKey to show it to the player");
             if (opponent.FirstWinRewards.Concat(opponent.RepeatWinRewards).Any(r => r == null))
                 errors.Add($"{opponent.name}: empty reward");
+            if (opponent.StarConditions.Any(c => c == null))
+                errors.Add($"{opponent.name}: empty star condition");
+            foreach (var condition in opponent.StarConditions.Where(c => c != null))
+                CheckKey(opponent, condition.TextKey, texts, errors);
         }
 
         private static void ValidatePrice(ContentConfig owner, Price price, List<string> errors)

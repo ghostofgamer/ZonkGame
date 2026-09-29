@@ -28,5 +28,8 @@ namespace Zonk.Core.Match
         public int TurnsPlayed { get; internal set; }
         public int ZonkCount { get; internal set; }
         public int BestTurn { get; internal set; }
+
+        /// <summary>Сколько раз игрок получил горячие кости (все шесть принесли очки).</summary>
+        public int HotDiceCount { get; internal set; }
     }
 }

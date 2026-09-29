@@ -21,6 +21,7 @@ namespace Zonk.UI.Windows
 
         /// <summary>Особое предложение (стартовый набор): магазин сразу на нём.</summary>
         Offer,
+        Leaderboards,
     }
 
     /// <summary>
@@ -44,6 +45,7 @@ namespace Zonk.UI.Windows
         [SerializeField] private RectTransform _adOffers;
         [SerializeField] private UiButtonView _adOfferTemplate;
         [SerializeField] private UiButtonView _offer;
+        [SerializeField] private UiButtonView _leaderboards;
 
         private readonly Choice<MainMenuChoice> _choice = new Choice<MainMenuChoice>();
         private IQuestService _questService;
@@ -54,6 +56,7 @@ namespace Zonk.UI.Windows
         private IInventory _inventory;
         private UiKit _kit;
         private ShopService _shopService;
+        private PlayerStats _stats;
         private bool _busy;
 
         /// <summary>Набор, который предлагает кнопка особого предложения.</summary>
@@ -62,8 +65,9 @@ namespace Zonk.UI.Windows
 #if UNITY_EDITOR
         public void EditorSetup(TMP_Text title, UiButtonView campaign, UiButtonView hotSeat, UiButtonView shop,
             UiButtonView settings, UiButtonView rules, UiButtonView quests, GameObject questsBadge, RectTransform adOffers,
-            UiButtonView adOfferTemplate, UiButtonView offer)
+            UiButtonView adOfferTemplate, UiButtonView offer, UiButtonView leaderboards)
         {
+            _leaderboards = leaderboards;
             _quests = quests;
             _questsBadge = questsBadge;
             _title = title;
@@ -80,8 +84,9 @@ namespace Zonk.UI.Windows
 
         [Inject]
         public void Construct(IQuestService quests, MenuAdRewards adRewards, ContentDatabase content, IInventory inventory, UiKit kit,
-            ShopService shop)
+            ShopService shop, PlayerStats stats)
         {
+            _stats = stats;
             _shopService = shop;
             _questService = quests;
             _adRewards = adRewards;
@@ -101,6 +106,8 @@ namespace Zonk.UI.Windows
                 _quests.OnClick(() => _choice.Set(MainMenuChoice.Quests));
             if (_offer != null)
                 _offer.OnClick(() => _choice.Set(MainMenuChoice.Offer));
+            if (_leaderboards != null)
+                _leaderboards.OnClick(() => _choice.Set(MainMenuChoice.Leaderboards));
         }
 
         protected override void OnShowing()
@@ -114,6 +121,13 @@ namespace Zonk.UI.Windows
                 _quests.SetText(T("menu.quests"));
             if (_questsBadge != null)
                 _questsBadge.SetActive(_questService != null && _questService.HasClaimable);
+
+            // Рекорды — только где у площадки есть таблицы (Яндекс; на VK и RuStore их нет).
+            if (_leaderboards != null)
+            {
+                _leaderboards.SetVisible(_stats != null && _stats.IsLeaderboardAvailable);
+                _leaderboards.SetText(T("menu.leaderboards"));
+            }
 
             Offer = FindOffer();
             if (_offer != null)

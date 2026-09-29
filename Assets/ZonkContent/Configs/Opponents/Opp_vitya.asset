@@ -16,7 +16,7 @@ MonoBehaviour:
   NameKey: opp.vitya
   TitleKey: opp.vitya.title
   RuleKey: 
-  Portrait: {fileID: 0}
+  Portrait: {fileID: 21300000, guid: 78329ff6212dde64199573cc68377ee7, type: 3}
   BodyColor: {r: 0.3, g: 0.35, b: 0.5, a: 1}
   Accessory: {fileID: 0}
   IsBoss: 0
@@ -25,6 +25,9 @@ MonoBehaviour:
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StarConditions:
+  - rid: 4243792294545719586
+  - rid: 4243792294545719587
   StakePayout: 0.4
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 096e3e429b23d4c498ffca9732e7ea3b, type: 2}
@@ -52,3 +55,11 @@ MonoBehaviour:
       type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
       data:
         Item: {fileID: 11400000, guid: a24cdadb60225194e92cd76b26771c82, type: 2}
+    - rid: 4243792294545719586
+      type: {class: WinByMarginStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Margin: 500
+    - rid: 4243792294545719587
+      type: {class: MaxZonksStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Zonks: 3

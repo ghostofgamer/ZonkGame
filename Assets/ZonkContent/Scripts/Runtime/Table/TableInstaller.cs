@@ -38,6 +38,7 @@ namespace Zonk.Table
             Container.Bind<StageDresser>().AsSingle();
             Container.Bind<OwnedContent>().AsSingle();
             Container.Bind<ShopFocus>().AsSingle();
+            Container.BindInterfacesAndSelfTo<TutorialDirector>().AsSingle();
 
             Container.Bind<ITableState>().To<MenuState>().AsSingle();
             Container.Bind<ITableState>().To<SettingsState>().AsSingle();
@@ -46,6 +47,7 @@ namespace Zonk.Table
             Container.Bind<ITableState>().To<CampaignState>().AsSingle();
             Container.Bind<ITableState>().To<RulesState>().AsSingle();
             Container.Bind<ITableState>().To<QuestsState>().AsSingle();
+            Container.Bind<ITableState>().To<LeaderboardsState>().AsSingle();
 
             Container.BindInterfacesTo<TableFlow>().AsSingle();
         }

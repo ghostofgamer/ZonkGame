@@ -18,6 +18,9 @@ namespace Zonk.Configs
         [Tooltip("Выгода относительно самого маленького пакета, % (только для подписи)")]
         public int BonusPercent;
 
+        [Tooltip("Иконка на карточке в магазине. Пусто — только число монет")]
+        public Sprite Icon;
+
         public int Order;
     }
 }

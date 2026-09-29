@@ -16,7 +16,7 @@ MonoBehaviour:
   NameKey: opp.claw
   TitleKey: opp.claw.title
   RuleKey: opp.claw.rule
-  Portrait: {fileID: 0}
+  Portrait: {fileID: 21300000, guid: 2d76215cc7ebf424f91e695fbbc7a2ec, type: 3}
   BodyColor: {r: 0.75, g: 0.2, b: 0.15, a: 1}
   Accessory: {fileID: 6265717507291405549, guid: c2c4633ed2829554b976130a4555dfc1, type: 3}
   IsBoss: 1
@@ -29,6 +29,9 @@ MonoBehaviour:
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StarConditions:
+  - rid: 4243792294545719563
+  - rid: 4243792294545719564
   StakePayout: 1.1
   Modifiers:
   - rid: 4243792294545719389
@@ -62,3 +65,10 @@ MonoBehaviour:
       data:
         Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
         Amount: 50
+    - rid: 4243792294545719563
+      type: {class: NoSpecialDiceStar, ns: Zonk.Configs, asm: Zonk}
+      data: 
+    - rid: 4243792294545719564
+      type: {class: MaxZonksStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Zonks: 1

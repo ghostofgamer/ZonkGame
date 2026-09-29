@@ -3,7 +3,7 @@ using Base.Services.Saves;
 
 namespace Zonk.Progress
 {
-    /// <summary>Настройки игрока: звук, музыка, скорость анимаций.</summary>
+    /// <summary>Настройки игрока: звук, музыка, скорость анимаций, выбранный язык.</summary>
     public interface IGameSettings
     {
         bool Sound { get; set; }
@@ -11,6 +11,9 @@ namespace Zonk.Progress
 
         /// <summary>Множитель скорости анимаций: 1 или 2.</summary>
         int Speed { get; set; }
+
+        /// <summary>Язык, выбранный игроком. Пусто — язык площадки (определяется при запуске).</summary>
+        string Language { get; set; }
 
         event Action Changed;
     }
@@ -44,6 +47,12 @@ namespace Zonk.Progress
         {
             get => Data.Speed < 1 ? 1 : Data.Speed;
             set => Set(() => Data.Speed = value < 1 ? 1 : value > 3 ? 3 : value);
+        }
+
+        public string Language
+        {
+            get => Data.Language;
+            set => Set(() => Data.Language = value);
         }
 
         private void Set(Action change)

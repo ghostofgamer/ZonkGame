@@ -91,6 +91,7 @@ namespace Zonk.UI
         private readonly ILocalization _localization;
         private readonly System.Collections.Generic.Stack<TMP_Text> _toasts = new System.Collections.Generic.Stack<TMP_Text>();
         private readonly System.Collections.Generic.Stack<Image> _bubbles = new System.Collections.Generic.Stack<Image>();
+        private readonly System.Collections.Generic.Stack<Image> _coins = new System.Collections.Generic.Stack<Image>();
         private Transform _poolRoot;
 
         public UiKit(ILocalization localization, GameConfig config)
@@ -239,6 +240,40 @@ namespace Zonk.UI
             panel.gameObject.SetActive(false);
             panel.transform.SetParent(PoolRoot, false);
             _bubbles.Push(panel);
+        }
+
+        /// <summary>Летящая монетка из пула (картинка UiConfig.CoinSprite). Вернуть — ReturnCoin.</summary>
+        public Image RentCoin(Transform parent)
+        {
+            Image coin = null;
+            while (coin == null && _coins.Count > 0)
+                coin = _coins.Pop();
+
+            if (coin == null)
+            {
+                coin = Panel("Coin", parent, Color.white);
+                coin.sprite = Config != null ? Config.CoinSprite : null;
+                coin.preserveAspect = true;
+                coin.raycastTarget = false;
+                coin.rectTransform.sizeDelta = new Vector2(56f, 56f);
+                if (coin.sprite == null)
+                    coin.color = UiColors.Gold;
+            }
+
+            coin.transform.SetParent(parent, false);
+            coin.transform.SetAsLastSibling();
+            coin.gameObject.SetActive(true);
+            return coin;
+        }
+
+        public void ReturnCoin(Image coin)
+        {
+            if (coin == null)
+                return;
+
+            coin.gameObject.SetActive(false);
+            coin.transform.SetParent(PoolRoot, false);
+            _coins.Push(coin);
         }
 
         /// <summary>Выключенный объект сцены, где ждут надписи из пулов (уничтожается вместе со сценой).</summary>

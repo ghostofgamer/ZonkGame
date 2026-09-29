@@ -16,7 +16,7 @@ MonoBehaviour:
   NameKey: opp.pit
   TitleKey: opp.pit.title
   RuleKey: 
-  Portrait: {fileID: 0}
+  Portrait: {fileID: 21300000, guid: cd28ae4405ddd7348abe8c91f2c6304c, type: 3}
   BodyColor: {r: 0.4, g: 0.5, b: 0.7, a: 1}
   Accessory: {fileID: 0}
   IsBoss: 0
@@ -27,6 +27,9 @@ MonoBehaviour:
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StarConditions:
+  - rid: 4243792294545719571
+  - rid: 4243792294545719572
   StakePayout: 0.7
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 096e3e429b23d4c498ffca9732e7ea3b, type: 2}
@@ -49,3 +52,11 @@ MonoBehaviour:
       data:
         Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
         Amount: 28
+    - rid: 4243792294545719571
+      type: {class: MaxZonksStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Zonks: 0
+    - rid: 4243792294545719572
+      type: {class: BigTurnStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Points: 1500

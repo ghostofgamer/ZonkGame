@@ -18,6 +18,9 @@ namespace Zonk.Configs
         [Tooltip("Относительные веса граней 1..6. Обычная кость: все по 1.")]
         public float[] Weights = { 1, 1, 1, 1, 1, 1 };
 
+        [Tooltip("Иконка на карточке в магазине. Пусто — только название")]
+        public Sprite Icon;
+
         [Tooltip("Порядок в магазине")]
         public int Order;
 

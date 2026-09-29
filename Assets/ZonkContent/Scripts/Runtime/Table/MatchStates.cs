@@ -29,11 +29,13 @@ namespace Zonk.Table
         private readonly IUiService _ui;
         private readonly IQuestService _quests;
         private readonly IDieMastery _mastery;
+        private readonly CurrencyConfig _coinsCurrency;
 
         public MatchAftermath(UiKit kit, TableView table, MatchPresenter presenter, RewardGranter granter,
             IRewardService rewards, IInterstitialService interstitials, ISaveStore saves, IUiService ui, IQuestService quests,
-            IDieMastery mastery)
+            IDieMastery mastery, GameConfig config)
         {
+            _coinsCurrency = config != null ? config.Coins : null;
             _quests = quests;
             _mastery = mastery;
             _kit = kit;
@@ -49,7 +51,8 @@ namespace Zonk.Table
         /// <summary>Показывает итоги. rewards выдаются здесь; удвоение: те же валютные награды ещё раз за рекламу.</summary>
         public async UniTask<ResultsChoice> ShowAsync(MatchOutcome outcome, IReadOnlyList<MatchParticipant> participants,
             IReadOnlyList<Reward> rewards, string interstitialTrigger, bool canAgain, CancellationToken ct,
-            IReadOnlyList<GrantedReward> alreadyGranted = null)
+            IReadOnlyList<GrantedReward> alreadyGranted = null, IReadOnlyList<string> notes = null, int starMask = 0,
+            int starCount = 0)
         {
             var match = outcome.Match;
             var winner = outcome.Winner >= 0 ? participants[outcome.Winner] : null;
@@ -81,7 +84,9 @@ namespace Zonk.Table
 
             var canDouble = HasCurrency(rewards) && localWon && _rewards.CanOffer;
             ResultsChoice choice;
-            var screen = await _ui.OpenAsync<ResultsWindow>(ct, w => w.Setup(match, title, color, granted, canDouble, canAgain));
+            var screen = await _ui.OpenAsync<ResultsWindow>(ct, w => w.Setup(match, title, color, granted, canDouble, canAgain, notes));
+            screen.PlayCoinsGained(granted, _coinsCurrency);
+            screen.ShowStars(starMask, starCount);
             try
             {
                 while (true)
@@ -269,6 +274,8 @@ namespace Zonk.Table
         private const string EnergyPlacement = "energy_refill";
 
         private readonly IQuestService _quests;
+        private readonly RewardGranter _granter;
+        private readonly PlayerStats _stats;
         private readonly UiKit _kit;
         private readonly TableView _table;
         private readonly ICampaignProgress _progress;
@@ -289,8 +296,11 @@ namespace Zonk.Table
         public CampaignState(UiKit kit, TableView table, ICampaignProgress progress, IWallet wallet, GameConfig config,
             ContentDatabase content, IInventory inventory, ILoadout loadout, OwnedContent owned,
             ParticipantFactory participants, MatchRunner runner, MatchAftermath aftermath, StageDresser dresser,
-            IRewardService rewards, IPlatformService platform, IUiService ui, IQuestService quests)
+            IRewardService rewards, IPlatformService platform, IUiService ui, IQuestService quests, RewardGranter granter,
+            PlayerStats stats)
         {
+            _stats = stats;
+            _granter = granter;
             _quests = quests;
             _kit = kit;
             _table = table;
@@ -405,7 +415,13 @@ namespace Zonk.Table
                     rewards.AddRange(mode.WinRewards);
             }
 
+            _stats.RecordCampaignMatch(won, outcome.Match.Players[0].BestTurn);
+
             var stakeRewards = new List<GrantedReward>();
+            var notes = new List<string>();
+            if (won)
+                AwardStars(opponent, outcome, me, stakeRewards, notes);
+
             if (stake > 0 && won)
             {
                 var payout = stake + CampaignWindow.StakeWin(opponent, stake);
@@ -418,7 +434,7 @@ namespace Zonk.Table
             }
 
             var choice = await _aftermath.ShowAsync(outcome, players, rewards, mode != null ? mode.InterstitialTrigger : null,
-                true, ct, stakeRewards);
+                true, ct, stakeRewards, notes, won ? _progress.GetStarMask(opponent) : 0, won ? StarsText.MaxStars(opponent) : 0);
 
             _dresser.ApplyEquipped();
 
@@ -429,6 +445,35 @@ namespace Zonk.Table
             }
 
             return choice == ResultsChoice.Again;
+        }
+
+        /// <summary>
+        /// Звёзды за победу: первая — сама победа, остальные — условия соперника. Новые звёзды дают награду
+        /// (GameConfig.NewStarRewards), в итогах — строка звёзд и какие условия выполнены впервые.
+        /// </summary>
+        private void AwardStars(OpponentConfig opponent, MatchOutcome outcome, MatchParticipant me, List<GrantedReward> granted,
+            List<string> notes)
+        {
+            var context = new StarContext(outcome.Match, 0, me.Dice);
+            var mask = 1;
+            for (var i = 0; i < opponent.StarConditions.Count; i++)
+            {
+                var condition = opponent.StarConditions[i];
+                if (condition != null && condition.IsMet(context))
+                    mask |= 1 << (i + 1);
+            }
+
+            var gained = _progress.AddStars(opponent, mask);
+
+            for (var bit = 0; bit < StarsText.MaxStars(opponent); bit++)
+            {
+                if ((gained & (1 << bit)) == 0)
+                    continue;
+
+                var text = bit == 0 ? _kit.T("star.win") : StarsText.Condition(opponent.StarConditions[bit - 1], _kit.T);
+                notes.Add(_kit.T("results.newStar", text));
+                granted.AddRange(_granter.Grant(_config.NewStarRewards));
+            }
         }
 
         /// <summary>Списывает энергию. Не хватает: предложить пополнение за рекламу.</summary>

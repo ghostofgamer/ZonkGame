@@ -188,6 +188,7 @@ namespace Zonk.Core.Match
             if (DiceInHandCount == 0 && Rules.HotDice)
             {
                 hotDice = true;
+                CurrentPlayer.HotDiceCount++;
                 for (var die = 0; die < DiceCount; die++)
                 {
                     _inHand[die] = true;

@@ -39,11 +39,13 @@ namespace Zonk.MatchFlow
         private readonly IUiService _ui;
         private readonly IQuestService _quests;
         private readonly IDieMastery _mastery;
+        private readonly Zonk.Table.TutorialDirector _tutorial;
 
         public MatchRunner(TableView table, MatchPresenter presenter, ReactionDirector reactions, IChatChannel chat, UiKit kit,
             GameConfig config, IGameSettings settings, ContentDatabase content, IUiService ui, IQuestService quests,
-            IDieMastery mastery)
+            IDieMastery mastery, Zonk.Table.TutorialDirector tutorial)
         {
+            _tutorial = tutorial;
             _quests = quests;
             _mastery = mastery;
             _table = table;
@@ -115,6 +117,7 @@ namespace Zonk.MatchFlow
                 }
                 finally
                 {
+                    _tutorial.Hide();
                     hud.PhraseChosen -= OnPhraseChosen;
                     hud.SurrenderRequested -= OnSurrender;
                     _chat.Received -= OnPhraseReceived;
@@ -155,6 +158,8 @@ namespace Zonk.MatchFlow
             var player = match.CurrentPlayerIndex;
             var controller = controllers[player];
             progress.Turn[player].Reset();
+            var local = progress.IsLocal(player);
+            _tutorial.Show(local ? TutorialTrigger.BeforeFirstRoll : TutorialTrigger.OpponentTurn);
 
             hud.Refresh(match);
             await _presenter.BeginTurnAsync(player, ct);
@@ -167,6 +172,8 @@ namespace Zonk.MatchFlow
 
                 if (roll.IsZonk)
                 {
+                    if (local)
+                        _tutorial.Show(TutorialTrigger.Zonk);
                     hud.Refresh(match);
                     _reactions.Fire(player, MatchEventType.SelfZonk, MatchEventType.OtherZonk);
                     var toast = hud.ToastAsync(_kit.T("match.zonk"), UiColors.Bad, 0.7f, ct);
@@ -177,9 +184,14 @@ namespace Zonk.MatchFlow
                     return;
                 }
 
+                if (local)
+                    _tutorial.Show(TutorialTrigger.ChooseDice);
+
                 var decision = await controller.DecideAsync(match, ct);
                 var keep = match.Keep(decision.Keep);
                 OnKeep(progress, player, keep);
+                if (local)
+                    _tutorial.Show(keep.HotDice ? TutorialTrigger.HotDice : TutorialTrigger.AfterKeep);
                 hud.Refresh(match);
                 await _presenter.PlayKeepAsync(keep, ct);
 
@@ -200,6 +212,10 @@ namespace Zonk.MatchFlow
 
                     var end = match.Bank();
                     OnBank(progress, player, end.Banked);
+                    if (local)
+                        _tutorial.Show(TutorialTrigger.Bank);
+                    if (end.StartedFinalRound)
+                        _tutorial.Show(TutorialTrigger.FinalRound);
                     hud.Refresh(match);
                     if (end.Banked >= _config.BigBankScore)
                         _reactions.Fire(player, MatchEventType.SelfBigBank, MatchEventType.OtherBigBank);

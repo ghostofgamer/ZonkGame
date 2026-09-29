@@ -24,6 +24,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _back;
         [SerializeField] private RectTransform _items;
         [SerializeField] private UiButtonView _cardTemplate;
+
+        [Tooltip("Префаб карточки товара (Prefabs/UI/Parts/ShopCard). Пусто — старый шаблон-кнопка _cardTemplate")]
+        [SerializeField] private ShopCardView _cardPrefab;
         [SerializeField] private TMP_Text _itemName;
         [SerializeField] private RectTransform _details;
         [SerializeField] private UiButtonView _detailButtonTemplate;
@@ -43,6 +46,7 @@ namespace Zonk.UI.Windows
         private List<CoinPackConfig> _coinPacks;
         private bool _coinsTab;
         private ContentConfig _current;
+        private readonly Dictionary<ContentConfig, ShopCardView> _cards = new Dictionary<ContentConfig, ShopCardView>();
         private bool _diceTab;
         private CosmeticSlotConfig _slot;
         private CancellationToken _ct;
@@ -69,8 +73,9 @@ namespace Zonk.UI.Windows
 #if UNITY_EDITOR
         public void EditorSetup(TMP_Text title, RectTransform tabs, UiButtonView tabTemplate, UiButtonView back, RectTransform items,
             UiButtonView cardTemplate, TMP_Text itemName, RectTransform details, UiButtonView detailButtonTemplate,
-            TMP_Text detailTextTemplate)
+            TMP_Text detailTextTemplate, ShopCardView cardPrefab)
         {
+            _cardPrefab = cardPrefab;
             _title = title;
             _tabs = tabs;
             _tabTemplate = tabTemplate;
@@ -87,7 +92,8 @@ namespace Zonk.UI.Windows
         private void Awake()
         {
             _tabTemplate.gameObject.SetActive(false);
-            _cardTemplate.gameObject.SetActive(false);
+            if (_cardTemplate != null)
+                _cardTemplate.gameObject.SetActive(false);
             _detailButtonTemplate.gameObject.SetActive(false);
             _detailTextTemplate.gameObject.SetActive(false);
             _back.OnClick(() => _close.Set(true));
@@ -194,7 +200,7 @@ namespace Zonk.UI.Windows
             _table.Camera.MoveToAsync(shot, 0.6f, _ct).Forget();
             ShowDiceShowcase(slot != null && slot.Applier is DiceSkinApplier);
 
-            Clear(_items, _cardTemplate.transform);
+            ClearCards();
 
             var entries = new List<ContentConfig>();
             if (slot != null)
@@ -214,10 +220,9 @@ namespace Zonk.UI.Windows
                 var owned = _inventory.IsOwned(entry);
                 var equipped = entry is CosmeticItemConfig cosmetic && _loadout.IsEquipped(cosmetic);
                 var equippedKey = slot != null && slot.MultiSelect ? "shop.selected" : "shop.equipped";
-                var card = _cardTemplate.Spawn(_items);
-                card.SetText(T(entry.NameKey) + "\n" + T(equipped ? equippedKey : owned ? "shop.owned" : "shop.forSale"));
-                card.SetColor(equipped ? UiColors.ButtonAccent : owned ? UiColors.Button : UiColors.ButtonMuted);
-                card.OnClick(() => SelectItem(captured));
+                AddCard(entry, T(entry.NameKey), IconOf(entry), owned ? null : PriceSummary(entry),
+                    T(equipped ? equippedKey : owned ? "shop.owned" : "shop.forSale"),
+                    equipped ? UiColors.ButtonAccent : owned ? UiColors.Button : UiColors.ButtonMuted, () => SelectItem(captured));
             }
 
             SelectItem(slot != null ? (ContentConfig)_loadout.GetEquipped(slot) : entries.Count > 0 ? entries[0] : null);
@@ -233,15 +238,13 @@ namespace Zonk.UI.Windows
             _title.text = T("shop.dice");
             _table.Camera.MoveToAsync("shop_dice", 0.6f, _ct).Forget();
 
-            Clear(_items, _cardTemplate.transform);
+            ClearCards();
             foreach (var die in _shopDice)
             {
                 var captured = die;
                 var owned = _inventory.IsOwned(die);
-                var card = _cardTemplate.Spawn(_items);
-                card.SetText(T(die.NameKey) + "\n" + T(owned ? "shop.owned" : "shop.forSale"));
-                card.SetColor(owned ? UiColors.Button : UiColors.ButtonMuted);
-                card.OnClick(() => SelectItem(captured));
+                AddCard(die, T(die.NameKey), die.Icon, owned ? null : PriceSummary(die), T(owned ? "shop.owned" : "shop.forSale"),
+                    owned ? UiColors.Button : UiColors.ButtonMuted, () => SelectItem(captured));
             }
 
             SelectItem(_shopDice.Count > 0 ? _shopDice[0] : null);
@@ -268,17 +271,86 @@ namespace Zonk.UI.Windows
             _title.text = T("shop.coins");
             _table.Camera.MoveToAsync(CameraShots.Menu, 0.6f, _ct).Forget();
 
-            Clear(_items, _cardTemplate.transform);
+            ClearCards();
             foreach (var pack in _coinPacks)
             {
                 var captured = pack;
-                var card = _cardTemplate.Spawn(_items);
-                card.SetText(pack.Amount + "\n" + (pack.BonusPercent > 0 ? T("shop.bonus", pack.BonusPercent) : T(pack.NameKey)));
-                card.SetColor(pack.BonusPercent > 0 ? UiColors.ButtonAccent : UiColors.Button);
-                card.OnClick(() => SelectItem(captured));
+                AddCard(pack, pack.Amount + " " + (pack.Currency != null ? T(pack.Currency.NameKey) : string.Empty), pack.Icon,
+                    RealPriceText(pack.ProductId), pack.BonusPercent > 0 ? T("shop.bonus", pack.BonusPercent) : T(pack.NameKey),
+                    pack.BonusPercent > 0 ? UiColors.ButtonAccent : UiColors.Button, () => SelectItem(captured));
             }
 
             SelectItem(_coinPacks.Count > 0 ? _coinPacks[0] : null);
+        }
+
+        /// <summary>Карточка товара: из префаба Parts/ShopCard, в старом префабе окна — кнопка-шаблон с текстом.</summary>
+        private void AddCard(ContentConfig item, string name, Sprite icon, string price, string state, Color color,
+            UnityEngine.Events.UnityAction onClick)
+        {
+            if (_cardPrefab != null)
+            {
+                var card = Instantiate(_cardPrefab, _items);
+                card.gameObject.SetActive(true);
+                card.Setup(name, icon, price, state, color, onClick);
+                _cards[item] = card;
+                return;
+            }
+
+            var button = _cardTemplate.Spawn(_items);
+            button.SetText(name + "\n" + (string.IsNullOrEmpty(price) ? state : price));
+            button.SetColor(color);
+            button.OnClick(onClick);
+        }
+
+        private void ClearCards()
+        {
+            _cards.Clear();
+            foreach (Transform child in _items)
+            {
+                if (_cardTemplate == null || child != _cardTemplate.transform)
+                    Destroy(child.gameObject);
+            }
+        }
+
+        private static Sprite IconOf(ContentConfig item)
+        {
+            switch (item)
+            {
+                case CosmeticItemConfig cosmetic: return cosmetic.Icon;
+                case ThemeSetConfig theme: return theme.Icon;
+                case DieConfig die: return die.Icon;
+                case CoinPackConfig pack: return pack.Icon;
+                default: return null;
+            }
+        }
+
+        /// <summary>Цена на карточке: монеты, иначе реклама, иначе покупка (цена площадки), иначе «за прохождение».</summary>
+        private string PriceSummary(ContentConfig item)
+        {
+            var price = Pricing.PriceOf(item);
+            if (price == null)
+                return null;
+
+            string ads = null, purchase = null, progress = null;
+            foreach (var option in price.Options)
+            {
+                switch (option)
+                {
+                    case CurrencyPriceOption currency when currency.Currency != null:
+                        return currency.Amount + " " + T(currency.Currency.NameKey);
+                    case RewardedAdPriceOption rewarded when _shop.IsOptionAvailable(option):
+                        ads = ads ?? T("shop.cardAds", _inventory.GetAdProgress(item), rewarded.AdsRequired);
+                        break;
+                    case PurchasePriceOption paid when _shop.IsOptionAvailable(option):
+                        purchase = purchase ?? (_shop.PriceText(paid.ProductId) ?? T("shop.cardReal"));
+                        break;
+                    case ProgressPriceOption _:
+                        progress = progress ?? T("shop.cardProgress");
+                        break;
+                }
+            }
+
+            return ads ?? purchase ?? progress;
         }
 
         private async UniTaskVoid LoadPricesAsync()
@@ -298,6 +370,9 @@ namespace Zonk.UI.Windows
 
         private void SelectItem(ContentConfig item)
         {
+            foreach (var pair in _cards)
+                pair.Value.SetSelected(pair.Key == item);
+
             Clear(_details, _detailButtonTemplate.transform, _detailTextTemplate.transform);
             _itemName.text = item != null ? T(item.NameKey) : string.Empty;
             if (item == null)
@@ -324,6 +399,12 @@ namespace Zonk.UI.Windows
 
             if (item is DieConfig described && !string.IsNullOrEmpty(described.DescriptionKey))
                 DetailText(T(described.DescriptionKey), UiColors.Text);
+
+            // Две «костяные» вкладки легко спутать: вид костей меняет только внешний вид, особая кость — шансы граней.
+            if (item is DieConfig)
+                DetailText(T("shop.dieHint"), UiColors.TextMuted);
+            else if (item is CosmeticItemConfig skin && skin.Slot != null && skin.Slot.Applier is DiceSkinApplier)
+                DetailText(T("shop.skinHint"), UiColors.TextMuted);
 
             if (_inventory.IsOwned(item))
             {

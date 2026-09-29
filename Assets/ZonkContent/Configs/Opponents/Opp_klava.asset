@@ -16,7 +16,7 @@ MonoBehaviour:
   NameKey: opp.klava
   TitleKey: opp.klava.title
   RuleKey: 
-  Portrait: {fileID: 0}
+  Portrait: {fileID: 21300000, guid: 47cda0aa1fc51b246b07594503dca151, type: 3}
   BodyColor: {r: 0.55, g: 0.3, b: 0.35, a: 1}
   Accessory: {fileID: 6428876330090902694, guid: 5b162329c97facd46a12a125e3424ca3, type: 3}
   IsBoss: 0
@@ -25,6 +25,9 @@ MonoBehaviour:
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StarConditions:
+  - rid: 4243792294545719588
+  - rid: 4243792294545719589
   StakePayout: 0.6
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 096e3e429b23d4c498ffca9732e7ea3b, type: 2}
@@ -52,3 +55,11 @@ MonoBehaviour:
       type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
       data:
         Item: {fileID: 11400000, guid: c501262f539cdc84798bc1d47e462cb6, type: 2}
+    - rid: 4243792294545719588
+      type: {class: MaxTurnsStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Turns: 16
+    - rid: 4243792294545719589
+      type: {class: BigTurnStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Points: 800

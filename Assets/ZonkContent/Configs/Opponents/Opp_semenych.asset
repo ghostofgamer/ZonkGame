@@ -16,7 +16,7 @@ MonoBehaviour:
   NameKey: opp.semenych
   TitleKey: opp.semenych.title
   RuleKey: 
-  Portrait: {fileID: 0}
+  Portrait: {fileID: 21300000, guid: ee30be03f9054134da0995a7001a1c75, type: 3}
   BodyColor: {r: 0.25, g: 0.35, b: 0.55, a: 1}
   Accessory: {fileID: 2827515006440756545, guid: 1aa3c401c6857e140ac2eb5a20c4cc17, type: 3}
   IsBoss: 0
@@ -26,6 +26,9 @@ MonoBehaviour:
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StarConditions:
+  - rid: 4243792294545719573
+  - rid: 4243792294545719574
   StakePayout: 0.7
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 096e3e429b23d4c498ffca9732e7ea3b, type: 2}
@@ -53,3 +56,11 @@ MonoBehaviour:
       data:
         Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
         Amount: 12
+    - rid: 4243792294545719573
+      type: {class: HotDiceStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Count: 1
+    - rid: 4243792294545719574
+      type: {class: MaxTurnsStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Turns: 14

@@ -16,7 +16,7 @@ MonoBehaviour:
   NameKey: opp.lutik
   TitleKey: opp.lutik.title
   RuleKey: 
-  Portrait: {fileID: 0}
+  Portrait: {fileID: 21300000, guid: cfa10db5dc425ad47b3ded401f117bfa, type: 3}
   BodyColor: {r: 0.3, g: 0.5, b: 0.35, a: 1}
   Accessory: {fileID: 6265717507291405549, guid: c2c4633ed2829554b976130a4555dfc1, type: 3}
   IsBoss: 0
@@ -26,6 +26,9 @@ MonoBehaviour:
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StarConditions:
+  - rid: 4243792294545719553
+  - rid: 4243792294545719554
   StakePayout: 0.4
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 096e3e429b23d4c498ffca9732e7ea3b, type: 2}
@@ -53,3 +56,11 @@ MonoBehaviour:
       type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
       data:
         Item: {fileID: 11400000, guid: c579ce5a54a60b945885824f3960b84e, type: 2}
+    - rid: 4243792294545719553
+      type: {class: BigTurnStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Points: 1000
+    - rid: 4243792294545719554
+      type: {class: MaxTurnsStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Turns: 13

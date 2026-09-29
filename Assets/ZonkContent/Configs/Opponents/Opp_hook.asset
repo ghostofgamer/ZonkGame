@@ -16,7 +16,7 @@ MonoBehaviour:
   NameKey: opp.hook
   TitleKey: opp.hook.title
   RuleKey: 
-  Portrait: {fileID: 0}
+  Portrait: {fileID: 21300000, guid: 824b5461afc525a42a4690f4f1c29c0f, type: 3}
   BodyColor: {r: 0.3, g: 0.25, b: 0.2, a: 1}
   Accessory: {fileID: 6265717507291405549, guid: c2c4633ed2829554b976130a4555dfc1, type: 3}
   IsBoss: 0
@@ -28,6 +28,9 @@ MonoBehaviour:
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StarConditions:
+  - rid: 4243792294545719580
+  - rid: 4243792294545719581
   StakePayout: 0.9
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 5b73bd7a00b5bc949ae07e3ea2c1eb9b, type: 2}
@@ -50,3 +53,11 @@ MonoBehaviour:
       data:
         Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
         Amount: 30
+    - rid: 4243792294545719580
+      type: {class: BigTurnStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Points: 2000
+    - rid: 4243792294545719581
+      type: {class: MaxZonksStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Zonks: 1

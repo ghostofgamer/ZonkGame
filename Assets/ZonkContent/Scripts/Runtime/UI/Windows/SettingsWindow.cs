@@ -1,12 +1,19 @@
+using System;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 using Zenject;
+using Zonk.Configs;
 using Zonk.Progress;
 using Zonk.UI.Views;
 
 namespace Zonk.UI.Windows
 {
-    /// <summary>Настройки: звук, музыка, скорость анимаций. Закрытие — WaitCloseRequestAsync.</summary>
+    /// <summary>
+    /// Настройки: звук, музыка, скорость анимаций и язык. Кнопка языка — флаг и название текущего языка
+    /// (деталь Parts/LanguageButton), открывает окно выбора языка. Закрытие — WaitCloseRequestAsync.
+    /// </summary>
     public sealed class SettingsWindow : UiWindow
     {
         [SerializeField] private TMP_Text _title;
@@ -15,22 +22,34 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _speed;
         [SerializeField] private UiButtonView _back;
 
+        [Tooltip("Кнопка текущего языка (копия Parts/LanguageButton). Пусто — выбора языка в окне нет")]
+        [SerializeField] private LanguageButtonView _language;
+
         private IGameSettings _settings;
+        private IUiService _ui;
+        private LanguagePreference _languages;
+        private UiConfig _uiConfig;
+        private bool _choosing;
 
         [Inject]
-        public void Construct(IGameSettings settings)
+        public void Construct(IGameSettings settings, IUiService ui, LanguagePreference languages, GameConfig config)
         {
             _settings = settings;
+            _ui = ui;
+            _languages = languages;
+            _uiConfig = config != null ? config.Ui : null;
         }
 
 #if UNITY_EDITOR
-        public void EditorSetup(TMP_Text title, UiButtonView sound, UiButtonView music, UiButtonView speed, UiButtonView back)
+        public void EditorSetup(TMP_Text title, UiButtonView sound, UiButtonView music, UiButtonView speed, UiButtonView back,
+            LanguageButtonView language)
         {
             _title = title;
             _sound = sound;
             _music = music;
             _speed = speed;
             _back = back;
+            _language = language;
         }
 #endif
 
@@ -56,16 +75,59 @@ namespace Zonk.UI.Windows
 
         protected override void OnShowing()
         {
-            _title.text = T("menu.settings");
-            _back.SetText(T("ui.back"));
             Refresh();
         }
 
         private void Refresh()
         {
+            _title.text = T("menu.settings");
+            _back.SetText(T("ui.back"));
             _sound.SetText(T(_settings.Sound ? "settings.soundOn" : "settings.soundOff"));
             _music.SetText(T(_settings.Music ? "settings.musicOn" : "settings.musicOff"));
             _speed.SetText(T("settings.speed", _settings.Speed));
+
+            if (_language != null)
+            {
+                var code = Localization.Language;
+                _language.Setup(LanguageWindow.NativeName(code, Localization), _uiConfig != null ? _uiConfig.FlagOf(code) : null, false,
+                    () => ChooseLanguageAsync().Forget());
+            }
+        }
+
+        private async UniTaskVoid ChooseLanguageAsync()
+        {
+            if (_choosing || _ui == null)
+                return;
+
+            _choosing = true;
+            try
+            {
+                var lifetime = this.GetCancellationTokenOnDestroy();
+                var window = await _ui.OpenAsync<LanguageWindow>(lifetime);
+                string code;
+                try
+                {
+                    code = await window.WaitChoiceAsync(lifetime);
+                }
+                finally
+                {
+                    await _ui.CloseAsync(window, CancellationToken.None);
+                }
+
+                if (this == null || string.IsNullOrEmpty(code) || code == Localization.Language)
+                    return;
+
+                // Язык сразу во всём: окна за настройками откроются заново уже на нём.
+                _languages.Choose(code);
+                Refresh();
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            finally
+            {
+                _choosing = false;
+            }
         }
     }
 }

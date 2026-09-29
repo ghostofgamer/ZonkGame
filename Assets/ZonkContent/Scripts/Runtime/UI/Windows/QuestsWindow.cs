@@ -60,7 +60,9 @@ namespace Zonk.UI.Windows
 
         private void Awake()
         {
-            _rowTemplate.gameObject.SetActive(false);
+            // Строка может быть префабом-деталью (Parts/QuestRow) или шаблоном внутри окна: выключаем только шаблон.
+            if (_rowTemplate.gameObject.scene.IsValid())
+                _rowTemplate.gameObject.SetActive(false);
             _dailyTab.OnClick(() => ShowPeriod(QuestPeriod.Daily));
             _weeklyTab.OnClick(() => ShowPeriod(QuestPeriod.Weekly));
             _back.OnClick(RequestClose);
@@ -129,7 +131,7 @@ namespace Zonk.UI.Windows
             {
                 var texts = new List<string>();
                 foreach (var reward in granted)
-                    texts.Add(reward.Currency != null ? reward.Amount + " " + T(reward.Currency.NameKey) : T(reward.Item.NameKey));
+                    texts.Add(reward.Currency != null ? reward.Amount + " " + T(reward.Currency.NameKey) : RewardNames.Describe(reward.Item, T));
                 Toast.ShowAsync(_kit, transform, T("quests.got", string.Join(", ", texts)), UiColors.Good, 0.9f,
                     this.GetCancellationTokenOnDestroy()).Forget();
             }
@@ -225,7 +227,7 @@ namespace Zonk.UI.Windows
                         parts.Add(currency.Amount + " " + T(currency.Currency.NameKey));
                         break;
                     case ContentReward content when content.Item != null:
-                        parts.Add(T(content.Item.NameKey));
+                        parts.Add(RewardNames.Describe(content.Item, T));
                         break;
                 }
             }

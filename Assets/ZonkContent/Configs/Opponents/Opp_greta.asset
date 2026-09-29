@@ -16,7 +16,7 @@ MonoBehaviour:
   NameKey: opp.greta
   TitleKey: opp.greta.title
   RuleKey: 
-  Portrait: {fileID: 0}
+  Portrait: {fileID: 21300000, guid: e3b7fda39aa38f64b8e01dc9a0027e96, type: 3}
   BodyColor: {r: 0.25, g: 0.3, b: 0.45, a: 1}
   Accessory: {fileID: 6428876330090902694, guid: 5b162329c97facd46a12a125e3424ca3, type: 3}
   IsBoss: 0
@@ -28,6 +28,9 @@ MonoBehaviour:
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StarConditions:
+  - rid: 4243792294545719557
+  - rid: 4243792294545719558
   StakePayout: 1
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 096e3e429b23d4c498ffca9732e7ea3b, type: 2}
@@ -50,3 +53,10 @@ MonoBehaviour:
       data:
         Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
         Amount: 30
+    - rid: 4243792294545719557
+      type: {class: MaxTurnsStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Turns: 10
+    - rid: 4243792294545719558
+      type: {class: NoSpecialDiceStar, ns: Zonk.Configs, asm: Zonk}
+      data: 

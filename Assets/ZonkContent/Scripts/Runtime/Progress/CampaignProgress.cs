@@ -31,6 +31,15 @@ namespace Zonk.Progress
 
         /// <summary>Первая глава, в которой есть непобеждённый открытый соперник, иначе последняя.</summary>
         ChapterConfig CurrentChapter { get; }
+
+        /// <summary>Звёзды соперника маской: бит 0 — победа, бит N — условие N-1.</summary>
+        int GetStarMask(OpponentConfig opponent);
+
+        /// <summary>Добавить звёзды; возвращает маску новых (раньше не полученных).</summary>
+        int AddStars(OpponentConfig opponent, int mask);
+
+        /// <summary>Сколько звёзд собрано во всей кампании (для таблицы лидеров и наград).</summary>
+        int TotalStars { get; }
     }
 
     public sealed class CampaignProgress : ICampaignProgress
@@ -82,6 +91,63 @@ namespace Zonk.Progress
             Data.Beaten.Add(opponent.Id);
             _saves.RequestSave();
             return true;
+        }
+
+        public int GetStarMask(OpponentConfig opponent)
+        {
+            if (opponent == null)
+                return 0;
+
+            foreach (var entry in Data.Stars)
+            {
+                if (entry.Id == opponent.Id)
+                    return entry.Mask;
+            }
+
+            // Сохранение до звёзд: побеждённый соперник уже имеет первую звезду.
+            return IsBeaten(opponent) ? 1 : 0;
+        }
+
+        public int AddStars(OpponentConfig opponent, int mask)
+        {
+            if (opponent == null || mask == 0)
+                return 0;
+
+            var old = GetStarMask(opponent);
+            var gained = mask & ~old;
+            if (gained == 0)
+                return 0;
+
+            var data = Data;
+            var entry = data.Stars.Find(e => e.Id == opponent.Id);
+            if (entry == null)
+                data.Stars.Add(entry = new StarEntry { Id = opponent.Id });
+            entry.Mask = old | mask;
+            _saves.RequestSave();
+            return gained;
+        }
+
+        public int TotalStars
+        {
+            get
+            {
+                var total = 0;
+                foreach (var chapter in _chapters)
+                {
+                    foreach (var opponent in chapter.Opponents)
+                        total += CountBits(GetStarMask(opponent));
+                }
+
+                return total;
+            }
+        }
+
+        public static int CountBits(int mask)
+        {
+            var count = 0;
+            for (; mask != 0; mask &= mask - 1)
+                count++;
+            return count;
         }
 
         public bool IsIntroSeen(ChapterConfig chapter) => Data.SeenIntros.Contains(chapter.Id);
