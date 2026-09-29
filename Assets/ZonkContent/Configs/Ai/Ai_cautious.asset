@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 037d6d32c382f1f46a5e46dd59b281f6, type: 3}
+  m_Name: Ai_cautious
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.AiProfileConfig
+  Id: ai_cautious
+  NameKey: ai.cautious
+  Selection:
+    rid: 4243792291812081798
+  Risk:
+    rid: 4243792291812081799
+  MistakeChance: 0.15
+  ThinkDelay: {x: 0.6, y: 1.4}
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792291812081798
+      type: {class: GreedySelection, ns: Zonk.Core.Ai, asm: Zonk.Core}
+      data: 
+    - rid: 4243792291812081799
+      type: {class: ThresholdRisk, ns: Zonk.Core.Ai, asm: Zonk.Core}
+      data:
+        BankAt: fa000000fa0000002c0100009001000020030000a0860100
+        BehindAggression: 0.2
+        AheadCaution: 0.3
+        Jitter: 0.15

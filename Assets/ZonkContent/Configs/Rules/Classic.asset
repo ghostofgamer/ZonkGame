@@ -1,0 +1,72 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6bcca8ec03ff54e4eac27c4ac0c6170f, type: 3}
+  m_Name: Classic
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.RuleSetConfig
+  Id: rules_classic
+  NameKey: rules.classic
+  TargetScore: 4000
+  EntryScore: 0
+  MinBankScore: 0
+  ThreeZonkPenalty: 0
+  HotDice: 1
+  FinalRound: 1
+  Rules:
+  - rid: 4243792291812081738
+  - rid: 4243792291812081739
+  - rid: 4243792291812081740
+  - rid: 4243792291812081741
+  - rid: 4243792291812081742
+  - rid: 4243792291812081743
+  - rid: 4243792291812081744
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792291812081738
+      type: {class: SingleDieRule, ns: Zonk.Core.Rules, asm: Zonk.Core}
+      data:
+        Face: 1
+        Points: 100
+    - rid: 4243792291812081739
+      type: {class: SingleDieRule, ns: Zonk.Core.Rules, asm: Zonk.Core}
+      data:
+        Face: 5
+        Points: 50
+    - rid: 4243792291812081740
+      type: {class: OfAKindRule, ns: Zonk.Core.Rules, asm: Zonk.Core}
+      data:
+        MinCount: 3
+        TriplePoints: e8030000c80000002c01000090010000f401000058020000
+        ExtraDieMultiplier: 2
+    - rid: 4243792291812081741
+      type: {class: StraightRule, ns: Zonk.Core.Rules, asm: Zonk.Core}
+      data:
+        From: 1
+        To: 6
+        Points: 1500
+    - rid: 4243792291812081742
+      type: {class: StraightRule, ns: Zonk.Core.Rules, asm: Zonk.Core}
+      data:
+        From: 1
+        To: 5
+        Points: 500
+    - rid: 4243792291812081743
+      type: {class: StraightRule, ns: Zonk.Core.Rules, asm: Zonk.Core}
+      data:
+        From: 2
+        To: 6
+        Points: 750
+    - rid: 4243792291812081744
+      type: {class: ThreePairsRule, ns: Zonk.Core.Rules, asm: Zonk.Core}
+      data:
+        Points: 750
+        FourAndPairCounts: 1

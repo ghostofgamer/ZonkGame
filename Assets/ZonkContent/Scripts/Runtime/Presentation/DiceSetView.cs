@@ -1,0 +1,123 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using Zonk.Configs;
+using Zonk.Core.Match;
+
+namespace Zonk.Presentation
+{
+    /// <summary>
+    /// Шесть костей на столе. Кости общие для всех игроков: в начале хода они получают скин и метки
+    /// костей того, кто ходит. Номер кости = номер слота в наборе игрока и в ZonkMatch.
+    /// </summary>
+    public sealed class DiceSetView : MonoBehaviour
+    {
+        [SerializeField] private List<DieView> _dice = new List<DieView>();
+
+        private readonly List<int> _selection = new List<int>();
+
+        public event Action<IReadOnlyList<int>> SelectionChanged;
+
+        public IReadOnlyList<DieView> Dice => _dice;
+        public IReadOnlyList<int> Selection => _selection;
+
+#if UNITY_EDITOR
+        public void EditorSetup(List<DieView> dice)
+        {
+            _dice = dice;
+        }
+#endif
+
+        private void Awake()
+        {
+            for (var i = 0; i < _dice.Count; i++)
+            {
+                _dice[i].Init(i);
+                _dice[i].Clicked += OnDieClicked;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            foreach (var die in _dice)
+            {
+                if (die != null)
+                    die.Clicked -= OnDieClicked;
+            }
+        }
+
+        public DieView this[int slot] => _dice[slot];
+
+        /// <summary>Модель кости сделана с ребром baseSize; размер на столе задаёт GameConfig.DieSize.</summary>
+        public void SetDieSize(float size, float baseSize = 0.3f)
+        {
+            if (size <= 0f || baseSize <= 0f)
+                return;
+
+            foreach (var die in _dice)
+                die.transform.localScale = Vector3.one * (size / baseSize);
+        }
+
+        public void SetSkin(CosmeticItemConfig skin)
+        {
+            foreach (var die in _dice)
+                die.SetSkin(skin);
+        }
+
+        /// <summary>Метки особых костей набора. dice: по слотам, null = обычная.</summary>
+        public void SetLoadout(IReadOnlyList<DieConfig> dice)
+        {
+            for (var i = 0; i < _dice.Count; i++)
+            {
+                var config = dice != null && i < dice.Count ? dice[i] : null;
+                _dice[i].SetMarker(config != null && config.IsSpecial ? config.MarkerColor : Color.clear);
+            }
+        }
+
+        public void SetVisible(bool visible)
+        {
+            foreach (var die in _dice)
+                die.SetVisible(visible);
+        }
+
+        /// <summary>Разрешить выбор костей, которые сейчас в руке и брошены.</summary>
+        public void EnableSelection(ZonkMatch match)
+        {
+            ClearSelection(false);
+            for (var i = 0; i < _dice.Count; i++)
+                _dice[i].Interactable = match.IsInHand(i) && match.Faces[i] > 0;
+        }
+
+        public void DisableSelection()
+        {
+            foreach (var die in _dice)
+                die.Interactable = false;
+        }
+
+        public void ClearSelection(bool notify = true)
+        {
+            _selection.Clear();
+            foreach (var die in _dice)
+                die.SetSelected(false);
+            if (notify)
+                SelectionChanged?.Invoke(_selection);
+        }
+
+        /// <summary>Выбор кости со стороны (ИИ показывает, что откладывает).</summary>
+        public void Select(int slot, bool selected)
+        {
+            if (selected && !_selection.Contains(slot))
+                _selection.Add(slot);
+            else if (!selected)
+                _selection.Remove(slot);
+
+            _dice[slot].SetSelected(selected);
+            SelectionChanged?.Invoke(_selection);
+        }
+
+        private void OnDieClicked(DieView die)
+        {
+            Select(die.Slot, !_selection.Contains(die.Slot));
+        }
+    }
+}

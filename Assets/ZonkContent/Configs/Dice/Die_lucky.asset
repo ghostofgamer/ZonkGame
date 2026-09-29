@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f8af91dc3dc60b24894f50d73fd0a50b, type: 3}
+  m_Name: Die_lucky
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.DieConfig
+  Id: die_lucky
+  NameKey: die.lucky
+  DescriptionKey: die.lucky.desc
+  Weights:
+  - 1.3
+  - 1
+  - 1
+  - 1
+  - 0.6
+  - 1
+  MarkerColor: {r: 1, g: 0.8, b: 0.2, a: 1}
+  Price:
+    Options:
+    - rid: 4243792291812081745
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792291812081745
+      type: {class: ProgressPriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        HintKey: 

@@ -7,7 +7,7 @@
 
 - **Код шаблона** (`Assets/Scripts`, сборки `Base.*`) в игре не переименовывается. Исправления, сделанные в игре,
   которые касаются шаблона, переносятся в шаблон, и наоборот.
-- **Код игры** живёт в `Assets/Game/<Название>` со своей сборкой (asmdef) и своим пространством имён.
+- **Код игры** живёт в `Assets/<Название>Content` (у Зонка `Assets/ZonkContent`) со своей сборкой (asmdef) и своим пространством имён.
   Он ссылается на `Base.Core`, `Base.Services`, `Base.Platform.Abstractions`, UniTask, Zenject. Сборки шаблона
   на код игры не ссылаются. Сборку игры нужно добавить в `Assets/link.xml` (`preserve="all"`), иначе Zenject
   в IL2CPP-сборке не создаст её классы.
@@ -16,18 +16,107 @@
 ## Игра: Зонк
 
 Этот репозиторий: игра «Зонк: Кости Фортуны» (Farkle), созданная из шаблона. Правила шаблона выше и ниже действуют без изменений.
+Подробное устройство игры и порядок добавления контента: README, раздел «Игра».
 
-- Код игры: `Assets/Game/Zonk`, сборка и пространство имён `Zonk`. Сборка есть в `Assets/link.xml`.
 - `ZonkInstaller` (MonoInstaller) подключён в `Assets/Resources/ProjectContext.prefab` после `PlatformInstaller`:
   в нём сервисы игры на всё время работы и миграции сохранений (`ISaveMigration`). Сервисы одной сцены
-  биндятся в `SceneContext` этой сцены.
+  биндятся в `SceneContext` этой сцены (`TableInstaller`).
 - Название, имя APK и пакет `ru.ghostofgamer.zonk` заданы в `Assets/Scripts/Editor/ProjectIdentity.cs`.
   Пакет после публикации в RuStore не менять.
 - Игры ВКонтакте: ID 54765957 в `vk-hosting-config.json`.
 - Правки в `Assets/Scripts` касаются шаблона: переносить в репозиторий шаблона GameBase.
 
+### Рамки работы в игре (читать перед каждой задачей)
+
+**Куда класть файлы.** Всё своё у игры лежит в `Assets/ZonkContent`, чтобы не смешиваться со скачанными ассетами
+(Asset Store, пакеты). Сторонние ассеты в `ZonkContent` не кладутся.
+
+```
+Assets/ZonkContent/
+  Scripts/
+    Core/          Zonk.Core.asmdef: правила, ZonkMatch, ИИ, модификаторы, симулятор. Без UnityEngine: пойдёт на сервер
+    Runtime/       Zonk.asmdef: Configs, Progress, Presentation, MatchFlow, Table, UI, Boot, Utils, ZonkInstaller
+    Editor/        Zonk.Editor.asmdef: Setup (генератор), реестр и валидатор контента, окно баланса, инспекторы
+    Tests/         Zonk.Tests.asmdef: EditMode-тесты
+  Configs/<вид>/   ассеты-конфиги: подпапка на каждый вид (Dice, Cosmetics/Slots, Cosmetics/Items, Opponents, Ai, ...)
+  Localization/    Texts.csv (все языки) и TextsSheet.asset (ссылка на Google Таблицу)
+  Art/             Models, Textures, Materials, Fonts, Sprites, Audio
+  Prefabs/<вид>/   одна папка префабов, внутри по видам: Dice, Cups, Table, Lamps, Environments, Accessories, UI, Characters
+  Scenes/          Bootstrap (первая в сборке), Table
+Tools/Blender/     скрипты моделей (Blender в фоне), выход в ZonkContent/Art
+```
+
+**Код.**
+- Только UniTask, корутин нет. Асинхронный метод возвращает `UniTask`/`UniTask<T>` и принимает `CancellationToken`.
+- **Анимации: DOTween** (`Assets/Plugins/Demigiant`, бесплатная версия, ставится из Asset Store, не через OpenUPM).
+  Твин ждётся через `await tween.AwaitAsync(ct)` (`Zonk.Utils.TweenAwait`): отмена токена убивает твин.
+  Модули DOTween (`DOTweenModuleUI` и др.) из asmdef-сборок не видны, поэтому UI-твины пишутся через ядро:
+  `DOTween.To(getter, setter, …)`. Появление и скрытие окон задаются конфигами `UiTransitionConfig`, не кодом окна.
+- Зависимости через конструктор (Zenject), у MonoBehaviour через `[Inject]`. Поиска объектов по сцене нет:
+  ссылки в сцене проставляет генератор через `EditorSetup(...)`.
+- **Один MonoBehaviour или ScriptableObject на файл, имя файла = имя класса.** Иначе Unity создаёт ассеты без скрипта
+  (валидатор это ловит). Вспомогательные [Serializable]-классы и enum можно держать рядом.
+- Комментарии и документация на русском, идентификаторы на английском.
+
+**Настройки только в конфигах.** Любое число, которое захочется подкрутить (цены, награды, тайминги, пороги ИИ,
+вероятности, цвета, размеры), живёт в ScriptableObject-конфиге, а не в константе или разбросанных полях.
+- Контент — `ContentConfig` со строковым `Id` (в сохранении только ID, после выпуска не менять).
+  Реестр `ContentDatabase` собирается сам, ассеты подхватываются из `ZonkContent`.
+- Общие настройки — `GameConfig`. Конфиги лежат в `ZonkContent/Configs`, **не в `Resources`**
+  (Resources целиком грузится в сборку и в память). Тяжёлое (окна UI, локации) — по требованию.
+
+**Расширяемость.** Новое добавляется, а не переписывается.
+- Контент добавляется ассетом без кода: кость, скин, предмет, слот косметики, соперник, глава, фраза, режим.
+- Выбираемое в ассете поведение — наследник базового класса с `[SerializeReference, SubclassSelector]`:
+  `ScoringRule`, `MatchModifier`, `AiSelectionPolicy`, `AiRiskPolicy`, `Reward`, `PriceOption`, `CosmeticApplier`,
+  `CosmeticPayload`. Новый класс сам появляется в списке инспектора.
+- Состояние стола — `ITableState` + строка в `TableInstaller`. Игрок партии — `IPlayerController` (человек, ИИ, сеть).
+- Базовые классы расширять виртуальными методами с пустой реализацией, чтобы старые наследники не ломались.
+
+**Правила игры и честность.**
+- Результат броска решает ГСЧ партии (`ZonkMatch`), физика только проигрывает его (`DiceRollSimulator` + `DieFaces.Correction`).
+- ИИ видит только открытое состояние, у него свой ГСЧ. Правила боссов действуют на обоих игроков и видны до партии.
+- Баланс проверяется симулятором (`Zonk/Balance Simulator`, `SimulationTests`): особые кости 47–53% побед в наборе
+  «2 особые + 4 обычные» против обычных.
+
+**Модели.** Кость: грани 1 = +Y, 6 = −Y, 2 = +Z, 5 = −Z, 3 = +X, 4 = −X, UV-атлас 3×2 (сверху 1 2 3, снизу 4 5 6),
+точки в текстуре. Стакан: дочерний `Mouth` в горле. Заглушки из примитивов живут в префабах и заменяются в конфигах предметов.
+
+**Тексты.** Ни одной строки в коде: всё через `ILocalization` по ключу из `Localization/Texts.csv`
+(столбцы `key,ru,en,tr,es,pt,de,fr`). Новый ключ сразу на всех языках. Источник — Google Таблица,
+скачивание `Base/Localization/Download Sheets`.
+
+**Вёрстка UI под любой экран.** В браузере экран бывает квадратным, узким, вертикальным или сверхшироким,
+за край ничего выходить не должно.
+- `CanvasScaler`: Scale With Screen Size, 1920×1080, режим **Expand**: канвас всегда не меньше 1920×1080 по обеим осям.
+- Окна и панели не больше **1760×1000**, чтобы оставался запас на безопасную зону.
+- Элемент у края привязывается якорями к своему углу или краю (кошелёк — к правому верхнему углу, кнопки хода — к низу
+  по центру). Растягиваемые полосы — якорями stretch. Позиция от центра экрана — только для центральных окон.
+- Корень UI сцены — объект с `UiSafeArea` (вырезы и системные панели телефона). Окна создаются внутри него.
+- 3D-камера расширяет вертикальный угол на экранах уже 16:9 (`CameraRig.FitFov`), ракурсы ставятся под 16:9.
+- Длинный текст: автоподбор размера TMP и перенос, а не выход за рамку. Проверять на самом длинном языке (de, fr, pt).
+- **Каждое окно-префаб обязано хорошо выглядеть на любом разрешении. Образец — `Prefabs/UI/RulesWindow`.**
+  - Корень окна растянут на весь родитель (stretch), в нём затемнение; содержимое — дочерняя `Panel` по центру,
+    не больше 1760×1000.
+  - Внутри панели всё на якорях: заголовок растянут по ширине верхнего края, кнопка «закрыть» в правом верхнем углу,
+    колонки — якорями к левому и правому краю панели, кнопки листания к нижним углам.
+  - Списки — `ScrollRect` с `VerticalLayoutGroup` + `ContentSizeFitter`, строки на `LayoutElement` (минимальная высота,
+    гибкая ширина), чтобы список рос, а не вылезал.
+  - Текст — TMP с автоподбором размера и переносом.
+  - Перед готовностью окно проверяется в окне Game на 16:9, 21:9, 4:3, 1:1 и 9:16 и на самом длинном языке.
+
+**Сцены и генератор.** `Zonk/Setup/Build Everything` создаёт недостающие ассеты и пересоздаёт сцены.
+Новый объект сцены добавляется в генератор, а не руками в сцену, иначе он пропадёт при следующей генерации.
+
+**После каждой задачи.**
+1. Код компилируется (редактор и сборка игры), тесты `Zonk.Tests` проходят.
+2. `Zonk/Content/Validate` без ошибок, если трогали контент.
+3. README: запись в «Журнал изменений» и обновление раздела «Игра», если изменилось устройство.
+4. AGENTS.md: обновить, если изменилась структура или правила.
+
 ## Стек и соглашения
 
+- **Анимации: DOTween** (Asset Store, `Assets/Plugins/Demigiant`), ожидание твинов через UniTask.
 - **Async: только UniTask.** Корутины не используются. Все асинхронные методы возвращают `UniTask` / `UniTask<T>`
   и принимают `CancellationToken`. Fire-and-forget только через `.Forget()`.
 - **DI: Zenject (Extenject из Asset Store, лежит в `Assets`, сборка `Zenject`).** Не ставить через OpenUPM или git, чтобы не было двух копий. Зависимости через конструктор. Никаких `FindObjectOfType`, синглтонов и статических сервисов.
@@ -58,9 +147,11 @@ Assets/
   Scripts/
     Core/                 Base.Core.asmdef       чистый C# без UnityEngine: локализация
       Localization/         ILocalization, Localization, LocalizationTable: тексты интерфейса, языки ru и en
+                            ILocalizationSource, CsvLocalizationParser: тексты игры из CSV (Google Таблица)
     Services/             Base.Services.asmdef   общий слой игры поверх площадки; ссылается на Core и Abstractions
       Debugging/PlatformTestPanel.cs  отладочная панель: кнопка на каждый метод платформенных интерфейсов, UI строится в коде
       Quality/              IQualityService, QualityService, QualityTier: уровень качества по типу устройства
+      Texts/                TextAssetLocalizationSource: CSV-файл игры как источник ILocalization
       Saves/                ISaveStore, SaveStore, ISaveMigration: сохранение по разделам с версиями поверх ICloudSaveService
       Monetization/         MonetizationConfig    товары, частота рекламы, правила наград: правится в каждой игре
                             IEntitlements         права игрока (no_ads и др.) в разделе сохранения
@@ -111,6 +202,7 @@ Assets/
                             ProjectIdentity          имя компании, название, Android-пакет; выставляются при переключении и сборке
                             PlatformLinkXml          дополнительный link.xml только для сборки нужной платформы (Android: RuStoreLinker.xml)
                             ProjectContextCreator    меню Base/Setup/Create ProjectContext
+      Texts/                LocalizationSheet, LocalizationSheetDownloader: меню Base/Localization/Download Sheets
                             PlatformTestSceneCreator меню Base/Setup/Create Platform Test Scene, создаёт Scenes/PlatformTest.unity
                             PlatformTargets          соответствие площадка -> BuildTarget, шаблон, папка плагинов
   Plugins/Android/        mainTemplate.gradle, settingsTemplate.gradle, gradleTemplate.properties: пользовательские
@@ -125,10 +217,11 @@ Assets/
     ProjectContext.prefab Zenject ProjectContext с PlatformInstaller и ZonkInstaller
     Fonts/Roboto-Regular.ttf  шрифт с кириллицей, Apache 2.0. Встроенный шрифт Unity в WebGL кириллицу не рисует
   Scenes/
-    PlatformTest.unity    тестовая сцена с кнопками, первая в Build Settings, пока нет игровых сцен
+    PlatformTest.unity    тестовая сцена с кнопкой на каждый метод площадки; в Build Settings выключена, первой идёт сцена игры
     SampleScene.unity     остаток шаблона URP
   link.xml                защита сборок Base.* и UniTask от стриппинга
-  Game/Zonk/             код игры: сборка Zonk, ZonkInstaller, свои сцены и ресурсы
+  ZonkContent/           всё своё у игры: Scripts, Configs, Localization, Art, Prefabs, Scenes (см. «Рамки работы в игре»)
+Tools/Blender/            zonk_models.py: кость и стаканы скриптом Blender
 Packages/manifest.json    UniTask (git), com.yandex.mobileads 8.4.0 (OpenUPM, тянет EDM4U). Zenject не здесь, а в Assets
                           из Asset Store. Реестр OpenUPM ограничен scope-ами com.yandex.mobileads и com.google.external-dependency-manager
 vk-hosting-config.json    выкладка Builds/VKGames на хостинг VK, ID игры

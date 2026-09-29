@@ -1,0 +1,559 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+using UnityEngine;
+using Zonk.Configs;
+using Zonk.Core.Match;
+using Zonk.MatchFlow;
+using Zonk.Progress;
+using Zonk.Utils;
+
+namespace Zonk.Presentation
+{
+    /// <summary>
+    /// Постановка партии на столе: рука берёт стакан, трясёт, высыпает кости, кости раскатываются по записи
+    /// физики и ложатся рядом, отложенные уезжают к игроку. Все шаги — UniTask, их ждёт MatchRunner.
+    /// Скорость анимаций берётся из настроек игрока.
+    /// </summary>
+    public sealed class MatchPresenter : IDisposable
+    {
+        private const float ClackCooldown = 0.05f;
+
+        private readonly TableView _table;
+        private readonly GameConfig _config;
+        private readonly IGameSettings _settings;
+        private readonly DiceRollSimulator _simulator;
+        private readonly List<int> _keptOrder = new List<int>();
+
+        private IReadOnlyList<MatchParticipant> _participants;
+        private System.Random _visualRandom;
+        private Quaternion _uprightHand = Quaternion.identity;
+
+        public MatchPresenter(TableView table, GameConfig config, IGameSettings settings)
+        {
+            _table = table;
+            _config = config;
+            _settings = settings;
+            _simulator = new DiceRollSimulator(table.Tray);
+
+            // Размер костей на столе — из конфига: модель одна, масштаб и физика подстраиваются.
+            var dieSize = config.DieSize > 0f ? config.DieSize : table.Tray.DieSize;
+            table.Tray.SetDieSize(dieSize);
+            table.Dice.SetDieSize(dieSize);
+            _table.Opponent.TableImpact += OnTableImpact;
+        }
+
+        public void Dispose()
+        {
+            _table.Opponent.TableImpact -= OnTableImpact;
+            _simulator.Dispose();
+        }
+
+        private float Speed => Mathf.Max(1, _settings.Speed);
+        private DiceSetView Dice => _table.Dice;
+
+        public void PrepareMatch(IReadOnlyList<MatchParticipant> participants, ulong seed)
+        {
+            _participants = participants;
+            _visualRandom = new System.Random(unchecked((int)seed));
+            Dice.DisableSelection();
+            Dice.ClearSelection(false);
+            Dice.SetVisible(false);
+
+            for (var i = 0; i < participants.Count && i < 2; i++)
+            {
+                var cup = participants[i].Cup;
+                if (cup != null)
+                    _table.SeatOf(i).CupAnchor.Show(cup, cup.Slot != null ? cup.Slot.DefaultItem : null);
+            }
+
+            var north = participants.Count > 1 ? participants[1] : null;
+
+            _table.South.Hand.SnapToRest();
+            _table.North.Hand.SnapToRest();
+
+            if (north != null && north.Opponent != null)
+                _table.Opponent.Show(north.Opponent);
+            else
+                _table.Opponent.Hide();
+        }
+
+        public void EndMatch()
+        {
+            Dice.DisableSelection();
+            Dice.ClearSelection(false);
+            Dice.SetVisible(false);
+            _table.Opponent.Hide();
+            _table.South.Hand.SnapToRest();
+            _table.North.Hand.SnapToRest();
+        }
+
+        public async UniTask BeginTurnAsync(int player, CancellationToken ct)
+        {
+            var participant = _participants[player];
+            Dice.SetSkin(participant.DiceSkin);
+            Dice.SetLoadout(participant.Dice);
+            Dice.SetVisible(false);
+            _keptOrder.Clear();
+            foreach (var die in Dice.Dice)
+            {
+                die.ClearFace();
+                die.SetTint(Color.white);
+            }
+
+            await _table.Camera.MoveToAsync(CameraShots.Match, 0.5f / Speed, ct);
+        }
+
+        public async UniTask PlayRollAsync(RollOutcome roll, CancellationToken ct)
+        {
+            var seat = _table.SeatOf(roll.Player);
+            var cup = CupOf(seat);
+            var hand = seat.Hand;
+            var cupTransform = cup.transform;
+            var cupParent = cupTransform.parent;
+            var cupLocalPosition = cupTransform.localPosition;
+            var cupLocalRotation = cupTransform.localRotation;
+
+            var cameraMove = _table.Camera.MoveToAsync(CameraShots.Match, 0.4f / Speed, ct);
+
+            // Стиль броска участника: у соперника может быть свой. Значения случайны в пределах стиля, броски не повторяются.
+            var styleConfig = PickStyle(_participants[roll.Player]);
+            var style = styleConfig.Pick(_visualRandom);
+
+            try
+            {
+                // Повторный бросок: неотложенные кости со стола сначала возвращаются в стакан.
+                var onTable = new List<int>();
+                foreach (var slot in roll.RolledDice)
+                {
+                    if (Dice[slot].gameObject.activeSelf)
+                        onTable.Add(slot);
+                }
+
+                if (onTable.Count > 0)
+                {
+                    _table.Sound.Play(Sfx.DiceKeep, 0.6f);
+                    await HideDiceAsync(onTable, cup.Mouth.position, ct);
+                }
+
+                // Рука берёт стакан и несёт его к краю лотка.
+                await hand.MoveToAsync(cupTransform.position + Vector3.up * 0.45f, hand.transform.rotation, 0.25f / Speed, ct);
+                cupTransform.SetParent(hand.Grip, true);
+                await hand.MoveToAsync(seat.ShakePoint.position, seat.ShakePoint.rotation, 0.3f / Speed, ct);
+                await cameraMove;
+
+                _table.Sound.Play(Sfx.DiceRattle, 0.8f);
+                await hand.ShakeAsync(style.ShakeDuration / Speed, style.ShakeAmplitude, style.ShakeFrequency, style.ShakeTilt,
+                    (float)_visualRandom.NextDouble() * 10f, ct);
+
+                // Замах к себе, пауза, рывок вперёд с опрокидыванием: кости вылетают в конце рывка.
+                var direction = await WindUpAndSwingAsync(hand, seat, style, Speed, ct);
+
+                var recording = _simulator.Simulate(roll.RolledDice.Count, cup.Mouth.position, direction, _visualRandom, style);
+                for (var i = 0; i < roll.RolledDice.Count; i++)
+                {
+                    var die = Dice[roll.RolledDice[i]];
+                    die.SetFace(roll.Faces[die.Slot], DieFaces.Correction(roll.Faces[die.Slot], recording.UpAxes[i]));
+                    die.SetTint(Color.white);
+                    die.transform.SetPositionAndRotation(recording.Positions[i][0], recording.Rotations[i][0]);
+                    die.SetVisible(true);
+                }
+
+                var returnCup = ReturnCupAsync(hand, cupTransform, cupParent, cupLocalPosition, cupLocalRotation,
+                    direction * style.FollowThrough, ct);
+                await PlaybackAsync(recording, roll.RolledDice, ct);
+                await returnCup;
+            }
+            finally
+            {
+                // Партию могли прервать посреди броска: стакан возвращается на место, рука в исходную позу.
+                if (cupTransform != null && cupTransform.parent != cupParent)
+                {
+                    cupTransform.SetParent(cupParent, false);
+                    cupTransform.localPosition = cupLocalPosition;
+                    cupTransform.localRotation = cupLocalRotation;
+                    hand.SnapToRest();
+                }
+            }
+
+            await SettleAsync(roll, ct);
+        }
+
+        /// <summary>
+        /// Замах и бросок как в казино: стакан тянется к себе и чуть вверх, горлышко отклоняется назад, короткая пауза,
+        /// затем рывок вперёд с ускорением, на ходу стакан опрокидывается к центру лотка. Возвращает направление броска.
+        /// </summary>
+        private async UniTask<Vector3> WindUpAndSwingAsync(HandView hand, SeatView seat, RollParams style, float speed,
+            CancellationToken ct)
+        {
+            var direction = _table.Tray.Center - seat.ShakePoint.position;
+            direction.y = 0f;
+            direction = direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.forward;
+            var axis = Vector3.Cross(Vector3.up, direction);
+
+            var start = hand.transform.position;
+            var baseRotation = hand.transform.rotation;
+            _uprightHand = baseRotation;
+
+            var back = start - direction * style.WindUpDistance + Vector3.up * style.WindUpLift;
+            var backRotation = Quaternion.AngleAxis(-style.WindUpTilt, axis) * baseRotation;
+            await Animate.PoseAsync(hand.transform, back, backRotation, style.WindUpDuration / speed, ct, AnimateEase.OutCubic);
+            await UniTask.Delay(TimeSpan.FromSeconds(style.WindUpHold / speed), cancellationToken: ct);
+
+            _table.Sound.Play(Sfx.Whoosh, 0.7f, 0.15f);
+            var release = start + direction * (style.FollowThrough * 0.4f);
+            var pour = Quaternion.AngleAxis(style.PourAngle, axis) * baseRotation;
+            await Animate.PoseAsync(hand.transform, release, pour, style.SwingDuration / speed, ct, AnimateEase.InCubic);
+            return direction;
+        }
+
+        private async UniTask ReturnCupAsync(HandView hand, Transform cup, Transform parent, Vector3 localPosition,
+            Quaternion localRotation, Vector3 followThrough, CancellationToken ct)
+        {
+            // Доводка: рука по инерции проходит дальше точки броска, затем стакан выпрямляется и едет на место.
+            await Animate.MoveAsync(hand.transform, hand.transform.position + followThrough, 0.15f / Speed, ct, AnimateEase.OutCubic);
+            var restWorld = parent.TransformPoint(localPosition) + Vector3.up * 0.45f;
+            await hand.MoveToAsync(restWorld, _uprightHand, 0.35f / Speed, ct);
+            cup.SetParent(parent, true);
+            await UniTask.WhenAll(
+                Animate.PoseAsync(cup, parent.TransformPoint(localPosition), parent.rotation * localRotation, 0.15f / Speed, ct),
+                hand.ReturnAsync(0.3f / Speed, ct));
+            cup.localPosition = localPosition;
+            cup.localRotation = localRotation;
+        }
+
+        private async UniTask PlaybackAsync(RollRecording recording, IReadOnlyList<int> slots, CancellationToken ct)
+        {
+            var time = 0f;
+            var lastClack = -1f;
+            var duration = recording.Duration;
+            var previousFrame = 0;
+
+            while (time < duration)
+            {
+                var framePosition = time / recording.FrameTime;
+                var frame = Mathf.Min((int)framePosition, recording.FrameCount - 1);
+                var next = Mathf.Min(frame + 1, recording.FrameCount - 1);
+                var t = framePosition - frame;
+
+                for (var i = 0; i < slots.Count; i++)
+                {
+                    var position = Vector3.Lerp(recording.Positions[i][frame], recording.Positions[i][next], t);
+                    var rotation = Quaternion.Slerp(recording.Rotations[i][frame], recording.Rotations[i][next], t);
+                    Dice[slots[i]].transform.SetPositionAndRotation(position, rotation);
+
+                    if (frame > previousFrame && time - lastClack > ClackCooldown && IsImpact(recording, i, frame))
+                    {
+                        _table.Sound.Play(Sfx.DiceClack, 0.5f, 0.2f);
+                        lastClack = time;
+                    }
+                }
+
+                previousFrame = frame;
+                await UniTask.Yield(PlayerLoopTiming.Update, ct);
+                time += Time.deltaTime * Speed;
+            }
+
+            for (var i = 0; i < slots.Count; i++)
+            {
+                var last = recording.FrameCount - 1;
+                Dice[slots[i]].transform.SetPositionAndRotation(recording.Positions[i][last], recording.Rotations[i][last]);
+            }
+        }
+
+        /// <summary>Резкая смена вертикальной скорости: кость ударилась о стол или бортик.</summary>
+        private static bool IsImpact(RollRecording recording, int die, int frame)
+        {
+            if (frame < 2)
+                return false;
+
+            var positions = recording.Positions[die];
+            var before = positions[frame - 1].y - positions[frame - 2].y;
+            var after = positions[frame].y - positions[frame - 1].y;
+            return before < -0.01f && after > -0.002f;
+        }
+
+        /// <summary>
+        /// Кости остаются там, где упали, в своих позах. Лежащая на ребре кость доваливается на грань,
+        /// а кость на другой кости или вне лотка мягко перекатывается на ближайшее свободное место.
+        /// Затем камера переходит в вид сверху.
+        /// </summary>
+        private async UniTask SettleAsync(RollOutcome roll, CancellationToken ct)
+        {
+            var tray = _table.Tray;
+            var size = tray.DieSize;
+            var rest = tray.RestHeight;
+
+            // Сначала те, что ниже: лежащие на полу остаются на месте, лежащие сверху ищут свободное место.
+            var order = new List<int>(roll.RolledDice);
+            order.Sort((a, b) => Dice[a].transform.position.y.CompareTo(Dice[b].transform.position.y));
+
+            var placed = new List<Vector3>(order.Count);
+            var moves = new List<UniTask>(order.Count + 1);
+            foreach (var slot in order)
+            {
+                var die = Dice[slot];
+                var position = die.transform.position;
+                var target = new Vector3(position.x, rest, position.z);
+                var onFloor = position.y <= rest + size * 0.25f;
+
+                if (!onFloor || !tray.IsOnFloor(target, size * 0.6f) || IsCrowded(target, placed, size * 1.1f))
+                    target = FindFreeSpot(target, placed, size);
+
+                placed.Add(target);
+
+                var moved = (target - position).sqrMagnitude > size * size * 0.01f;
+                if (!moved && die.IsLyingFlat(0.999f))
+                    continue;
+
+                var rotation = die.RootRotationFlattened();
+                var duration = (moved ? _config.SettleDuration : _config.SettleDuration * 0.5f) / Speed;
+                moves.Add(moved
+                    ? Animate.JumpPoseAsync(die.transform, target, rotation, size * 0.8f, duration, ct)
+                    : Animate.PoseAsync(die.transform, target, rotation, duration, ct, AnimateEase.OutCubic));
+            }
+
+            moves.Add(_table.Camera.MoveToAsync(CameraShots.Top, 0.45f / Speed, ct));
+            await UniTask.WhenAll(moves);
+        }
+
+        /// <summary>
+        /// Показ стиля броска в магазине: рука игрока берёт стакан, трясёт им в этом стиле, наклоняет и ставит на место.
+        /// Костей нет. Прерывание (другой выбор) возвращает стакан и руку на места.
+        /// </summary>
+        public async UniTask PreviewShakeAsync(RollStyleConfig styleConfig, CancellationToken ct)
+        {
+            var seat = _table.South;
+            var cup = CupOf(seat);
+            var hand = seat.Hand;
+            var cupTransform = cup.transform;
+            var cupParent = cupTransform.parent;
+            var cupLocalPosition = cupTransform.localPosition;
+            var cupLocalRotation = cupTransform.localRotation;
+            var style = (styleConfig != null ? styleConfig : RollStyleConfig.Fallback).Pick(_visualRandom ?? new System.Random());
+
+            try
+            {
+                hand.SnapToRest();
+                await hand.MoveToAsync(cupTransform.position + Vector3.up * 0.45f, hand.transform.rotation, 0.25f, ct);
+                cupTransform.SetParent(hand.Grip, true);
+                await hand.MoveToAsync(seat.ShakePoint.position, seat.ShakePoint.rotation, 0.3f, ct);
+
+                _table.Sound.Play(Sfx.DiceRattle, 0.8f);
+                await hand.ShakeAsync(style.ShakeDuration, style.ShakeAmplitude, style.ShakeFrequency, style.ShakeTilt,
+                    (float)(_visualRandom ?? new System.Random()).NextDouble() * 10f, ct);
+                var direction = await WindUpAndSwingAsync(hand, seat, style, 1f, ct);
+                await ReturnCupAsync(hand, cupTransform, cupParent, cupLocalPosition, cupLocalRotation,
+                    direction * style.FollowThrough, ct);
+            }
+            finally
+            {
+                if (cupTransform != null && cupTransform.parent != cupParent)
+                {
+                    cupTransform.SetParent(cupParent, false);
+                    cupTransform.localPosition = cupLocalPosition;
+                    cupTransform.localRotation = cupLocalRotation;
+                }
+
+                if (hand != null)
+                    hand.SnapToRest();
+            }
+        }
+
+        /// <summary>Случайный стиль из отмеченных у участника, иначе общий из GameConfig, иначе значения по умолчанию.</summary>
+        private RollStyleConfig PickStyle(MatchParticipant participant)
+        {
+            var styles = participant.RollStyles;
+            if (styles != null && styles.Count > 0)
+            {
+                var style = styles[_visualRandom.Next(styles.Count)];
+                if (style != null)
+                    return style;
+            }
+
+            return _config.RollStyle != null ? _config.RollStyle : RollStyleConfig.Fallback;
+        }
+
+        private static bool IsCrowded(Vector3 point, List<Vector3> placed, float distance)
+        {
+            foreach (var other in placed)
+            {
+                var dx = other.x - point.x;
+                var dz = other.z - point.z;
+                if (dx * dx + dz * dz < distance * distance)
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Ближайшая к start точка пола лотка, где кость никого не касается. Поиск по расширяющимся кольцам.</summary>
+        private Vector3 FindFreeSpot(Vector3 start, List<Vector3> placed, float size)
+        {
+            var tray = _table.Tray;
+            var margin = size * 0.6f;
+            var gap = size * 1.25f;
+            var step = size * 0.5f;
+            var maxRadius = Mathf.Max(tray.Size.x, tray.Size.y);
+            var center = tray.Center;
+            start.y = tray.RestHeight;
+
+            if (!tray.IsOnFloor(start, margin))
+                start = Vector3.Lerp(start, new Vector3(center.x, start.y, center.z), 0.5f);
+
+            for (var radius = 0f; radius <= maxRadius; radius += step)
+            {
+                var points = radius <= 0f ? 1 : Mathf.Max(8, Mathf.CeilToInt(2f * Mathf.PI * radius / step));
+                var phase = (float)_visualRandom.NextDouble() * Mathf.PI * 2f;
+                for (var i = 0; i < points; i++)
+                {
+                    var angle = phase + i * Mathf.PI * 2f / points;
+                    var candidate = start + new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * radius;
+                    if (tray.IsOnFloor(candidate, margin) && !IsCrowded(candidate, placed, gap))
+                        return candidate;
+                }
+            }
+
+            return start;
+        }
+
+        public async UniTask PlayKeepAsync(KeepOutcome keep, CancellationToken ct)
+        {
+            Dice.DisableSelection();
+            Dice.ClearSelection(false);
+
+            var seat = _table.SeatOf(keep.Player);
+            var yaw = seat.KeptYaw.eulerAngles.y;
+            var moves = new List<UniTask>();
+            foreach (var slot in keep.KeptDice)
+            {
+                var die = Dice[slot];
+                var index = _keptOrder.Count;
+                _keptOrder.Add(slot);
+                var target = seat.KeptPosition(index, _table.Tray.DieSize);
+                moves.Add(Animate.JumpAsync(die.transform, target, 0.4f, _config.KeepDuration / Speed, ct));
+                moves.Add(Animate.RotateAsync(die.transform, die.RootRotationForFaceUp(yaw), _config.KeepDuration / Speed, ct));
+            }
+
+            _table.Sound.Play(Sfx.DiceKeep);
+            await UniTask.WhenAll(moves);
+
+            if (keep.HotDice)
+            {
+                _table.Sound.Play(Sfx.HotDice);
+                await HideDiceAsync(_keptOrder, CupOf(seat).Mouth.position, ct);
+                _keptOrder.Clear();
+            }
+        }
+
+        public async UniTask PlayZonkAsync(int player, CancellationToken ct)
+        {
+            _table.Sound.Play(Sfx.Zonk);
+            _table.Camera.Shake(0.05f, 0.35f);
+            foreach (var die in Dice.Dice)
+            {
+                if (die.gameObject.activeSelf && !_keptOrder.Contains(die.Slot))
+                    die.SetTint(new Color(0.55f, 0.35f, 0.35f));
+            }
+
+            await UniTask.Delay(TimeSpan.FromSeconds(0.9f / Speed), cancellationToken: ct);
+            await CollectAsync(player, ct);
+        }
+
+        public async UniTask PlayBankAsync(int player, CancellationToken ct)
+        {
+            _table.Sound.Play(Sfx.Bank);
+            await UniTask.Delay(TimeSpan.FromSeconds(0.3f / Speed), cancellationToken: ct);
+            await CollectAsync(player, ct);
+        }
+
+        /// <summary>Конец хода: все кости уходят в стакан игрока.</summary>
+        private UniTask CollectAsync(int player, CancellationToken ct)
+        {
+            var visible = new List<int>();
+            foreach (var die in Dice.Dice)
+            {
+                if (die.gameObject.activeSelf)
+                    visible.Add(die.Slot);
+            }
+
+            _keptOrder.Clear();
+            return HideDiceAsync(visible, CupOf(_table.SeatOf(player)).Mouth.position, ct);
+        }
+
+        private async UniTask HideDiceAsync(IReadOnlyList<int> slots, Vector3 target, CancellationToken ct)
+        {
+            var moves = new List<UniTask>();
+            foreach (var slot in slots)
+            {
+                var die = Dice[slot];
+                moves.Add(Animate.JumpAsync(die.transform, target, 0.3f, 0.35f / Speed, ct));
+            }
+
+            await UniTask.WhenAll(moves);
+            foreach (var slot in slots)
+            {
+                Dice[slot].SetVisible(false);
+                Dice[slot].SetTint(Color.white);
+            }
+        }
+
+        public async UniTask ShowResultAsync(bool localWon, CancellationToken ct)
+        {
+            _table.Sound.Play(localWon ? Sfx.Win : Sfx.Lose);
+            await _table.Camera.MoveToAsync(CameraShots.Opponent, 0.8f, ct);
+        }
+
+        /// <summary>Подсветка костей, которые не входят ни в одну комбинацию: подсказка новичку.</summary>
+        public void HighlightScoringDice(ZonkMatch match)
+        {
+            var options = match.GetKeepOptions();
+            var useful = new bool[ZonkMatch.DiceCount];
+            foreach (var option in options)
+            {
+                foreach (var die in option.Dice)
+                    useful[die] = true;
+            }
+
+            foreach (var die in Dice.Dice)
+            {
+                if (match.IsInHand(die.Slot) && match.Faces[die.Slot] > 0)
+                    die.SetTint(useful[die.Slot] ? Color.white : new Color(0.7f, 0.7f, 0.7f));
+            }
+        }
+
+        private void OnTableImpact()
+        {
+            _table.Sound.Play(Sfx.Thud);
+            _table.Camera.Shake(0.08f, 0.3f);
+            HopVisibleDiceAsync(_table.GetCancellationTokenOnDestroy()).Forget();
+        }
+
+        /// <summary>От удара по столу кости подпрыгивают на месте.</summary>
+        private async UniTaskVoid HopVisibleDiceAsync(CancellationToken ct)
+        {
+            var hops = new List<UniTask>();
+            foreach (var die in Dice.Dice)
+            {
+                if (!die.gameObject.activeSelf)
+                    continue;
+
+                var start = die.transform.position;
+                hops.Add(Animate.RunAsync(0.25f, t =>
+                {
+                    if (die != null)
+                        die.transform.position = start + Vector3.up * Mathf.Sin(t * Mathf.PI) * 0.08f;
+                }, ct, AnimateEase.Linear));
+            }
+
+            await UniTask.WhenAll(hops).SuppressCancellationThrow();
+        }
+
+        private static CupView CupOf(SeatView seat)
+        {
+            var holder = seat.CupAnchor.Instance != null ? seat.CupAnchor.Instance : seat.CupAnchor.gameObject;
+            return holder.TryGetComponent<CupView>(out var cup) ? cup : holder.AddComponent<CupView>();
+        }
+    }
+}

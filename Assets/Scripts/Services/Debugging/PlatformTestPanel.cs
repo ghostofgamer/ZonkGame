@@ -392,7 +392,7 @@ namespace Base.Services.Debugging
             if (_localization == null)
                 return UniTask.CompletedTask;
 
-            var supported = Localization.Supported;
+            var supported = _localization.Languages;
             var index = 0;
             for (var i = 0; i < supported.Count; i++)
             {

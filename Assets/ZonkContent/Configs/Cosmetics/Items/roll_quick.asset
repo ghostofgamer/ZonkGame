@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3758024ff1cf4ad4caa14cc6c86d79b3, type: 3}
+  m_Name: roll_quick
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticItemConfig
+  Id: roll_quick
+  NameKey: item.roll_quick
+  Slot: {fileID: 11400000, guid: a5147a19ddfc7d045bdd4940798e4b0b, type: 2}
+  Icon: {fileID: 0}
+  Order: 2
+  Payload:
+    rid: 4243792291812082169
+  Price:
+    Options:
+    - rid: 4243792291812082170
+  HiddenInShop: 0
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792291812082169
+      type: {class: RollStylePayload, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Style: {fileID: 11400000, guid: d810ae7ee6840e440a647f2c0d6f74c4, type: 2}
+    - rid: 4243792291812082170
+      type: {class: CurrencyPriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 300

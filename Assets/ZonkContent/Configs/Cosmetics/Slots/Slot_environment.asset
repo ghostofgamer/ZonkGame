@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0bca9ea92f5e8eb439d99d4ec59031d4, type: 3}
+  m_Name: Slot_environment
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticSlotConfig
+  Id: environment
+  NameKey: slot.environment
+  Icon: {fileID: 0}
+  Order: 0
+  CameraShotId: shop_environment
+  DefaultItem: {fileID: 11400000, guid: a438998ad7496c14aa7b3dd3a85cedf6, type: 2}
+  Applier:
+    rid: 4243792291812081750
+  ShowInShop: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792291812081750
+      type: {class: AnchorPrefabApplier, ns: Zonk.Presentation, asm: Zonk}
+      data: 

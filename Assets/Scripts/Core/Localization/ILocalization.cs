@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace Base.Core.Localization
 {
@@ -10,6 +11,9 @@ namespace Base.Core.Localization
     {
         /// <summary>Текущий язык в формате ISO 639-1, например "ru" или "en".</summary>
         string Language { get; }
+
+        /// <summary>Все языки, для которых есть тексты (столбцы таблиц игры плюс ru и en шаблона).</summary>
+        IReadOnlyList<string> Languages { get; }
 
         /// <summary>Язык сменился: подписчики должны перестроить тексты.</summary>
         event Action LanguageChanged;

@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3758024ff1cf4ad4caa14cc6c86d79b3, type: 3}
+  m_Name: felt_red
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticItemConfig
+  Id: felt_red
+  NameKey: item.felt_red
+  Slot: {fileID: 11400000, guid: 763d1d69d1239124f9f1af506ca5cfa2, type: 2}
+  Icon: {fileID: 0}
+  Order: 1
+  Payload:
+    rid: 4243792291812082086
+  Price:
+    Options:
+    - rid: 4243792291812082087
+  HiddenInShop: 0
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792291812082086
+      type: {class: MaterialPayload, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Material: {fileID: 2100000, guid: c6ff5099a1778ef40a20433fbbe42cb6, type: 2}
+    - rid: 4243792291812082087
+      type: {class: CurrencyPriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 250

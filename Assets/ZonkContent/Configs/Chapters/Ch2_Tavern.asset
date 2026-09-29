@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78e9d6a0a4ed1974ca62a0936925b2c9, type: 3}
+  m_Name: Ch2_Tavern
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.ChapterConfig
+  Id: chapter_tavern
+  NameKey: chapter.tavern
+  Order: 2
+  Environment: {fileID: 11400000, guid: 1662848611e17bb479f3cee037828e47, type: 2}
+  Intro:
+  - SpeakerKey: story.narrator
+    Portrait: {fileID: 0}
+    TextKey: story.tavern.1
+  - SpeakerKey: story.bo
+    Portrait: {fileID: 0}
+    TextKey: story.tavern.2
+  Outro:
+  - SpeakerKey: story.bo
+    Portrait: {fileID: 0}
+    TextKey: story.tavern.outro
+  Opponents:
+  - {fileID: 11400000, guid: ca113eae0e782f44bbda006169c6083f, type: 2}
+  - {fileID: 11400000, guid: c4ee5f849bf4c9647a0083274539f3aa, type: 2}
+  - {fileID: 11400000, guid: 1e670a6fc3564ec41b14e779080b2e9a, type: 2}
+  - {fileID: 11400000, guid: 844a15e4072db2343a76957dfb71c021, type: 2}
+  - {fileID: 11400000, guid: 44636b033560e004d8f9271b4384fa24, type: 2}

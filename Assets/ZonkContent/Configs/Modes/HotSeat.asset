@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe0583b4b40a21c42affc2711ac78745, type: 3}
+  m_Name: HotSeat
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.GameModeConfig
+  Id: mode_hotseat
+  NameKey: mode.hotseat
+  DescriptionKey: mode.hotseat.desc
+  Rules: {fileID: 11400000, guid: a3db1a4cbbe76cf4aaad80439b319937, type: 2}
+  EnergyCost: 0
+  AllowSpecialDice: 1
+  InterstitialTrigger: match_end
+  WinRewards: []
+  references:
+    version: 2
+    RefIds: []

@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79054f2f48b160d4c9fbff719c745f2a, type: 3}
+  m_Name: Page_In
+  m_EditorClassIdentifier: Zonk::Zonk.UI.Transitions.UiTransitionConfig
+  Duration: 0.2
+  Ease: 9
+  Effects:
+  - rid: 4243792291812082150
+  - rid: 4243792291812082151
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792291812082150
+      type: {class: FadeEffect, ns: Zonk.UI.Transitions, asm: Zonk}
+      data:
+        TargetPath: 
+        Delay: 0
+        DurationScale: 1
+        OverrideEase: 0
+        Ease: 9
+        From: 0
+        To: 1
+    - rid: 4243792291812082151
+      type: {class: MoveEffect, ns: Zonk.UI.Transitions, asm: Zonk}
+      data:
+        TargetPath: 
+        Delay: 0
+        DurationScale: 1
+        OverrideEase: 0
+        Ease: 9
+        Offset: {x: 50, y: 0}
+        Outgoing: 0

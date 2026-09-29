@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78e9d6a0a4ed1974ca62a0936925b2c9, type: 3}
+  m_Name: Ch1_Home
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.ChapterConfig
+  Id: chapter_home
+  NameKey: chapter.home
+  Order: 1
+  Environment: {fileID: 11400000, guid: a438998ad7496c14aa7b3dd3a85cedf6, type: 2}
+  Intro:
+  - SpeakerKey: story.narrator
+    Portrait: {fileID: 0}
+    TextKey: story.home.1
+  - SpeakerKey: story.letter
+    Portrait: {fileID: 0}
+    TextKey: story.home.2
+  - SpeakerKey: story.narrator
+    Portrait: {fileID: 0}
+    TextKey: story.home.3
+  Outro:
+  - SpeakerKey: story.agafya
+    Portrait: {fileID: 0}
+    TextKey: story.home.outro
+  Opponents:
+  - {fileID: 11400000, guid: b83c1eb63467bf44182e71cd98d6472c, type: 2}
+  - {fileID: 11400000, guid: f66a948fc33aaee4fac0b710bc4dc875, type: 2}
+  - {fileID: 11400000, guid: 5dc7f10075b7056449ab247bb75796a1, type: 2}
+  - {fileID: 11400000, guid: 09536a172ebe47a4ea753adf68461d22, type: 2}
+  - {fileID: 11400000, guid: 0e505613bc043cd4e8a8006cfc454558, type: 2}

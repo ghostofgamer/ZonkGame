@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 037d6d32c382f1f46a5e46dd59b281f6, type: 3}
+  m_Name: Ai_balanced
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.AiProfileConfig
+  Id: ai_balanced
+  NameKey: ai.balanced
+  Selection:
+    rid: 4243792291812081804
+  Risk:
+    rid: 4243792291812081805
+  MistakeChance: 0.06
+  ThinkDelay: {x: 0.6, y: 1.4}
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792291812081804
+      type: {class: ValueSelection, ns: Zonk.Core.Ai, asm: Zonk.Core}
+      data:
+        DieValue: 60
+    - rid: 4243792291812081805
+      type: {class: ThresholdRisk, ns: Zonk.Core.Ai, asm: Zonk.Core}
+      data:
+        BankAt: 2c0100002c01000090010000bc020000d0070000a0860100
+        BehindAggression: 0.5
+        AheadCaution: 0.3
+        Jitter: 0.1

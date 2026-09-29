@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f87d2b53912aca947b723c9fb666bc03, type: 3}
+  m_Name: Opp_klava
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.OpponentConfig
+  Id: opp_klava
+  NameKey: opp.klava
+  TitleKey: opp.klava.title
+  RuleKey: 
+  Portrait: {fileID: 0}
+  BodyColor: {r: 0.55, g: 0.3, b: 0.35, a: 1}
+  Accessory: {fileID: 6428876330090902694, guid: 5b162329c97facd46a12a125e3424ca3, type: 3}
+  IsBoss: 0
+  Ai: {fileID: 11400000, guid: b6ef9e2fbbba4e24fa129d59a9c3039f, type: 2}
+  Dice: []
+  DiceSkin: {fileID: 0}
+  Cup: {fileID: 0}
+  TargetScore: 0
+  Modifiers: []
+  Reactions: {fileID: 11400000, guid: 096e3e429b23d4c498ffca9732e7ea3b, type: 2}
+  RollStyle: {fileID: 11400000, guid: 88367962bd0ac044d823ce245f6aa80d, type: 2}
+  EnergyCost: -1
+  FirstWinRewards:
+  - rid: 4243792291812082113
+  RepeatWinRewards:
+  - rid: 4243792291812082114
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792291812082113
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 70
+    - rid: 4243792291812082114
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 20

@@ -1,0 +1,40 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 79054f2f48b160d4c9fbff719c745f2a, type: 3}
+  m_Name: Flip_In
+  m_EditorClassIdentifier: Zonk::Zonk.UI.Transitions.UiTransitionConfig
+  Duration: 0.4
+  Ease: 27
+  Effects:
+  - rid: 4243792291812082039
+  - rid: 4243792291812082040
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792291812082039
+      type: {class: RotateEffect, ns: Zonk.UI.Transitions, asm: Zonk}
+      data:
+        Delay: 0
+        DurationScale: 1
+        OverrideEase: 0
+        Ease: 9
+        From: {x: 90, y: 0, z: 0}
+        To: {x: 0, y: 0, z: 0}
+    - rid: 4243792291812082040
+      type: {class: FadeEffect, ns: Zonk.UI.Transitions, asm: Zonk}
+      data:
+        Delay: 0
+        DurationScale: 0.5
+        OverrideEase: 0
+        Ease: 9
+        From: 0
+        To: 1
