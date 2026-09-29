@@ -6,6 +6,7 @@ using Zonk.Configs;
 using Zonk.Presentation;
 using Zonk.Progress;
 using Zonk.UI;
+using Zonk.UI.Windows;
 
 namespace Zonk.Table
 {
@@ -39,22 +40,17 @@ namespace Zonk.Table
 
     public sealed class MenuState : ITableState
     {
-        private readonly UiKit _kit;
+        private readonly IUiService _ui;
         private readonly TableView _table;
-        private readonly IWallet _wallet;
-        private readonly GameConfig _config;
         private readonly StageDresser _dresser;
         private readonly IPlatformService _platform;
         private readonly LoadingScreenHolder _loading;
         private bool _first = true;
 
-        public MenuState(UiKit kit, TableView table, IWallet wallet, GameConfig config, StageDresser dresser,
-            IPlatformService platform, LoadingScreenHolder loading)
+        public MenuState(IUiService ui, TableView table, StageDresser dresser, IPlatformService platform, LoadingScreenHolder loading)
         {
-            _kit = kit;
+            _ui = ui;
             _table = table;
-            _wallet = wallet;
-            _config = config;
             _dresser = dresser;
             _platform = platform;
             _loading = loading;
@@ -79,84 +75,85 @@ namespace Zonk.Table
 
             // Первый показ меню: экран загрузки из Bootstrap уходит, когда стол уже одет и камера на месте.
             var loading = _loading.HideAsync(ct);
+            var menu = await _ui.OpenAsync<MainMenuWindow>(ct);
+            await loading;
 
-            using (var screen = new MainMenuScreen(_kit, _table.UiRoot, _wallet, _config))
+            MainMenuChoice choice;
+            try
             {
-                await loading;
-                var choice = await screen.RunAsync(ct);
+                choice = await menu.WaitChoiceAsync(ct);
                 _table.Sound.Play(Sfx.Click);
-                switch (choice)
-                {
-                    case MainMenuChoice.Campaign: return TableStateIds.Campaign;
-                    case MainMenuChoice.HotSeat: return TableStateIds.HotSeat;
-                    case MainMenuChoice.Shop: return TableStateIds.Shop;
-                    case MainMenuChoice.Rules: return TableStateIds.Rules;
-                    default: return TableStateIds.Settings;
-                }
+            }
+            finally
+            {
+                _ui.CloseAsync(menu, CancellationToken.None).Forget();
+            }
+
+            switch (choice)
+            {
+                case MainMenuChoice.Campaign: return TableStateIds.Campaign;
+                case MainMenuChoice.HotSeat: return TableStateIds.HotSeat;
+                case MainMenuChoice.Shop: return TableStateIds.Shop;
+                case MainMenuChoice.Rules: return TableStateIds.Rules;
+                default: return TableStateIds.Settings;
             }
         }
     }
 
     public sealed class SettingsState : ITableState
     {
-        private readonly UiKit _kit;
-        private readonly TableView _table;
-        private readonly IGameSettings _settings;
+        private readonly IUiService _ui;
 
-        public SettingsState(UiKit kit, TableView table, IGameSettings settings)
+        public SettingsState(IUiService ui)
         {
-            _kit = kit;
-            _table = table;
-            _settings = settings;
+            _ui = ui;
         }
 
         public string Id => TableStateIds.Settings;
 
         public async UniTask<string> RunAsync(CancellationToken ct)
         {
-            using (var screen = new SettingsScreen(_kit, _table.UiRoot, _settings))
-                await screen.RunAsync(ct);
+            var window = await _ui.OpenAsync<SettingsWindow>(ct);
+            try
+            {
+                await window.WaitCloseRequestAsync(ct);
+            }
+            finally
+            {
+                await _ui.CloseAsync(window, CancellationToken.None);
+            }
+
             return TableStateIds.Menu;
         }
     }
 
     public sealed class ShopState : ITableState
     {
-        private readonly UiKit _kit;
-        private readonly TableView _table;
-        private readonly ContentDatabase _content;
-        private readonly IInventory _inventory;
-        private readonly ILoadout _loadout;
-        private readonly ShopService _shop;
-        private readonly IWallet _wallet;
-        private readonly GameConfig _config;
-        private readonly MatchPresenter _presenter;
+        private readonly IUiService _ui;
 
-        public ShopState(UiKit kit, TableView table, ContentDatabase content, IInventory inventory, ILoadout loadout,
-            ShopService shop, IWallet wallet, GameConfig config, MatchPresenter presenter)
+        public ShopState(IUiService ui)
         {
-            _kit = kit;
-            _table = table;
-            _content = content;
-            _inventory = inventory;
-            _loadout = loadout;
-            _shop = shop;
-            _wallet = wallet;
-            _config = config;
-            _presenter = presenter;
+            _ui = ui;
         }
 
         public string Id => TableStateIds.Shop;
 
         public async UniTask<string> RunAsync(CancellationToken ct)
         {
-            using (var screen = new ShopScreen(_kit, _table.UiRoot, _content, _inventory, _loadout, _shop, _wallet, _config, _table, _presenter))
-                await screen.RunAsync(ct);
+            var window = await _ui.OpenAsync<ShopWindow>(ct);
+            try
+            {
+                await window.RunAsync(ct);
+            }
+            finally
+            {
+                await _ui.CloseAsync(window, CancellationToken.None);
+            }
+
             return TableStateIds.Menu;
         }
     }
 
-    /// <summary>Открытые игроку кости и скины: для экранов выбора.</summary>
     public sealed class OwnedContent
     {
         private readonly ContentDatabase _content;

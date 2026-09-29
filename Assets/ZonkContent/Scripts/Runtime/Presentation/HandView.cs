@@ -14,13 +14,18 @@ namespace Zonk.Presentation
         [SerializeField] private Transform _grip;
         [SerializeField] private Transform _restPoint;
 
+        [Tooltip("Правая рука: пальцы обхватывают стакан вправо. Выключить для левши")]
+        [SerializeField] private bool _rightHanded = true;
+
         public Transform Grip => _grip;
+        public bool RightHanded => _rightHanded;
 
 #if UNITY_EDITOR
-        public void EditorSetup(Transform grip, Transform restPoint)
+        public void EditorSetup(Transform grip, Transform restPoint, bool rightHanded = true)
         {
             _grip = grip;
             _restPoint = restPoint;
+            _rightHanded = rightHanded;
         }
 #endif
 

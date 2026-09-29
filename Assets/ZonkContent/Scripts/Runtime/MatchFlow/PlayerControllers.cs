@@ -8,6 +8,7 @@ using Zonk.Core.Dice;
 using Zonk.Core.Match;
 using Zonk.Presentation;
 using Zonk.UI;
+using Zonk.UI.Windows;
 
 namespace Zonk.MatchFlow
 {
@@ -27,12 +28,12 @@ namespace Zonk.MatchFlow
     /// <summary>Человек за этим экраном: кнопки HUD и клики по костям.</summary>
     public sealed class LocalPlayerController : IPlayerController
     {
-        private readonly MatchHud _hud;
+        private readonly MatchHudWindow _hud;
         private readonly DiceSetView _dice;
         private readonly MatchPresenter _presenter;
         private readonly UiKit _kit;
 
-        public LocalPlayerController(MatchHud hud, DiceSetView dice, MatchPresenter presenter, UiKit kit)
+        public LocalPlayerController(MatchHudWindow hud, DiceSetView dice, MatchPresenter presenter, UiKit kit)
         {
             _hud = hud;
             _dice = dice;

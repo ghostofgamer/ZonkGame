@@ -203,8 +203,11 @@ namespace Zonk.Editor.Setup
             return seat;
         }
 
-        /// <summary>Рука-заглушка: ладонь и пальцы из примитивов, точка захвата стакана.</summary>
-        private static HandView BuildHand(string name, Transform parent, Transform rest)
+        /// <summary>
+        /// Рука-заглушка: ладонь и пальцы из примитивов, точка захвата стакана. Ладонью вниз, пальцами вперёд:
+        /// у правой руки большой палец слева (−X), у левой справа. Тогда при хвате стакана большой палец смотрит вверх.
+        /// </summary>
+        private static HandView BuildHand(string name, Transform parent, Transform rest, bool rightHanded = true)
         {
             var skin = AssetDatabase.LoadAssetAtPath<Material>(Materials + "/M_Skin.mat");
             var root = Empty(name, parent);
@@ -213,12 +216,13 @@ namespace Zonk.Editor.Setup
             for (var i = 0; i < 4; i++)
                 Prim(PrimitiveType.Capsule, "Finger", root.transform, new Vector3(-0.1f + i * 0.066f, 0f, 0.22f),
                     new Vector3(0.06f, 0.09f, 0.06f), skin, new Vector3(90f, 0f, 0f));
-            Prim(PrimitiveType.Capsule, "Thumb", root.transform, new Vector3(0.17f, 0f, 0.05f), new Vector3(0.07f, 0.08f, 0.07f), skin,
-                new Vector3(90f, 40f, 0f));
+            var side = rightHanded ? -1f : 1f;
+            Prim(PrimitiveType.Capsule, "Thumb", root.transform, new Vector3(0.17f * side, 0f, 0.05f), new Vector3(0.07f, 0.08f, 0.07f), skin,
+                new Vector3(90f, 40f * side, 0f));
             var grip = Empty("Grip", root.transform, new Vector3(0f, -0.05f, 0.2f));
 
             var hand = root.AddComponent<HandView>();
-            hand.EditorSetup(grip.transform, rest);
+            hand.EditorSetup(grip.transform, rest, rightHanded);
             return hand;
         }
 

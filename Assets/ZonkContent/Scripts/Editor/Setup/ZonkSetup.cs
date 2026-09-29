@@ -54,11 +54,11 @@ namespace Zonk.Editor.Setup
         public static void RebuildUiPrefabsMenu()
         {
             if (!EditorUtility.DisplayDialog("Zonk",
-                    "Пересоздать префабы окон (LoadingScreen, RulesWindow) и сцены? Ручные правки этих префабов пропадут.",
+                    "Пересоздать префабы всех окон из генератора и сцены? Ручные правки этих префабов пропадут.",
                     "Пересоздать", "Отмена"))
                 return;
 
-            foreach (var name in new[] { "LoadingScreen", "RulesWindow" })
+            foreach (var name in WindowPrefabs)
                 AssetDatabase.DeleteAsset(Prefabs + "/UI/" + name + ".prefab");
 
             BuildEverything();
@@ -73,6 +73,7 @@ namespace Zonk.Editor.Setup
 
             var art = BuildArt();
             var content = BuildContent(art);
+            BuildWindows(content.Ui);
             AssetDatabase.SaveAssets();
             ContentDatabaseBuilder.Rebuild();
             UiWindowRegistry.Rebuild();

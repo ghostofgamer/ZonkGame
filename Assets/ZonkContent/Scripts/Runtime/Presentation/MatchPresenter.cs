@@ -29,6 +29,9 @@ namespace Zonk.Presentation
         private IReadOnlyList<MatchParticipant> _participants;
         private System.Random _visualRandom;
         private Quaternion _uprightHand = Quaternion.identity;
+        private Vector3 _gripLocal;
+        private Vector3 _gripOffset;
+        private float _gripHeight = 0.4f;
 
         public MatchPresenter(TableView table, GameConfig config, IGameSettings settings)
         {
@@ -138,9 +141,8 @@ namespace Zonk.Presentation
                 }
 
                 // Рука берёт стакан и несёт его к краю лотка.
-                await hand.MoveToAsync(cupTransform.position + Vector3.up * 0.45f, hand.transform.rotation, 0.25f / Speed, ct);
-                cupTransform.SetParent(hand.Grip, true);
-                await hand.MoveToAsync(seat.ShakePoint.position, seat.ShakePoint.rotation, 0.3f / Speed, ct);
+                await GrabCupAsync(hand, cup, 0.25f / Speed, ct);
+                await MoveCupToAsync(hand, cup, seat.ShakePoint.position, 0.3f / Speed, ct);
                 await cameraMove;
 
                 _table.Sound.Play(Sfx.DiceRattle, 0.8f);
@@ -181,6 +183,62 @@ namespace Zonk.Presentation
         }
 
         /// <summary>
+        /// <summary>Доля высоты стакана, на которой ладонь обхватывает его.</summary>
+        private const float GripHeightFraction = 0.45f;
+
+        /// <summary>Половина толщины ладони: ладонь касается стенки стакана, а не входит в неё.</summary>
+        private const float PalmOffset = 0.08f;
+
+        /// <summary>
+        /// Рука подходит к стакану сбоку, со своей стороны, и обхватывает его: ладонь прижата к стенке и смотрит
+        /// на стакан, пальцы идут вдоль окружности. Размер стакана берётся из его модели, поэтому хват подходит
+        /// к любому скину стакана.
+        /// </summary>
+        private async UniTask GrabCupAsync(HandView hand, CupView cup, float duration, CancellationToken ct)
+        {
+            var bounds = CupBounds(cup);
+            var cupTransform = cup.transform;
+            var radius = Mathf.Max(bounds.extents.x, bounds.extents.z);
+            var center = new Vector3(cupTransform.position.x, bounds.min.y + bounds.size.y * GripHeightFraction,
+                cupTransform.position.z);
+
+            var away = hand.transform.position - center;
+            away.y = 0f;
+            away = away.sqrMagnitude > 0.0001f ? away.normalized : -cupTransform.forward;
+            // Правая рука: пальцы идут по окружности вправо, левая — влево.
+            var tangent = hand.RightHanded ? Vector3.Cross(away, Vector3.up) : Vector3.Cross(Vector3.up, away);
+
+            // Локальный верх руки смотрит от стакана: ладонь (низ руки) прижата к стенке, пальцы (вперёд) по касательной.
+            var rotation = Quaternion.LookRotation(tangent, away);
+            var position = center + away * (radius + PalmOffset);
+            await hand.MoveToAsync(position, rotation, duration, ct);
+
+            _gripLocal = cupTransform.InverseTransformPoint(center);
+            _gripOffset = position - center;
+            _gripHeight = center.y - cupTransform.position.y;
+            _uprightHand = rotation;
+            cupTransform.SetParent(hand.Grip, true);
+        }
+
+        /// <summary>Перенести взятый стакан так, чтобы центр хвата оказался в точке target. Поворот руки не меняется.</summary>
+        private UniTask MoveCupToAsync(HandView hand, CupView cup, Vector3 target, float duration, CancellationToken ct)
+        {
+            var delta = target - cup.transform.TransformPoint(_gripLocal);
+            return hand.MoveToAsync(hand.transform.position + delta, hand.transform.rotation, duration, ct);
+        }
+
+        private static Bounds CupBounds(CupView cup)
+        {
+            var renderers = cup.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0)
+                return new Bounds(cup.transform.position + Vector3.up * 0.45f, new Vector3(0.6f, 0.9f, 0.6f));
+
+            var bounds = renderers[0].bounds;
+            for (var i = 1; i < renderers.Length; i++)
+                bounds.Encapsulate(renderers[i].bounds);
+            return bounds;
+        }
+
         /// Замах и бросок как в казино: стакан тянется к себе и чуть вверх, горлышко отклоняется назад, короткая пауза,
         /// затем рывок вперёд с ускорением, на ходу стакан опрокидывается к центру лотка. Возвращает направление броска.
         /// </summary>
@@ -213,7 +271,8 @@ namespace Zonk.Presentation
         {
             // Доводка: рука по инерции проходит дальше точки броска, затем стакан выпрямляется и едет на место.
             await Animate.MoveAsync(hand.transform, hand.transform.position + followThrough, 0.15f / Speed, ct, AnimateEase.OutCubic);
-            var restWorld = parent.TransformPoint(localPosition) + Vector3.up * 0.45f;
+            // Рука несёт стакан обратно тем же хватом: центр хвата над местом стакана, ладонь сбоку.
+            var restWorld = parent.TransformPoint(localPosition) + Vector3.up * _gripHeight + _gripOffset;
             await hand.MoveToAsync(restWorld, _uprightHand, 0.35f / Speed, ct);
             cup.SetParent(parent, true);
             await UniTask.WhenAll(
@@ -336,9 +395,8 @@ namespace Zonk.Presentation
             try
             {
                 hand.SnapToRest();
-                await hand.MoveToAsync(cupTransform.position + Vector3.up * 0.45f, hand.transform.rotation, 0.25f, ct);
-                cupTransform.SetParent(hand.Grip, true);
-                await hand.MoveToAsync(seat.ShakePoint.position, seat.ShakePoint.rotation, 0.3f, ct);
+                await GrabCupAsync(hand, cup, 0.25f, ct);
+                await MoveCupToAsync(hand, cup, seat.ShakePoint.position, 0.3f, ct);
 
                 _table.Sound.Play(Sfx.DiceRattle, 0.8f);
                 await hand.ShakeAsync(style.ShakeDuration, style.ShakeAmplitude, style.ShakeFrequency, style.ShakeTilt,

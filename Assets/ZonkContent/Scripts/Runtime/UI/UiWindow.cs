@@ -1,6 +1,8 @@
 using System.Threading;
+using Base.Core.Localization;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using Zenject;
 using Zonk.UI.Transitions;
 
 namespace Zonk.UI
@@ -22,6 +24,33 @@ namespace Zonk.UI
         private CanvasGroup _group;
         private UiTransitionTarget _target;
         private UniTaskCompletionSource _closeRequest = new UniTaskCompletionSource();
+
+        /// <summary>Тексты окна: ключи из Texts.csv.</summary>
+        protected ILocalization Localization { get; private set; }
+
+        [Inject]
+        public void InjectLocalization(ILocalization localization)
+        {
+            Localization = localization;
+        }
+
+        protected string T(string key)
+        {
+            return Localization != null ? Localization.Get(key) : key;
+        }
+
+        protected string T(string key, params object[] args)
+        {
+            var format = T(key);
+            try
+            {
+                return string.Format(format, args);
+            }
+            catch (System.FormatException)
+            {
+                return format;
+            }
+        }
 
         public bool IsPopup => _popup;
         public bool IsVisible { get; private set; }

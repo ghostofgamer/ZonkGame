@@ -9,6 +9,7 @@ using Zonk.Core.Match;
 using Zonk.Presentation;
 using Zonk.Progress;
 using Zonk.UI;
+using Zonk.UI.Windows;
 
 namespace Zonk.MatchFlow
 {
@@ -34,9 +35,10 @@ namespace Zonk.MatchFlow
         private readonly GameConfig _config;
         private readonly IGameSettings _settings;
         private readonly ContentDatabase _content;
+        private readonly IUiService _ui;
 
         public MatchRunner(TableView table, MatchPresenter presenter, ReactionDirector reactions, IChatChannel chat, UiKit kit,
-            GameConfig config, IGameSettings settings, ContentDatabase content)
+            GameConfig config, IGameSettings settings, ContentDatabase content, IUiService ui)
         {
             _table = table;
             _presenter = presenter;
@@ -46,6 +48,7 @@ namespace Zonk.MatchFlow
             _config = config;
             _settings = settings;
             _content = content;
+            _ui = ui;
         }
 
         public async UniTask<MatchOutcome> RunAsync(MatchSettings settings, IReadOnlyList<MatchParticipant> participants,
@@ -58,10 +61,9 @@ namespace Zonk.MatchFlow
             phrases.Sort((a, b) => a.Order.CompareTo(b.Order));
 
             using (var surrenderCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
-            using (var hud = new MatchHud(_kit, _table.UiRoot, phrases))
             {
                 var token = surrenderCts.Token;
-                hud.SetParticipants(participants);
+                var hud = await _ui.OpenAsync<MatchHudWindow>(ct, w => w.Setup(phrases, participants));
                 hud.Refresh(match);
 
                 _presenter.PrepareMatch(participants, settings.Seed);
@@ -109,13 +111,14 @@ namespace Zonk.MatchFlow
                     hud.PhraseChosen -= OnPhraseChosen;
                     hud.SurrenderRequested -= OnSurrender;
                     _chat.Received -= OnPhraseReceived;
+                    await _ui.CloseAsync(hud, CancellationToken.None);
                 }
             }
 
             return outcome;
         }
 
-        private List<IPlayerController> CreateControllers(IReadOnlyList<MatchParticipant> participants, MatchHud hud, ulong seed)
+        private List<IPlayerController> CreateControllers(IReadOnlyList<MatchParticipant> participants, MatchHudWindow hud, ulong seed)
         {
             var controllers = new List<IPlayerController>(participants.Count);
             for (var i = 0; i < participants.Count; i++)
@@ -139,7 +142,7 @@ namespace Zonk.MatchFlow
             return controllers;
         }
 
-        private async UniTask PlayTurnAsync(ZonkMatch match, IReadOnlyList<IPlayerController> controllers, MatchHud hud,
+        private async UniTask PlayTurnAsync(ZonkMatch match, IReadOnlyList<IPlayerController> controllers, MatchHudWindow hud,
             CancellationToken ct)
         {
             var player = match.CurrentPlayerIndex;
@@ -171,9 +174,13 @@ namespace Zonk.MatchFlow
                 hud.Refresh(match);
                 await _presenter.PlayKeepAsync(keep, ct);
 
+                // Крупная комбинация: соперник может в сердцах ударить по столу.
+                if (!keep.HotDice && keep.Score.Score >= _config.BigKeepScore)
+                    _reactions.Fire(player, MatchEventType.SelfBigKeep, MatchEventType.OtherBigKeep);
+
                 if (keep.HotDice)
                 {
-                    _reactions.Fire(player, MatchEventType.SelfHotDice, null);
+                    _reactions.Fire(player, MatchEventType.SelfHotDice, MatchEventType.OtherHotDice);
                     await hud.ToastAsync(_kit.T("match.hotDice"), UiColors.Gold, 0.5f, ct);
                 }
 
@@ -206,7 +213,7 @@ namespace Zonk.MatchFlow
             bool confirmed;
             try
             {
-                confirmed = await ConfirmDialog.AskAsync(_kit, _table.UiRoot, _kit.T("match.surrenderConfirm"), ct);
+                confirmed = await ConfirmWindow.AskAsync(_ui, _kit.T("match.surrenderConfirm"), ct);
             }
             catch (OperationCanceledException)
             {

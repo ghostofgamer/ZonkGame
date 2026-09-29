@@ -10,41 +10,6 @@ using Zonk.Utils;
 
 namespace Zonk.UI
 {
-    /// <summary>Монеты и энергия с таймером восстановления. Обновляется сам, пока жив.</summary>
-    public static class WalletBar
-    {
-        public static RectTransform Create(UiKit kit, Transform parent, IWallet wallet, GameConfig config)
-        {
-            var panel = kit.Panel("Wallet", parent, UiColors.Panel);
-            UiKit.Place(panel.rectTransform, new Vector2(1f, 1f), new Vector2(460, 64), new Vector2(-24, -24));
-            var row = kit.Row(panel.transform, 16, 8);
-            UiKit.Stretch((RectTransform)row.transform);
-
-            var coins = kit.Label(row.transform, string.Empty, 28, TextAnchor.MiddleCenter, UiColors.Gold);
-            var energy = kit.Label(row.transform, string.Empty, 28, TextAnchor.MiddleCenter, UiColors.Good);
-
-            UpdateAsync(kit, wallet, config, coins, energy, panel.gameObject.GetCancellationTokenOnDestroy()).Forget();
-            return panel.rectTransform;
-        }
-
-        private static async UniTaskVoid UpdateAsync(UiKit kit, IWallet wallet, GameConfig config, TMP_Text coins, TMP_Text energy,
-            CancellationToken ct)
-        {
-            while (!ct.IsCancellationRequested)
-            {
-                coins.text = kit.T("ui.coins", wallet.Get(config.Coins));
-                var energyText = kit.T("ui.energy", wallet.Get(config.Energy), config.Energy != null ? config.Energy.RegenCap : 0);
-                var next = wallet.TimeToNextRegen(config.Energy);
-                if (next.HasValue)
-                    energyText += $"  {(int)next.Value.TotalMinutes:0}:{next.Value.Seconds:00}";
-                energy.text = energyText;
-
-                if (await UniTask.Delay(500, cancellationToken: ct).SuppressCancellationThrow())
-                    return;
-            }
-        }
-    }
-
     /// <summary>Крупная надпись по центру: «ЗОНК!», «Горячие кости!», «+350».</summary>
     public static class Toast
     {

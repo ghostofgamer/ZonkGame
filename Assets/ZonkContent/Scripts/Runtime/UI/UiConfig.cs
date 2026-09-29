@@ -19,6 +19,9 @@ namespace Zonk.UI
         public Color Good = new Color(0.45f, 0.85f, 0.45f, 1f);
         public Color Bad = new Color(0.95f, 0.4f, 0.35f, 1f);
         public Color Gold = new Color(1f, 0.82f, 0.35f, 1f);
+
+        [Tooltip("Кнопка «Забрать очки»: должна явно отличаться от «Бросить»")]
+        public Color Bank = new Color(0.2f, 0.62f, 0.34f, 1f);
     }
 
     /// <summary>

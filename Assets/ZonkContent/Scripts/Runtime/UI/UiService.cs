@@ -15,7 +15,8 @@ namespace Zonk.UI
     /// </summary>
     public interface IUiService
     {
-        UniTask<T> OpenAsync<T>(CancellationToken ct) where T : UiWindow;
+        /// <summary>Создать окно из префаба и показать. setup вызывается до анимации показа: заполнить окно данными.</summary>
+        UniTask<T> OpenAsync<T>(CancellationToken ct, Action<T> setup = null) where T : UiWindow;
         UniTask CloseAsync(UiWindow window, CancellationToken ct);
     }
 
@@ -36,7 +37,7 @@ namespace Zonk.UI
         /// <summary>ID биндинга корневого RectTransform, в котором создаются окна.</summary>
         public const string UiRootId = "UiRoot";
 
-        public async UniTask<T> OpenAsync<T>(CancellationToken ct) where T : UiWindow
+        public async UniTask<T> OpenAsync<T>(CancellationToken ct, Action<T> setup = null) where T : UiWindow
         {
             var prefab = _config != null ? _config.FindWindow<T>() : null;
             if (prefab == null)
@@ -45,6 +46,7 @@ namespace Zonk.UI
 
             var window = _container.InstantiatePrefabForComponent<T>(prefab, _root);
             window.ApplyDefaults(_config);
+            setup?.Invoke(window);
             _open.Add(window);
             await window.ShowAsync(ct);
             return window;

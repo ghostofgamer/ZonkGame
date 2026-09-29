@@ -200,6 +200,18 @@ namespace Zonk.Editor.Setup
                 s.SpinSpeed = new Vector2(14f, 22f);
             });
 
+            // Удары по столу, когда игрок набирает много. Уже созданным наборам добавляются только недостающие события.
+            EnsureReaction(friendly, Reaction(MatchEventType.OtherBigKeep, AvatarGesture.SlamTable, 0.5f, "line.friendly.otherBigBank"));
+            EnsureReaction(friendly, Reaction(MatchEventType.OtherHotDice, AvatarGesture.Cheer, 0.6f, "line.friendly.otherBigBank"));
+            EnsureReaction(grumpy, Reaction(MatchEventType.OtherBigKeep, AvatarGesture.SlamTable, 0.9f, "line.grumpy.otherBig"));
+            EnsureReaction(grumpy, Reaction(MatchEventType.OtherHotDice, AvatarGesture.SlamTwice, 0.9f, "line.grumpy.otherBig"));
+            EnsureReaction(agafyaLines, Reaction(MatchEventType.OtherBigKeep, AvatarGesture.SlamTable, 0.8f, "line.agafya.otherBig"));
+            EnsureReaction(agafyaLines, Reaction(MatchEventType.OtherHotDice, AvatarGesture.SlamTable, 0.9f, "line.agafya.otherBig"));
+            EnsureReaction(agafyaLines, Reaction(MatchEventType.OtherBigBank, AvatarGesture.Angry, 0.7f, "line.agafya.otherBig"));
+            EnsureReaction(boLines, Reaction(MatchEventType.OtherBigKeep, AvatarGesture.SlamTwice, 0.9f, "line.bo.otherBig"));
+            EnsureReaction(boLines, Reaction(MatchEventType.OtherHotDice, AvatarGesture.SlamTwice, 1f, "line.bo.otherBig"));
+            EnsureReaction(boLines, Reaction(MatchEventType.OtherBigBank, AvatarGesture.SlamTable, 0.8f, "line.bo.otherBig"));
+
             // Глава 1: Родной дом. Соперники по возрастанию силы, босс с правилом «три Зонка подряд = −500».
             var vitya = Opponent("vitya", aiChaotic, friendly, new Color(0.3f, 0.35f, 0.5f), null, 60, 20);
             var klava = Opponent("klava", aiNovice, friendly, new Color(0.55f, 0.3f, 0.35f), art.Hood, 70, 20);
@@ -504,6 +516,19 @@ namespace Zonk.Editor.Setup
         private static ReactionEntry Reaction(MatchEventType type, AvatarGesture gesture, float chance, params string[] lines)
         {
             return new ReactionEntry { Event = type, Gesture = gesture, Chance = chance, LineKeys = new List<string>(lines) };
+        }
+
+        /// <summary>Добавить реакцию на событие, если в наборе её ещё нет (ручные правки набора не трогаются).</summary>
+        private static void EnsureReaction(ReactionSetConfig set, ReactionEntry entry)
+        {
+            foreach (var existing in set.Entries)
+            {
+                if (existing != null && existing.Event == entry.Event)
+                    return;
+            }
+
+            set.Entries.Add(entry);
+            EditorUtility.SetDirty(set);
         }
 
         private static ReactionSetConfig Reactions(string id, ReactionEntry[] entries)

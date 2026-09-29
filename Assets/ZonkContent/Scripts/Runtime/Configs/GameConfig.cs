@@ -46,6 +46,9 @@ namespace Zonk.Configs
         [Tooltip("Ход от стольких очков считается крупным")]
         public int BigBankScore = 1000;
 
+        [Tooltip("Отложенная за раз комбинация от стольких очков считается крупной: соперник может ударить по столу")]
+        public int BigKeepScore = 1000;
+
         [Tooltip("Бросок при стольких очках хода и 1–2 костях считается рискованным")]
         public int RiskyRollScore = 500;
 

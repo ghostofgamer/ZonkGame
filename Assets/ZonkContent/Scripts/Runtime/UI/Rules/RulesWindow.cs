@@ -38,7 +38,6 @@ namespace Zonk.UI.Rules
         [SerializeField] private UiTransitionConfig _pageOut;
         [SerializeField] private UiTransitionConfig _pageIn;
 
-        private ILocalization _localization;
         private UiConfig _ui;
         private RulesBookConfig _book;
         private UiTransitionTarget _pageTarget;
@@ -46,9 +45,8 @@ namespace Zonk.UI.Rules
         private bool _turning;
 
         [Inject]
-        public void Construct(ILocalization localization, GameConfig config)
+        public void Construct(GameConfig config)
         {
-            _localization = localization;
             _ui = config != null ? config.Ui : null;
             _book = _ui != null ? _ui.RulesBook : null;
         }
@@ -85,8 +83,8 @@ namespace Zonk.UI.Rules
 
         protected override void OnShowing()
         {
-            if (_localization != null)
-                _localization.LanguageChanged += Refresh;
+            if (Localization != null)
+                Localization.LanguageChanged += Refresh;
 
             _page = 0;
             Refresh();
@@ -94,14 +92,14 @@ namespace Zonk.UI.Rules
 
         protected override void OnHiding()
         {
-            if (_localization != null)
-                _localization.LanguageChanged -= Refresh;
+            if (Localization != null)
+                Localization.LanguageChanged -= Refresh;
         }
 
         private void OnDestroy()
         {
-            if (_localization != null)
-                _localization.LanguageChanged -= Refresh;
+            if (Localization != null)
+                Localization.LanguageChanged -= Refresh;
         }
 
         private void Refresh()
@@ -214,22 +212,5 @@ namespace Zonk.UI.Rules
             return _pageContent.TryGetComponent<CanvasGroup>(out var group) ? group : _pageContent.gameObject.AddComponent<CanvasGroup>();
         }
 
-        private string T(string key)
-        {
-            return _localization != null ? _localization.Get(key) : key;
-        }
-
-        private string T(string key, params object[] args)
-        {
-            var format = T(key);
-            try
-            {
-                return string.Format(format, args);
-            }
-            catch (System.FormatException)
-            {
-                return format;
-            }
-        }
     }
 }

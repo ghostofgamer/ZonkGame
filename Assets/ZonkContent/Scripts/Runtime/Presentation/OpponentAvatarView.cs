@@ -107,6 +107,10 @@ namespace Zonk.Presentation
                 case AvatarGesture.Angry:
                     await ShakeHeadAsync(0.6f, ct);
                     break;
+                case AvatarGesture.SlamTwice:
+                    await SlamAsync(ct);
+                    await SlamAsync(ct);
+                    break;
                 case AvatarGesture.SlamTable:
                     await SlamAsync(ct);
                     break;

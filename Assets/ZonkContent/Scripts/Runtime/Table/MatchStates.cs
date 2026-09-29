@@ -12,6 +12,7 @@ using Zonk.MatchFlow;
 using Zonk.Presentation;
 using Zonk.Progress;
 using Zonk.UI;
+using Zonk.UI.Windows;
 
 namespace Zonk.Table
 {
@@ -25,9 +26,10 @@ namespace Zonk.Table
         private readonly IRewardService _rewards;
         private readonly IInterstitialService _interstitials;
         private readonly ISaveStore _saves;
+        private readonly IUiService _ui;
 
         public MatchAftermath(UiKit kit, TableView table, MatchPresenter presenter, RewardGranter granter,
-            IRewardService rewards, IInterstitialService interstitials, ISaveStore saves)
+            IRewardService rewards, IInterstitialService interstitials, ISaveStore saves, IUiService ui)
         {
             _kit = kit;
             _table = table;
@@ -36,6 +38,7 @@ namespace Zonk.Table
             _rewards = rewards;
             _interstitials = interstitials;
             _saves = saves;
+            _ui = ui;
         }
 
         /// <summary>Показывает итоги. rewards выдаются здесь; удвоение: те же валютные награды ещё раз за рекламу.</summary>
@@ -69,11 +72,12 @@ namespace Zonk.Table
 
             var canDouble = HasCurrency(rewards) && localWon && _rewards.CanOffer;
             ResultsChoice choice;
-            using (var screen = new ResultsScreen(_kit, _table.UiRoot, match, title, color, granted, canDouble, canAgain))
+            var screen = await _ui.OpenAsync<ResultsWindow>(ct, w => w.Setup(match, title, color, granted, canDouble, canAgain));
+            try
             {
                 while (true)
                 {
-                    choice = await screen.RunAsync(ct);
+                    choice = await screen.WaitChoiceAsync(ct);
                     if (choice != ResultsChoice.DoubleReward)
                         break;
 
@@ -87,6 +91,10 @@ namespace Zonk.Table
                         _table.Sound.Play(Sfx.Coin);
                     }
                 }
+            }
+            finally
+            {
+                await _ui.CloseAsync(screen, CancellationToken.None);
             }
 
             _presenter.EndMatch();
@@ -135,10 +143,11 @@ namespace Zonk.Table
         private readonly MatchRunner _runner;
         private readonly MatchAftermath _aftermath;
         private readonly IPlatformService _platform;
+        private readonly IUiService _ui;
 
         public HotSeatState(UiKit kit, TableView table, HotSeatSettings settings, GameConfig config, ContentDatabase content,
             IInventory inventory, OwnedContent owned, ParticipantFactory participants, MatchRunner runner,
-            MatchAftermath aftermath, IPlatformService platform)
+            MatchAftermath aftermath, IPlatformService platform, IUiService ui)
         {
             _kit = kit;
             _table = table;
@@ -151,18 +160,27 @@ namespace Zonk.Table
             _runner = runner;
             _aftermath = aftermath;
             _platform = platform;
+            _ui = ui;
         }
 
         public string Id => TableStateIds.HotSeat;
 
         public async UniTask<string> RunAsync(CancellationToken ct)
         {
-            using (var setup = new HotSeatSetupScreen(_kit, _table.UiRoot, _settings, _config, _content, _inventory,
-                       _owned.Dice(), _owned.Items(SlotIds.DiceSkin)))
+            var setup = await _ui.OpenAsync<HotSeatSetupWindow>(ct, w => w.Setup(_settings, _config, _content, _inventory,
+                _owned.Dice(), _owned.Items(SlotIds.DiceSkin)));
+            bool start;
+            try
             {
-                if (!await setup.RunAsync(ct))
-                    return TableStateIds.Menu;
+                start = await setup.WaitStartAsync(ct);
             }
+            finally
+            {
+                await _ui.CloseAsync(setup, CancellationToken.None);
+            }
+
+            if (!start)
+                return TableStateIds.Menu;
 
             while (true)
             {
@@ -224,11 +242,12 @@ namespace Zonk.Table
         private readonly StageDresser _dresser;
         private readonly IRewardService _rewards;
         private readonly IPlatformService _platform;
+        private readonly IUiService _ui;
 
         public CampaignState(UiKit kit, TableView table, ICampaignProgress progress, IWallet wallet, GameConfig config,
             ContentDatabase content, IInventory inventory, ILoadout loadout, OwnedContent owned,
             ParticipantFactory participants, MatchRunner runner, MatchAftermath aftermath, StageDresser dresser,
-            IRewardService rewards, IPlatformService platform)
+            IRewardService rewards, IPlatformService platform, IUiService ui)
         {
             _kit = kit;
             _table = table;
@@ -245,6 +264,7 @@ namespace Zonk.Table
             _dresser = dresser;
             _rewards = rewards;
             _platform = platform;
+            _ui = ui;
         }
 
         public string Id => TableStateIds.Campaign;
@@ -256,11 +276,16 @@ namespace Zonk.Table
                 OpponentConfig opponent;
                 ChapterConfig chapter;
                 var allowSpecial = _config.CampaignMode == null || _config.CampaignMode.AllowSpecialDice;
-                using (var screen = new CampaignScreen(_kit, _table.UiRoot, _progress, _wallet, _config, _content, _inventory,
-                           _loadout, _owned.Dice(allowSpecial)))
+                var screen = await _ui.OpenAsync<CampaignWindow>(ct,
+                    w => w.Setup(_progress, _config, _loadout, _owned.Dice(allowSpecial)));
+                try
                 {
-                    opponent = await screen.RunAsync(ct);
+                    opponent = await screen.WaitChoiceAsync(ct);
                     chapter = screen.Chapter;
+                }
+                finally
+                {
+                    await _ui.CloseAsync(screen, CancellationToken.None);
                 }
 
                 if (opponent == null)
@@ -268,8 +293,7 @@ namespace Zonk.Table
 
                 if (!_progress.IsIntroSeen(chapter) && chapter.Intro.Count > 0)
                 {
-                    using (var story = new StoryScreen(_kit, _table.UiRoot))
-                        await story.PlayAsync(chapter.Intro, ct);
+                    await StoryWindow.ShowAsync(_ui, chapter.Intro, ct);
                     _progress.MarkIntroSeen(chapter);
                 }
 
@@ -328,8 +352,7 @@ namespace Zonk.Table
 
             if (firstWin && opponent.IsBoss && !_progress.IsOutroSeen(chapter) && chapter.Outro.Count > 0)
             {
-                using (var story = new StoryScreen(_kit, _table.UiRoot))
-                    await story.PlayAsync(chapter.Outro, ct);
+                await StoryWindow.ShowAsync(_ui, chapter.Outro, ct);
                 _progress.MarkOutroSeen(chapter);
             }
 
@@ -339,7 +362,7 @@ namespace Zonk.Table
         /// <summary>Списывает энергию. Не хватает: предложить пополнение за рекламу.</summary>
         private async UniTask<bool> PayEnergyAsync(OpponentConfig opponent, CancellationToken ct)
         {
-            var cost = CampaignScreen.EnergyCost(opponent, _config);
+            var cost = CampaignWindow.EnergyCost(opponent, _config);
             if (cost <= 0 || _config.Energy == null)
                 return true;
 
@@ -352,7 +375,7 @@ namespace Zonk.Table
                 return false;
             }
 
-            if (!await ConfirmDialog.AskAsync(_kit, _table.UiRoot, _kit.T("campaign.energyForAd", cost), ct))
+            if (!await ConfirmWindow.AskAsync(_ui, _kit.T("campaign.energyForAd", cost), ct))
                 return false;
 
             var result = await _rewards.RequestAsync(EnergyPlacement, ct);

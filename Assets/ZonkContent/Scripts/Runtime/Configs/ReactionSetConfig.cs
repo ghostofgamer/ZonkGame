@@ -21,6 +21,15 @@ namespace Zonk.Configs
         Lost,
         PhraseReceived,
         Thinking,
+
+        // Новые события добавляются только в конец: в ассетах хранится номер.
+
+        /// <summary>Соперник отложил дорогую комбинацию (от GameConfig.BigKeepScore).</summary>
+        SelfBigKeep,
+        OtherBigKeep,
+
+        /// <summary>У соперника горячие кости.</summary>
+        OtherHotDice,
     }
 
     /// <summary>Жесты аватара. Заглушка играет их процедурно, позже аниматор по тем же именам.</summary>
@@ -34,6 +43,9 @@ namespace Zonk.Configs
         Laugh,
         Shrug,
         Nod,
+
+        /// <summary>Два удара кулаком подряд: злость боссов. Новые жесты — только в конец.</summary>
+        SlamTwice,
     }
 
     [Serializable]
