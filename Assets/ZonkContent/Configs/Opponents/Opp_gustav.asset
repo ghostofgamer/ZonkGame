@@ -21,16 +21,19 @@ MonoBehaviour:
   Accessory: {fileID: 0}
   IsBoss: 0
   Ai: {fileID: 11400000, guid: c0ddd16ff3dabb5488a4a462ee13c4a7, type: 2}
-  Dice: []
+  Dice:
+  - {fileID: 11400000, guid: a24cdadb60225194e92cd76b26771c82, type: 2}
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StakePayout: 0.9
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 5b73bd7a00b5bc949ae07e3ea2c1eb9b, type: 2}
   RollStyle: {fileID: 11400000, guid: 88367962bd0ac044d823ce245f6aa80d, type: 2}
   EnergyCost: -1
   FirstWinRewards:
   - rid: 4243792291812082126
+  - rid: 4243792294545719438
   RepeatWinRewards:
   - rid: 4243792291812082127
   references:
@@ -45,4 +48,8 @@ MonoBehaviour:
       type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
       data:
         Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
-        Amount: 30
+        Amount: 15
+    - rid: 4243792294545719438
+      type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Item: {fileID: 11400000, guid: db28c967133efcc4c9ab1fab49f4f19e, type: 2}

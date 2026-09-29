@@ -21,7 +21,7 @@ namespace Zonk.Editor.Setup
         public static readonly string[] WindowPrefabs =
         {
             "LoadingScreen", "RulesWindow", "MainMenuWindow", "SettingsWindow", "ConfirmWindow", "StoryWindow", "ResultsWindow",
-            "HotSeatSetupWindow", "CampaignWindow", "ShopWindow", "MatchHudWindow",
+            "HotSeatSetupWindow", "CampaignWindow", "ShopWindow", "MatchHudWindow", "QuestsWindow",
         };
 
         private static UiConfig _ui;
@@ -47,6 +47,7 @@ namespace Zonk.Editor.Setup
             WindowPrefab<CampaignWindow>("CampaignWindow", popupIn, popupOut, true, BuildCampaign);
             WindowPrefab<ShopWindow>("ShopWindow", slideBottom, slideOutBottom, false, BuildShop);
             WindowPrefab<MatchHudWindow>("MatchHudWindow", fadeIn, fadeOut, false, BuildMatchHud);
+            WindowPrefab<QuestsWindow>("QuestsWindow", popupIn, popupOut, true, BuildQuests);
         }
 
         private static void WindowPrefab<T>(string name, UiTransitionConfig show, UiTransitionConfig hide, bool popup,
@@ -74,11 +75,20 @@ namespace Zonk.Editor.Setup
             var title = Text("Title", column, _ui.BoldFont, 52, _ui.Palette.Gold);
             Height(title, 150);
             var campaign = ButtonView("Campaign", column, 34, _ui.Palette.ButtonAccent);
+            var quests = ButtonView("Quests", column, 34, _ui.Palette.Button);
             var hotSeat = ButtonView("HotSeat", column, 34, _ui.Palette.Button);
             var shop = ButtonView("Shop", column, 34, _ui.Palette.Button);
             var settings = ButtonView("Settings", column, 30, _ui.Palette.ButtonMuted);
-            foreach (var button in new[] { campaign, hotSeat, shop, settings })
-                Height(button, 76);
+            foreach (var button in new[] { campaign, quests, hotSeat, shop, settings })
+                Height(button, 72);
+
+            // Значок «есть награда» у правого края кнопки заданий.
+            var badge = Box("Badge", quests.transform, _ui.Palette.Bad);
+            Corner(badge, new Vector2(1f, 0.5f), new Vector2(44f, 44f), new Vector2(-12f, 0f));
+            var badgeText = Text("Mark", badge, _ui.BoldFont, 30, _ui.Palette.Text);
+            badgeText.text = "!";
+            Stretch(badgeText.rectTransform);
+            badge.gameObject.SetActive(false);
 
             // Книжка с вопросом в углу панели, вне раскладки колонки.
             var rules = ButtonView("Rules", panel, 48, Color.white);
@@ -88,8 +98,22 @@ namespace Zonk.Editor.Setup
             Corner((RectTransform)rules.transform, new Vector2(1f, 1f), new Vector2(96f, 96f), new Vector2(-16f, -16f));
 
             Wallet(root);
+
+            // Под кошельком: награды за рекламу (кнопка на строку GameConfig.MenuAdOffers) и особое предложение.
+            var adOffers = UiRect("AdOffers", root);
+            Corner(adOffers, new Vector2(1f, 1f), new Vector2(480f, 136f), new Vector2(-24f, -100f));
+            var adLayout = adOffers.gameObject.AddComponent<VerticalLayoutGroup>();
+            adLayout.spacing = 8;
+            adLayout.childControlWidth = true;
+            adLayout.childControlHeight = true;
+            adLayout.childForceExpandHeight = false;
+            var adTemplate = ButtonView("AdOfferTemplate", adOffers, 24, _ui.Palette.Bank);
+            Height(adTemplate, 64);
+            var offer = ButtonView("Offer", root, 26, _ui.Palette.ButtonAccent);
+            Corner((RectTransform)offer.transform, new Vector2(1f, 1f), new Vector2(480f, 76f), new Vector2(-24f, -248f));
+
             var window = root.gameObject.AddComponent<MainMenuWindow>();
-            window.EditorSetup(title, campaign, hotSeat, shop, settings, rules);
+            window.EditorSetup(title, campaign, hotSeat, shop, settings, rules, quests, badge.gameObject, adOffers, adTemplate, offer);
             return window;
         }
 
@@ -271,7 +295,7 @@ namespace Zonk.Editor.Setup
             Width(next, 100, 0);
 
             var body = Row(column, 20);
-            Height(body, 540);
+            Height(body, 470);
             var list = VerticalList("Opponents", body, 8, out var listContent);
             Width(list, -1, 1);
             var opponentTemplate = ButtonView("OpponentTemplate", listContent, 24, _ui.Palette.Button);
@@ -285,10 +309,37 @@ namespace Zonk.Editor.Setup
             info.fontSizeMax = 26;
             Anchor(info.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-40f, -40f));
 
-            var myDiceLabel = Text("MyDiceLabel", column, _ui.Font, 22, _ui.Palette.TextMuted);
+            var diceHeader = Row(column, 12);
+            diceHeader.name = "DiceHeader";
+            Height(diceHeader, 48);
+            var myDiceLabel = Text("MyDiceLabel", diceHeader, _ui.Font, 22, _ui.Palette.TextMuted);
             myDiceLabel.alignment = TextAlignmentOptions.Left;
-            Height(myDiceLabel, 32);
+            myDiceLabel.enableAutoSizing = true;
+            myDiceLabel.fontSizeMin = 16;
+            myDiceLabel.fontSizeMax = 22;
+            Width(myDiceLabel, -1, 1);
+            var presetsRow = Row(diceHeader, 8);
+            presetsRow.name = "Presets";
+            Width(presetsRow, 480, 0);
+            var presetTemplate = ButtonView("PresetTemplate", presetsRow, 20, _ui.Palette.ButtonMuted);
+            var presets = presetsRow.gameObject.AddComponent<DicePresetsView>();
+            presets.EditorSetup(presetsRow, presetTemplate);
             var myDice = DiceRow(column);
+
+            // Ставка монетами на партию.
+            var stakeRow = Row(column, 10);
+            stakeRow.name = "Stake";
+            Height(stakeRow, 56);
+            var stakeLabel = Text("StakeLabel", stakeRow, _ui.Font, 22, _ui.Palette.TextMuted);
+            stakeLabel.alignment = TextAlignmentOptions.Left;
+            stakeLabel.enableAutoSizing = true;
+            stakeLabel.fontSizeMin = 16;
+            stakeLabel.fontSizeMax = 22;
+            Width(stakeLabel, 200, 0);
+            var stakeList = Row(stakeRow, 8);
+            stakeList.name = "StakeOptions";
+            Width(stakeList, -1, 1);
+            var stakeTemplate = ButtonView("StakeTemplate", stakeList, 22, _ui.Palette.ButtonMuted);
 
             var buttons = Row(column, 24);
             Height(buttons, 84);
@@ -297,7 +348,8 @@ namespace Zonk.Editor.Setup
 
             Wallet(root);
             var window = root.gameObject.AddComponent<CampaignWindow>();
-            window.EditorSetup(previous, next, chapterTitle, listContent, opponentTemplate, info, myDiceLabel, myDice, back, play);
+            window.EditorSetup(previous, next, chapterTitle, listContent, opponentTemplate, info, myDiceLabel, myDice, back, play, presets,
+                stakeLabel, stakeList, stakeTemplate);
             return window;
         }
 
@@ -389,6 +441,80 @@ namespace Zonk.Editor.Setup
             var window = root.gameObject.AddComponent<MatchHudWindow>();
             window.EditorSetup(players, turn, hint, roll, bank, surrender, phrasesButton, phrases, phraseTemplate);
             return window;
+        }
+
+        private static QuestsWindow BuildQuests(RectTransform root)
+        {
+            Dim(root, 0.5f);
+            var panel = CenterPanel(root, new Vector2(1400f, 920f));
+            var column = Column(panel, 12, 28);
+
+            var header = Row(column, 16);
+            Height(header, 72);
+            var title = Text("Title", header, _ui.BoldFont, 44, _ui.Palette.Gold);
+            title.alignment = TextAlignmentOptions.Left;
+            Width(title, -1, 1);
+            var daily = ButtonView("DailyTab", header, 26, _ui.Palette.ButtonAccent);
+            var weekly = ButtonView("WeeklyTab", header, 26, _ui.Palette.ButtonMuted);
+            Width(daily, 260, 0);
+            Width(weekly, 260, 0);
+
+            var timer = Text("Timer", column, _ui.Font, 24, _ui.Palette.TextMuted);
+            timer.alignment = TextAlignmentOptions.Left;
+            Height(timer, 40);
+
+            var list = VerticalList("Quests", column, 10, out var listContent);
+            Height(list, 590);
+            var row = QuestRow(listContent);
+
+            var buttons = Row(column, 24);
+            Height(buttons, 80);
+            var back = ButtonView("Back", buttons, 30, _ui.Palette.ButtonMuted);
+            Width(back, 360, 0);
+            buttons.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
+
+            var window = root.gameObject.AddComponent<QuestsWindow>();
+            window.EditorSetup(title, daily, weekly, timer, listContent, row, back);
+            return window;
+        }
+
+        /// <summary>Строка задания: слева текст, полоса прогресса и награда, справа «Забрать» и «Заменить».</summary>
+        private static QuestRowView QuestRow(RectTransform parent)
+        {
+            var row = Box("QuestRowTemplate", parent, _ui.Palette.PanelLight);
+            Height(row, 150);
+
+            var title = Text("Title", row, _ui.BoldFont, 28, _ui.Palette.Text);
+            title.alignment = TextAlignmentOptions.Left;
+            title.enableAutoSizing = true;
+            title.fontSizeMin = 18;
+            title.fontSizeMax = 28;
+            Anchor(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(-180f, -44f), new Vector2(-400f, 56f));
+
+            var bar = Box("Bar", row, new Color(0f, 0f, 0f, 0.45f));
+            Anchor(bar, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(-180f, -93f), new Vector2(-400f, 26f));
+            var fill = Box("Fill", bar, _ui.Palette.Good);
+            Stretch(fill);
+            var progress = Text("Progress", bar, _ui.BoldFont, 20, _ui.Palette.Text);
+            Stretch(progress.rectTransform);
+            progress.outlineColor = new Color(0f, 0f, 0f, 0.8f);
+            progress.outlineWidth = 0.2f;
+
+            var reward = Text("Reward", row, _ui.Font, 22, _ui.Palette.Gold);
+            reward.alignment = TextAlignmentOptions.Left;
+            reward.enableAutoSizing = true;
+            reward.fontSizeMin = 16;
+            reward.fontSizeMax = 22;
+            Anchor(reward.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(-180f, -128f), new Vector2(-400f, 32f));
+
+            var claim = ButtonView("Claim", row, 26, _ui.Palette.ButtonAccent);
+            Corner((RectTransform)claim.transform, new Vector2(1f, 0.5f), new Vector2(340f, 62f), new Vector2(-20f, 32f));
+            var reroll = ButtonView("Reroll", row, 20, _ui.Palette.Button);
+            Corner((RectTransform)reroll.transform, new Vector2(1f, 0.5f), new Vector2(340f, 50f), new Vector2(-20f, -32f));
+
+            var view = row.gameObject.AddComponent<QuestRowView>();
+            view.EditorSetup(title, progress, fill, reward, claim, reroll);
+            return view;
         }
 
         private static HudPlayerPanel HudPanel(string name, RectTransform root, Vector2 anchor, Vector2 offset)

@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78e9d6a0a4ed1974ca62a0936925b2c9, type: 3}
+  m_Name: Ch3_Beach
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.ChapterConfig
+  Id: chapter_beach
+  NameKey: chapter.beach
+  Order: 3
+  Environment: {fileID: 11400000, guid: 44d9bc042a857b7468148d9c56385f90, type: 2}
+  Intro:
+  - SpeakerKey: story.narrator
+    Portrait: {fileID: 0}
+    TextKey: story.beach.1
+  - SpeakerKey: story.claw
+    Portrait: {fileID: 0}
+    TextKey: story.beach.2
+  Outro:
+  - SpeakerKey: story.claw
+    Portrait: {fileID: 0}
+    TextKey: story.beach.outro
+  Opponents:
+  - {fileID: 11400000, guid: 641d5912b1787a34b95f26d8551f479b, type: 2}
+  - {fileID: 11400000, guid: bb94fdb3be31a4c45bef973b0e039842, type: 2}
+  - {fileID: 11400000, guid: cd33b2102076d9940b79283281b473e9, type: 2}
+  - {fileID: 11400000, guid: e0dbef8dc4b94b246820b17be50cf7e7, type: 2}
+  - {fileID: 11400000, guid: 4bdb7ad4e577d9b4a8264e9c989a5498, type: 2}

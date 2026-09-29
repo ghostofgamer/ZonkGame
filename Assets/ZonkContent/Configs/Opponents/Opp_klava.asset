@@ -25,12 +25,14 @@ MonoBehaviour:
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StakePayout: 0.6
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 096e3e429b23d4c498ffca9732e7ea3b, type: 2}
   RollStyle: {fileID: 11400000, guid: 88367962bd0ac044d823ce245f6aa80d, type: 2}
   EnergyCost: -1
   FirstWinRewards:
   - rid: 4243792291812082113
+  - rid: 4243792294545719437
   RepeatWinRewards:
   - rid: 4243792291812082114
   references:
@@ -45,4 +47,8 @@ MonoBehaviour:
       type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
       data:
         Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
-        Amount: 20
+        Amount: 10
+    - rid: 4243792294545719437
+      type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Item: {fileID: 11400000, guid: c501262f539cdc84798bc1d47e462cb6, type: 2}

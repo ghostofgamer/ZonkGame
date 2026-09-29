@@ -38,9 +38,17 @@ namespace Zonk.Presentation
         /// Угол обзора камеры задан по вертикали. На экране уже, чем 16:9 (квадрат, телефон вертикально),
         /// по бокам обрезался бы стол, поэтому вертикальный угол растёт так, чтобы по ширине было видно столько же.
         /// </summary>
+        private float _appliedFov = -1f;
+
         private void LateUpdate()
         {
-            _camera.fieldOfView = FitFov(_designFov, _camera.aspect, _designAspect);
+            // Меняем угол камеры, только когда он действительно изменился (поворот экрана, перелёт камеры).
+            var fov = FitFov(_designFov, _camera.aspect, _designAspect);
+            if (!Mathf.Approximately(fov, _appliedFov))
+            {
+                _appliedFov = fov;
+                _camera.fieldOfView = fov;
+            }
         }
 
         public static float FitFov(float verticalFov, float aspect, float designAspect)

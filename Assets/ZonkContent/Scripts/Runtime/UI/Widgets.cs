@@ -13,11 +13,15 @@ namespace Zonk.UI
     /// <summary>Крупная надпись по центру: «ЗОНК!», «Горячие кости!», «+350».</summary>
     public static class Toast
     {
+        private const float FadeDuration = 0.25f;
+
         public static async UniTask ShowAsync(UiKit kit, Transform parent, string text, Color color, float duration,
             CancellationToken ct)
         {
-            var label = kit.Label(parent, text, 84, TextAnchor.MiddleCenter, color, true);
-            UiKit.Outline(label, new Color(0f, 0f, 0f, 0.8f), 0.25f);
+            // Надпись из пула UiKit: TextMeshPro с контуром не создаётся и не уничтожается на каждое сообщение.
+            var label = kit.RentToast(parent);
+            label.text = text;
+            label.color = color;
             UiKit.Place(label.rectTransform, new Vector2(0.5f, 0.62f), new Vector2(1200, 160));
 
             try
@@ -26,12 +30,20 @@ namespace Zonk.UI
                 rect.localScale = Vector3.one * 0.4f;
                 await Animate.ScaleAsync(rect, Vector3.one, 0.25f, ct, AnimateEase.OutBack);
                 await UniTask.Delay(TimeSpan.FromSeconds(duration), cancellationToken: ct);
-                await Animate.RunAsync(0.25f, t => label.color = new Color(color.r, color.g, color.b, 1f - t), ct);
+
+                var time = 0f;
+                while (time < FadeDuration)
+                {
+                    label.color = new Color(color.r, color.g, color.b, 1f - time / FadeDuration);
+                    await UniTask.Yield(PlayerLoopTiming.Update, ct);
+                    time += Time.deltaTime;
+                }
             }
             finally
             {
+                // Окно могли закрыть посреди показа: вместе с ним уничтожена и надпись, в пул её не вернуть.
                 if (label != null)
-                    UnityEngine.Object.Destroy(label.gameObject);
+                    kit.ReturnToast(label);
             }
         }
     }
@@ -42,13 +54,12 @@ namespace Zonk.UI
         public static async UniTask ShowAsync(UiKit kit, RectTransform canvasRoot, Camera camera, Transform anchor,
             string text, float duration, CancellationToken ct)
         {
-            var panel = kit.Panel("Bubble", canvasRoot, new Color(1f, 0.97f, 0.9f, 0.95f));
+            var panel = kit.RentBubble(canvasRoot, out var label);
             var rect = panel.rectTransform;
             rect.pivot = new Vector2(0.5f, 0f);
             rect.anchorMin = rect.anchorMax = Vector2.zero;
             rect.sizeDelta = new Vector2(520, 110);
-            var label = kit.Label(panel.transform, text, 28, TextAnchor.MiddleCenter, new Color(0.15f, 0.1f, 0.05f));
-            UiKit.Stretch(label.rectTransform, 16, 16, 8, 8);
+            label.text = text;
 
             try
             {
@@ -63,7 +74,7 @@ namespace Zonk.UI
             finally
             {
                 if (panel != null)
-                    UnityEngine.Object.Destroy(panel.gameObject);
+                    kit.ReturnBubble(panel);
             }
         }
 

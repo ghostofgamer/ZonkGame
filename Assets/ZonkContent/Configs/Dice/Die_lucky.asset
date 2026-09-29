@@ -22,14 +22,32 @@ MonoBehaviour:
   - 1
   - 0.6
   - 1
+  Order: 9
   MarkerColor: {r: 1, g: 0.8, b: 0.2, a: 1}
+  LookMaterial: {fileID: 2100000, guid: 8e22ec9a279e64f45bc6a0e47e1a061a, type: 2}
+  LookMesh: {fileID: 0}
+  MasteryLooks:
+  - {fileID: 2100000, guid: d2a47022c0c8aed4385cb75607e8ebf9, type: 2}
+  - {fileID: 2100000, guid: d1b63179bd968b9418caacad140757c0, type: 2}
+  - {fileID: 2100000, guid: f2e1b0708639f5c4a919adc2bebf34c7, type: 2}
   Price:
     Options:
-    - rid: 4243792291812081745
+    - rid: 4243792294545719412
+    - rid: 4243792294545719413
+    - rid: 4243792294545719414
   references:
     version: 2
     RefIds:
-    - rid: 4243792291812081745
+    - rid: 4243792294545719412
       type: {class: ProgressPriceOption, ns: Zonk.Configs, asm: Zonk}
       data:
-        HintKey: 
+        HintKey: hint.die.lucky
+    - rid: 4243792294545719413
+      type: {class: CurrencyPriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 3000
+    - rid: 4243792294545719414
+      type: {class: PurchasePriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        ProductId: die_lucky

@@ -22,14 +22,26 @@ MonoBehaviour:
   - 0.9
   - 1.1
   - 0.9
+  Order: 6
   MarkerColor: {r: 0.8, g: 0.35, b: 1, a: 1}
+  LookMaterial: {fileID: 2100000, guid: 238eba3a29f9e404bb9de385da586b1a, type: 2}
+  LookMesh: {fileID: 0}
+  MasteryLooks:
+  - {fileID: 2100000, guid: c62c4b9aea686434d989eb19941a9c5e, type: 2}
+  - {fileID: 2100000, guid: 1c97d7609630be9409665764b9dc66c3, type: 2}
+  - {fileID: 2100000, guid: 87a7534d8e6e3a5408bbe342a1b884ad, type: 2}
   Price:
     Options:
-    - rid: 4243792291812081747
+    - rid: 4243792294545719419
+    - rid: 4243792294545719420
   references:
     version: 2
     RefIds:
-    - rid: 4243792291812081747
+    - rid: 4243792294545719419
       type: {class: ProgressPriceOption, ns: Zonk.Configs, asm: Zonk}
       data:
-        HintKey: 
+        HintKey: hint.die.odd
+    - rid: 4243792294545719420
+      type: {class: RewardedAdPriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        AdsRequired: 4

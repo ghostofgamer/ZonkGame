@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21c0208f2ebf7224083255c955e15d9c, type: 3}
+  m_Name: Quest_win_with_lucky
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.QuestConfig
+  Id: quest_win_with_lucky
+  NameKey: quest.winWithDie
+  Period: 0
+  Weight: 0.15
+  Guaranteed: 0
+  Group: win_with_die
+  Conditions: []
+  Goal:
+    rid: 4243792294545719463
+  Rewards:
+  - rid: 4243792294545719464
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792294545719463
+      type: {class: WinWithDieGoal, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Target: 1
+        CountHotSeat: 0
+        Die: {fileID: 11400000, guid: e71f1b038b70cf941b9a7bf2a6e1d519, type: 2}
+    - rid: 4243792294545719464
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100

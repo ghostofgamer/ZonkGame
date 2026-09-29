@@ -19,6 +19,13 @@ namespace Zonk.Core.Match
         private readonly IRandom _random;
         private readonly List<MatchPlayer> _players = new List<MatchPlayer>();
         private readonly int[] _faces = new int[DiceCount];
+
+        // Рабочие буферы подсчёта: EvaluateSelection и GetKeepOptions вызываются на каждый бросок и выбор кости
+        // (и десятки раз за решение ИИ), поэтому без новых списков и массивов на каждый вызов.
+        private readonly int[] _countsBuffer = new int[7];
+        private readonly bool[] _seenBuffer = new bool[DiceCount];
+        private readonly List<int> _handBuffer = new List<int>(DiceCount);
+        private readonly HashSet<int> _keysBuffer = new HashSet<int>();
         private readonly bool[] _inHand = new bool[DiceCount];
         private readonly List<MatchModifier> _modifiers;
         private int _finalRoundStarter = -1;
@@ -146,18 +153,21 @@ namespace Zonk.Core.Match
             if (Phase != MatchPhase.AwaitingKeep || dice == null || dice.Count == 0)
                 return ScoreResult.Invalid;
 
-            var faces = new List<int>(dice.Count);
-            var seen = new bool[DiceCount];
-            foreach (var die in dice)
+            var counts = _countsBuffer;
+            var seen = _seenBuffer;
+            Array.Clear(counts, 0, counts.Length);
+            Array.Clear(seen, 0, seen.Length);
+            for (var i = 0; i < dice.Count; i++)
             {
+                var die = dice[i];
                 if (die < 0 || die >= DiceCount || seen[die] || !_inHand[die] || _faces[die] == 0)
                     return ScoreResult.Invalid;
 
                 seen[die] = true;
-                faces.Add(_faces[die]);
+                counts[_faces[die]]++;
             }
 
-            return Calculator.EvaluateFaces(faces);
+            return Calculator.EvaluateCounts(counts);
         }
 
         public KeepOutcome Keep(IReadOnlyList<int> dice)
@@ -243,35 +253,50 @@ namespace Zonk.Core.Match
             if (Phase != MatchPhase.AwaitingKeep)
                 return options;
 
-            var hand = new List<int>(DiceCount);
+            var hand = _handBuffer;
+            hand.Clear();
             for (var die = 0; die < DiceCount; die++)
             {
-                if (_inHand[die])
+                if (_inHand[die] && _faces[die] > 0)
                     hand.Add(die);
             }
 
-            var seen = new HashSet<int>();
+            // Набор граней считается один раз (ключ — число костей каждой грани), список костей создаётся
+            // только у вариантов, которые приносят очки.
+            var seen = _keysBuffer;
+            seen.Clear();
+            var counts = _countsBuffer;
             var subsetCount = 1 << hand.Count;
             for (var mask = 1; mask < subsetCount; mask++)
             {
-                var dice = new List<int>(hand.Count);
+                Array.Clear(counts, 0, counts.Length);
                 var key = 0;
+                var size = 0;
                 for (var bit = 0; bit < hand.Count; bit++)
                 {
                     if ((mask & (1 << bit)) == 0)
                         continue;
-                    dice.Add(hand[bit]);
-                    key += Pow7(_faces[hand[bit]] - 1);
+                    var face = _faces[hand[bit]];
+                    counts[face]++;
+                    key += Pow7(face - 1);
+                    size++;
                 }
 
                 if (!seen.Add(key))
                     continue;
 
-                var score = EvaluateSelection(dice);
+                var score = Calculator.EvaluateCounts(counts);
                 if (!score.IsValid)
                     continue;
 
-                var left = hand.Count - dice.Count;
+                var dice = new List<int>(size);
+                for (var bit = 0; bit < hand.Count; bit++)
+                {
+                    if ((mask & (1 << bit)) != 0)
+                        dice.Add(hand[bit]);
+                }
+
+                var left = hand.Count - size;
                 if (left == 0 && Rules.HotDice)
                     left = DiceCount;
 

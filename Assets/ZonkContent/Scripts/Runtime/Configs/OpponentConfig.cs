@@ -44,6 +44,10 @@ namespace Zonk.Configs
         [Tooltip("Цель партии с этим соперником. 0 = из правил режима")]
         public int TargetScore;
 
+        [Tooltip("Ставка: сколько чистыми получает игрок за победу на каждую поставленную монету. Меньше 1 у слабых " +
+                 "соперников, чтобы ставки на лёгкие победы не стали фермой монет (по победам ИИ в Zonk/Balance Simulator)")]
+        public float StakePayout = 1f;
+
         [SerializeReference, SubclassSelector]
         public List<MatchModifier> Modifiers = new List<MatchModifier>();
 

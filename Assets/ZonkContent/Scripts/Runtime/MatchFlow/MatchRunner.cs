@@ -6,6 +6,7 @@ using UnityEngine;
 using Zonk.Configs;
 using Zonk.Core.Dice;
 using Zonk.Core.Match;
+using Zonk.Core.Progress;
 using Zonk.Presentation;
 using Zonk.Progress;
 using Zonk.UI;
@@ -36,10 +37,15 @@ namespace Zonk.MatchFlow
         private readonly IGameSettings _settings;
         private readonly ContentDatabase _content;
         private readonly IUiService _ui;
+        private readonly IQuestService _quests;
+        private readonly IDieMastery _mastery;
 
         public MatchRunner(TableView table, MatchPresenter presenter, ReactionDirector reactions, IChatChannel chat, UiKit kit,
-            GameConfig config, IGameSettings settings, ContentDatabase content, IUiService ui)
+            GameConfig config, IGameSettings settings, ContentDatabase content, IUiService ui, IQuestService quests,
+            IDieMastery mastery)
         {
+            _quests = quests;
+            _mastery = mastery;
             _table = table;
             _presenter = presenter;
             _reactions = reactions;
@@ -70,6 +76,7 @@ namespace Zonk.MatchFlow
                 _reactions.Begin(participants, _table.UiRoot, token);
 
                 var controllers = CreateControllers(participants, hud, settings.Seed);
+                var progress = new ProgressTracking(participants);
 
                 void OnPhraseChosen(PhraseConfig phrase)
                 {
@@ -95,7 +102,7 @@ namespace Zonk.MatchFlow
                 {
                     _reactions.Fire(-1, MatchEventType.MatchStarted, MatchEventType.MatchStarted);
                     while (match.Phase != MatchPhase.Finished)
-                        await PlayTurnAsync(match, controllers, hud, token);
+                        await PlayTurnAsync(match, controllers, hud, progress, token);
 
                     outcome.Winner = match.Winner != null ? match.Winner.Index : -1;
                     hud.Refresh(match);
@@ -143,10 +150,11 @@ namespace Zonk.MatchFlow
         }
 
         private async UniTask PlayTurnAsync(ZonkMatch match, IReadOnlyList<IPlayerController> controllers, MatchHudWindow hud,
-            CancellationToken ct)
+            ProgressTracking progress, CancellationToken ct)
         {
             var player = match.CurrentPlayerIndex;
             var controller = controllers[player];
+            progress.Turn[player].Reset();
 
             hud.Refresh(match);
             await _presenter.BeginTurnAsync(player, ct);
@@ -171,6 +179,7 @@ namespace Zonk.MatchFlow
 
                 var decision = await controller.DecideAsync(match, ct);
                 var keep = match.Keep(decision.Keep);
+                OnKeep(progress, player, keep);
                 hud.Refresh(match);
                 await _presenter.PlayKeepAsync(keep, ct);
 
@@ -190,6 +199,7 @@ namespace Zonk.MatchFlow
                         throw new InvalidOperationException("No dice to roll and banking is not allowed");
 
                     var end = match.Bank();
+                    OnBank(progress, player, end.Banked);
                     hud.Refresh(match);
                     if (end.Banked >= _config.BigBankScore)
                         _reactions.Fire(player, MatchEventType.SelfBigBank, MatchEventType.OtherBigBank);
@@ -206,6 +216,57 @@ namespace Zonk.MatchFlow
                 if (match.DiceInHandCount <= 2 && match.TurnScore >= _config.RiskyRollScore)
                     _reactions.Fire(player, MatchEventType.SelfRiskyRoll, null);
             }
+        }
+
+        /// <summary>
+        /// Прогресс игрока за партию: задания получают ходы людей, мастерство костей — только партии против соперников
+        /// (в игре вдвоём с самим собой очки копить нельзя).
+        /// </summary>
+        private sealed class ProgressTracking
+        {
+            public ProgressTracking(IReadOnlyList<MatchParticipant> participants)
+            {
+                Participants = participants;
+                Turn = new TurnDiceScore[participants.Count];
+                for (var i = 0; i < Turn.Length; i++)
+                    Turn[i] = new TurnDiceScore();
+
+                HotSeat = true;
+                foreach (var participant in participants)
+                    HotSeat &= participant.Controller != ControllerKind.Ai;
+            }
+
+            public IReadOnlyList<MatchParticipant> Participants { get; }
+            public TurnDiceScore[] Turn { get; }
+            public bool HotSeat { get; }
+
+            public bool IsLocal(int player) => Participants[player].Controller == ControllerKind.Local;
+        }
+
+        private void OnKeep(ProgressTracking progress, int player, KeepOutcome keep)
+        {
+            progress.Turn[player].AddKeep(keep);
+            if (!progress.IsLocal(player))
+                return;
+
+            _quests.Report(new QuestEvent { Kind = QuestEventKind.Keep, Score = keep.Score, HotSeat = progress.HotSeat });
+            if (keep.HotDice)
+                _quests.Report(new QuestEvent { Kind = QuestEventKind.HotDice, HotSeat = progress.HotSeat });
+        }
+
+        private void OnBank(ProgressTracking progress, int player, int banked)
+        {
+            var points = progress.Turn[player].Commit();
+            if (!progress.IsLocal(player))
+                return;
+
+            _quests.Report(new QuestEvent { Kind = QuestEventKind.Bank, Amount = banked, HotSeat = progress.HotSeat });
+            if (progress.HotSeat)
+                return;
+
+            var dice = progress.Participants[player].Dice;
+            for (var slot = 0; slot < points.Length && dice != null && slot < dice.Count; slot++)
+                _mastery.AddPoints(dice[slot], points[slot]);
         }
 
         private async UniTaskVoid AskSurrenderAsync(CancellationTokenSource surrender, MatchOutcome outcome, CancellationToken ct)

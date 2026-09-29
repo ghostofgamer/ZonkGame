@@ -60,16 +60,35 @@ namespace Zonk.UI.Views
             }
         }
 
+        // Что показано сейчас: текст пересобирается, только если число изменилось (без мусора и перестройки меша
+        // TextMeshPro каждые полсекунды).
+        private int _shownCoins = int.MinValue;
+        private int _shownEnergy = int.MinValue;
+        private int _shownRegenSeconds = int.MinValue;
+
         private void Refresh()
         {
             if (_wallet == null || _config == null || _localization == null)
                 return;
 
-            _coins.text = Format("ui.coins", _wallet.Get(_config.Coins));
-            var energy = Format("ui.energy", _wallet.Get(_config.Energy), _config.Energy != null ? _config.Energy.RegenCap : 0);
+            var coins = _wallet.Get(_config.Coins);
+            if (coins != _shownCoins)
+            {
+                _shownCoins = coins;
+                _coins.text = Format("ui.coins", coins);
+            }
+
+            var energyAmount = _wallet.Get(_config.Energy);
             var next = _wallet.TimeToNextRegen(_config.Energy);
+            var regenSeconds = next.HasValue ? (int)next.Value.TotalSeconds : -1;
+            if (energyAmount == _shownEnergy && regenSeconds == _shownRegenSeconds)
+                return;
+
+            _shownEnergy = energyAmount;
+            _shownRegenSeconds = regenSeconds;
+            var energy = Format("ui.energy", energyAmount, _config.Energy != null ? _config.Energy.RegenCap : 0);
             if (next.HasValue)
-                energy += $"  {(int)next.Value.TotalMinutes:0}:{next.Value.Seconds:00}";
+                energy += $"  {regenSeconds / 60}:{regenSeconds % 60:00}";
             _energy.text = energy;
         }
 

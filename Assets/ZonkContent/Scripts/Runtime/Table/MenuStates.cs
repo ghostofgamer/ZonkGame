@@ -38,6 +38,12 @@ namespace Zonk.Table
         }
     }
 
+    /// <summary>Что показать в магазине сразу при открытии (особое предложение из меню). Одноразово: магазин забирает.</summary>
+    public sealed class ShopFocus
+    {
+        public ContentConfig Item;
+    }
+
     public sealed class MenuState : ITableState
     {
         private readonly IUiService _ui;
@@ -45,10 +51,15 @@ namespace Zonk.Table
         private readonly StageDresser _dresser;
         private readonly IPlatformService _platform;
         private readonly LoadingScreenHolder _loading;
+        private readonly ShopFocus _focus;
+        private readonly ShopService _shop;
         private bool _first = true;
 
-        public MenuState(IUiService ui, TableView table, StageDresser dresser, IPlatformService platform, LoadingScreenHolder loading)
+        public MenuState(IUiService ui, TableView table, StageDresser dresser, IPlatformService platform, LoadingScreenHolder loading,
+            ShopFocus focus, ShopService shop)
         {
+            _focus = focus;
+            _shop = shop;
             _ui = ui;
             _table = table;
             _dresser = dresser;
@@ -73,6 +84,9 @@ namespace Zonk.Table
 
             _platform.NotifyGameplayStop();
 
+            // Оплаченное, но не выданное (пакеты монет, награды наборов) — до показа кошелька.
+            _shop.SyncPurchases();
+
             // Первый показ меню: экран загрузки из Bootstrap уходит, когда стол уже одет и камера на месте.
             var loading = _loading.HideAsync(ct);
             var menu = await _ui.OpenAsync<MainMenuWindow>(ct);
@@ -82,6 +96,7 @@ namespace Zonk.Table
             try
             {
                 choice = await menu.WaitChoiceAsync(ct);
+                _focus.Item = choice == MainMenuChoice.Offer ? menu.Offer : null;
                 _table.Sound.Play(Sfx.Click);
             }
             finally
@@ -95,6 +110,8 @@ namespace Zonk.Table
                 case MainMenuChoice.HotSeat: return TableStateIds.HotSeat;
                 case MainMenuChoice.Shop: return TableStateIds.Shop;
                 case MainMenuChoice.Rules: return TableStateIds.Rules;
+                case MainMenuChoice.Quests: return TableStateIds.Quests;
+                case MainMenuChoice.Offer: return TableStateIds.Shop;
                 default: return TableStateIds.Settings;
             }
         }
@@ -130,20 +147,24 @@ namespace Zonk.Table
     public sealed class ShopState : ITableState
     {
         private readonly IUiService _ui;
+        private readonly ShopFocus _focus;
 
-        public ShopState(IUiService ui)
+        public ShopState(IUiService ui, ShopFocus focus)
         {
             _ui = ui;
+            _focus = focus;
         }
 
         public string Id => TableStateIds.Shop;
 
         public async UniTask<string> RunAsync(CancellationToken ct)
         {
+            var focus = _focus.Item;
+            _focus.Item = null;
             var window = await _ui.OpenAsync<ShopWindow>(ct);
             try
             {
-                await window.RunAsync(ct);
+                await window.RunAsync(ct, focus);
             }
             finally
             {
@@ -203,6 +224,34 @@ namespace Zonk.Table
         public async UniTask<string> RunAsync(CancellationToken ct)
         {
             var window = await _ui.OpenAsync<Zonk.UI.Rules.RulesWindow>(ct);
+            try
+            {
+                await window.WaitCloseRequestAsync(ct);
+            }
+            finally
+            {
+                await _ui.CloseAsync(window, CancellationToken.None);
+            }
+
+            return TableStateIds.Menu;
+        }
+    }
+
+    /// <summary>Задания дня и недели поверх стола. Закрытие по кнопке окна, затем обратно в меню.</summary>
+    public sealed class QuestsState : ITableState
+    {
+        private readonly IUiService _ui;
+
+        public QuestsState(IUiService ui)
+        {
+            _ui = ui;
+        }
+
+        public string Id => TableStateIds.Quests;
+
+        public async UniTask<string> RunAsync(CancellationToken ct)
+        {
+            var window = await _ui.OpenAsync<QuestsWindow>(ct);
             try
             {
                 await window.WaitCloseRequestAsync(ct);

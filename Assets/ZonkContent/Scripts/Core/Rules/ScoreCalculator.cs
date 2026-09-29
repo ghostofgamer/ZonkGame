@@ -70,8 +70,15 @@ namespace Zonk.Core.Rules
             {
                 _buffer.Clear();
                 rule.FindCombos(counts, _buffer);
-                if (_buffer.Count > 0)
-                    return true;
+                // Комбинация считается, только если после правил партии она чего-то стоит:
+                // при «одиночные пятёрки ничего не стоят» бросок с одной пятёркой — Зонк.
+                foreach (var combo in _buffer)
+                {
+                    if (ApplyModifiers(combo) > 0)
+                        return true;
+                }
+
+
             }
 
             return false;

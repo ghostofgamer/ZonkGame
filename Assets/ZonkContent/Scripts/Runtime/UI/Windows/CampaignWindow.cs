@@ -23,6 +23,10 @@ namespace Zonk.UI.Windows
         [SerializeField] private TMP_Text _info;
         [SerializeField] private TMP_Text _myDiceLabel;
         [SerializeField] private DiceLoadoutView _myDice;
+        [SerializeField] private DicePresetsView _presets;
+        [SerializeField] private TMP_Text _stakeLabel;
+        [SerializeField] private RectTransform _stakeList;
+        [SerializeField] private UiButtonView _stakeTemplate;
         [SerializeField] private UiButtonView _back;
         [SerializeField] private UiButtonView _play;
 
@@ -31,14 +35,32 @@ namespace Zonk.UI.Windows
         private GameConfig _config;
         private int _chapterIndex;
         private OpponentConfig _selected;
+        private IDieMastery _mastery;
+        private IWallet _wallet;
+        private readonly List<UiButtonView> _stakeButtons = new List<UiButtonView>();
+
+        /// <summary>Ставка монетами на партию (0 — без ставки). Списывается при начале партии.</summary>
+        public int Stake { get; private set; }
+
+        [Zenject.Inject]
+        public void Construct(IDieMastery mastery, IWallet wallet)
+        {
+            _mastery = mastery;
+            _wallet = wallet;
+        }
 
         public ChapterConfig Chapter { get; private set; }
 
 #if UNITY_EDITOR
         public void EditorSetup(UiButtonView previousChapter, UiButtonView nextChapter, TMP_Text chapterTitle,
             RectTransform opponentList, UiButtonView opponentTemplate, TMP_Text info, TMP_Text myDiceLabel, DiceLoadoutView myDice,
-            UiButtonView back, UiButtonView play)
+            UiButtonView back, UiButtonView play, DicePresetsView presets, TMP_Text stakeLabel, RectTransform stakeList,
+            UiButtonView stakeTemplate)
         {
+            _stakeLabel = stakeLabel;
+            _stakeList = stakeList;
+            _stakeTemplate = stakeTemplate;
+            _presets = presets;
             _previousChapter = previousChapter;
             _nextChapter = nextChapter;
             _chapterTitle = chapterTitle;
@@ -71,7 +93,10 @@ namespace Zonk.UI.Windows
             _config = config;
             _back.SetText(T("ui.back"));
             _myDiceLabel.text = T("campaign.myDice");
-            _myDice.Setup(Localization, ownedDice, loadout.GetDice(), config.MaxSpecialDice, loadout.SetDie);
+            ShowDice(loadout, config, ownedDice);
+            BuildStakes();
+            if (_presets != null)
+                _presets.Setup(Localization, loadout, () => ShowDice(loadout, config, ownedDice));
 
             var current = progress.CurrentChapter;
             var index = 0;
@@ -82,6 +107,61 @@ namespace Zonk.UI.Windows
             }
 
             ShowChapter(index);
+        }
+
+        private void ShowDice(ILoadout loadout, GameConfig config, List<DieConfig> ownedDice)
+        {
+            _myDice.Setup(Localization, ownedDice, loadout.GetDice(), config.MaxSpecialDice, loadout.SetDie,
+                _mastery != null ? _mastery.GetLevel : (System.Func<DieConfig, int>)null, config.MasteryLevels);
+        }
+
+        /// <summary>Сколько чистыми получит игрок за победу при ставке stake (StakePayout соперника).</summary>
+        public static int StakeWin(OpponentConfig opponent, int stake)
+        {
+            return opponent != null ? Mathf.FloorToInt(stake * Mathf.Max(0f, opponent.StakePayout)) : 0;
+        }
+
+        /// <summary>Кнопки ставок из GameConfig.StakeOptions; ставка дороже кошелька недоступна.</summary>
+        private void BuildStakes()
+        {
+            if (_stakeList == null || _stakeTemplate == null)
+                return;
+
+            _stakeTemplate.gameObject.SetActive(false);
+            if (_stakeLabel != null)
+                _stakeLabel.text = T("campaign.stake");
+
+            foreach (var button in _stakeButtons)
+                Destroy(button.gameObject);
+            _stakeButtons.Clear();
+
+            var options = _config.StakeOptions ?? new int[0];
+            _stakeList.gameObject.SetActive(options.Length > 1 && _config.Coins != null);
+            foreach (var option in options)
+            {
+                var amount = option;
+                var button = _stakeTemplate.Spawn(_stakeList);
+                button.SetText(amount > 0 ? amount.ToString() : T("campaign.noStake"));
+                button.OnClick(() => SelectStake(amount));
+                _stakeButtons.Add(button);
+            }
+
+            SelectStake(0);
+        }
+
+        private void SelectStake(int amount)
+        {
+            var coins = _config.Coins != null ? _wallet.Get(_config.Coins) : 0;
+            Stake = amount <= coins ? amount : 0;
+            var options = _config.StakeOptions ?? new int[0];
+            for (var i = 0; i < _stakeButtons.Count && i < options.Length; i++)
+            {
+                _stakeButtons[i].Interactable = options[i] <= coins;
+                _stakeButtons[i].SetColor(options[i] == Stake ? UiColors.ButtonAccent : UiColors.ButtonMuted);
+            }
+
+            if (_selected != null)
+                Select(_selected);
         }
 
         public UniTask<OpponentConfig> WaitChoiceAsync(CancellationToken ct)
@@ -162,7 +242,12 @@ namespace Zonk.UI.Windows
 
             var target = opponent.TargetScore > 0 ? opponent.TargetScore
                 : _config.CampaignMode != null && _config.CampaignMode.Rules != null ? _config.CampaignMode.Rules.TargetScore : 4000;
-            _info.text = text + T("campaign.target", target);
+            text += T("campaign.target", target);
+
+            if (Stake > 0)
+                text += "\n\n" + T("campaign.stakeInfo", Stake, Stake + StakeWin(opponent, Stake));
+
+            _info.text = text;
 
             var cost = EnergyCost(opponent, _config);
             _play.SetText(cost > 0 ? T("campaign.playCost", cost) : T("campaign.play"));

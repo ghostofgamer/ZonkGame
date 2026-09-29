@@ -145,6 +145,28 @@ namespace Zonk.Tests
             Assert.That(match.Players[1].Score, Is.EqualTo(0));
         }
 
+
+
+        [Test]
+        public void WorthlessFiveIsZonk()
+        {
+            var settings = TwoPlayers(ForcedDice(5, 2, 2, 3, 4, 4), PlayerSetup.StandardDice());
+            settings.Modifiers.Add(new SingleFaceModifier { Face = 5, Multiplier = 0f });
+            var roll = new ZonkMatch(settings).Roll();
+
+            Assert.That(roll.IsZonk, Is.True);
+        }
+        [Test]
+        public void MinBankBlocksSmallBank()
+        {
+            var settings = TwoPlayers(ForcedDice(1, 3, 3, 4, 4, 6), PlayerSetup.StandardDice());
+            settings.Modifiers.Add(new MinBankModifier { MinBankScore = 350 });
+            var match = new ZonkMatch(settings);
+            match.Roll();
+            match.Keep(new[] { 0 });
+
+            Assert.That(match.CanBank, Is.False);
+        }
         [Test]
         public void TargetModifierChangesRules()
         {

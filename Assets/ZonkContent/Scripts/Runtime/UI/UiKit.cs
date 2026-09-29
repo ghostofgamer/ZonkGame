@@ -89,6 +89,9 @@ namespace Zonk.UI
     public sealed class UiKit
     {
         private readonly ILocalization _localization;
+        private readonly System.Collections.Generic.Stack<TMP_Text> _toasts = new System.Collections.Generic.Stack<TMP_Text>();
+        private readonly System.Collections.Generic.Stack<Image> _bubbles = new System.Collections.Generic.Stack<Image>();
+        private Transform _poolRoot;
 
         public UiKit(ILocalization localization, GameConfig config)
         {
@@ -172,6 +175,86 @@ namespace Zonk.UI
             label.overflowMode = TextOverflowModes.Overflow;
             label.raycastTarget = false;
             return label;
+        }
+
+        /// <summary>
+        /// Надпись для Toast из пула: создаётся один раз (TextMeshPro с контуром — это меш и свой материал), дальше
+        /// только переносится в parent. Вернуть — ReturnToast.
+        /// </summary>
+        public TMP_Text RentToast(Transform parent)
+        {
+            TMP_Text label = null;
+            while (label == null && _toasts.Count > 0)
+                label = _toasts.Pop();
+
+            if (label == null)
+            {
+                label = Label(parent, string.Empty, 84, TextAnchor.MiddleCenter, UiColors.Text, true);
+                label.name = "Toast";
+                Outline(label, new Color(0f, 0f, 0f, 0.8f), 0.25f);
+            }
+
+            label.transform.SetParent(parent, false);
+            label.transform.SetAsLastSibling();
+            label.gameObject.SetActive(true);
+            return label;
+        }
+
+        public void ReturnToast(TMP_Text label)
+        {
+            if (label == null)
+                return;
+
+            label.gameObject.SetActive(false);
+            label.transform.SetParent(PoolRoot, false);
+            _toasts.Push(label);
+        }
+
+        /// <summary>Облачко реплики из пула (панель с надписью внутри). Вернуть — ReturnBubble.</summary>
+        public Image RentBubble(Transform parent, out TMP_Text label)
+        {
+            Image panel = null;
+            while (panel == null && _bubbles.Count > 0)
+                panel = _bubbles.Pop();
+
+            if (panel == null)
+            {
+                panel = Panel("Bubble", parent, new Color(1f, 0.97f, 0.9f, 0.95f));
+                var text = Label(panel.transform, string.Empty, 28, TextAnchor.MiddleCenter, new Color(0.15f, 0.1f, 0.05f));
+                Stretch(text.rectTransform, 16, 16, 8, 8);
+            }
+
+            panel.transform.SetParent(parent, false);
+            panel.transform.SetAsLastSibling();
+            panel.gameObject.SetActive(true);
+            label = panel.GetComponentInChildren<TMP_Text>(true);
+            return panel;
+        }
+
+        public void ReturnBubble(Image panel)
+        {
+            if (panel == null)
+                return;
+
+            panel.gameObject.SetActive(false);
+            panel.transform.SetParent(PoolRoot, false);
+            _bubbles.Push(panel);
+        }
+
+        /// <summary>Выключенный объект сцены, где ждут надписи из пулов (уничтожается вместе со сценой).</summary>
+        private Transform PoolRoot
+        {
+            get
+            {
+                if (_poolRoot == null)
+                {
+                    var root = new GameObject("UiPool");
+                    root.SetActive(false);
+                    _poolRoot = root.transform;
+                }
+
+                return _poolRoot;
+            }
         }
 
         /// <summary>Контур вокруг текста для надписей поверх сцены.</summary>

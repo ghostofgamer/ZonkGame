@@ -28,6 +28,15 @@ namespace Zonk.Progress
 
         void SetDie(int slot, DieConfig die);
 
+        /// <summary>Сколько наборов костей можно сохранить (GameConfig.DicePresetCount).</summary>
+        int PresetCount { get; }
+
+        /// <summary>Активный набор: смена костей сразу сохраняется в него.</summary>
+        int ActivePreset { get; }
+
+        /// <summary>Переключиться на набор. Пустой набор начинается с текущих костей.</summary>
+        void SelectPreset(int index);
+
         event Action Changed;
     }
 
@@ -202,30 +211,76 @@ namespace Zonk.Progress
                 data.Dice.Add(_config.StandardDie != null ? _config.StandardDie.Id : string.Empty);
 
             data.Dice[slot] = die.Id;
+            EnsurePresets(data);
+            data.Presets[ActiveIndex(data)].Dice = new List<string>(data.Dice);
             _saves.RequestSave();
             Changed?.Invoke();
         }
 
+        public int PresetCount => Math.Max(1, _config.DicePresetCount);
+
+        public int ActivePreset => ActiveIndex(Data);
+
+        public void SelectPreset(int index)
+        {
+            if (index < 0 || index >= PresetCount)
+                return;
+
+            var data = Data;
+            EnsurePresets(data);
+            var active = ActiveIndex(data);
+            if (index == active)
+                return;
+
+            data.Presets[active].Dice = new List<string>(data.Dice);
+            var target = data.Presets[index];
+            if (target.Dice.Count == 0)
+                target.Dice = new List<string>(data.Dice);
+
+            data.ActivePreset = index;
+            data.Dice = new List<string>(target.Dice);
+            _saves.RequestSave();
+            Changed?.Invoke();
+        }
+
+        private int ActiveIndex(LoadoutSave data)
+        {
+            return Math.Max(0, Math.Min(data.ActivePreset, PresetCount - 1));
+        }
+
+        /// <summary>Наборов не меньше PresetCount; первый заполняется текущими костями (старые сохранения без наборов).</summary>
+        private void EnsurePresets(LoadoutSave data)
+        {
+            while (data.Presets.Count < PresetCount)
+                data.Presets.Add(new DicePresetSave());
+
+            var active = data.Presets[ActiveIndex(data)];
+            if (active.Dice.Count == 0 && data.Dice.Count > 0)
+                active.Dice = new List<string>(data.Dice);
+        }
+
         /// <summary>
-        /// ID костей → конфиги. Неизвестные, не открытые и сверх лимита особых заменяются обычной костью.
+        /// ID костей → конфиги. Неизвестные, не открытые, повторы особых и сверх лимита особых заменяются обычной костью.
         /// </summary>
         public static List<DieConfig> ResolveDice(IReadOnlyList<string> ids, ContentDatabase content, GameConfig config,
             IInventory inventory, bool allowSpecial = true)
         {
             var result = new List<DieConfig>(ZonkMatch.DiceCount);
             var special = 0;
+            var used = new HashSet<DieConfig>();
             for (var i = 0; i < ZonkMatch.DiceCount; i++)
             {
                 var id = ids != null && i < ids.Count ? ids[i] : null;
                 var die = content.Get<DieConfig>(id);
 
                 if (die == null || !inventory.IsOwned(die) ||
-                    (die.IsSpecial && (!allowSpecial || special >= config.MaxSpecialDice)))
+                    (die.IsSpecial && (!allowSpecial || special >= config.MaxSpecialDice || used.Contains(die))))
                 {
                     die = config.StandardDie;
                 }
 
-                if (die != null && die.IsSpecial)
+                // Особая кость занимает только один слот: одинаковые особые кости не складывают перекос.
+                if (die != null && die.IsSpecial && used.Add(die))
                     special++;
 
                 result.Add(die);

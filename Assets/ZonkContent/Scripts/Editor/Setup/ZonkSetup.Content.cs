@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Base.Editor.Texts;
 using UnityEditor;
 using UnityEngine;
@@ -63,6 +64,24 @@ namespace Zonk.Editor.Setup
             var odd = Die("odd", "die.odd", "die.odd.desc", new[] { 1.1f, 0.9f, 1.4f, 0.9f, 1.1f, 0.9f }, new Color(0.8f, 0.35f, 1f));
             var sixes = Die("sixes", "die.sixes", "die.sixes.desc", new[] { 0.9f, 1f, 1f, 1f, 1f, 1.5f }, new Color(1f, 0.35f, 0.3f));
             var fives = Die("fives", "die.fives", "die.fives.desc", new[] { 0.7f, 1f, 1f, 1f, 1.5f, 1f }, new Color(0.3f, 0.9f, 0.5f));
+            var worn = Die("worn", "die.worn", "die.worn.desc", new[] { 1.05f, 1f, 0.95f, 0.95f, 1f, 1.05f }, new Color(0.75f, 0.65f, 0.5f));
+            var middle = Die("middle", "die.middle", "die.middle.desc", new[] { 1.05f, 0.9f, 1.25f, 1.25f, 1f, 0.85f }, new Color(0.7f, 0.45f, 0.2f));
+            var edges = Die("edges", "die.edges", "die.edges.desc", new[] { 1.15f, 0.9f, 0.95f, 0.95f, 0.8f, 1.25f }, new Color(0.85f, 0.85f, 0.95f));
+            var bone = Die("bone", "die.bone", "die.bone.desc", new[] { 1.05f, 1.05f, 1.05f, 1.05f, 1.05f, 0.75f }, new Color(0.95f, 0.88f, 0.6f));
+            var sharper = Die("sharper", "die.sharper", "die.sharper.desc", new[] { 1.35f, 1f, 1f, 1f, 0.55f, 1f }, new Color(0.85f, 0.5f, 0.2f));
+
+            // Свой вид каждой особой кости: перекрывает скин игрока, чтобы кость узнавалась в броске.
+            var looks = BuildDieLooks();
+            SetDieLook(lucky, looks["Gold"]);
+            SetDieLook(even, looks["Porcelain"]);
+            SetDieLook(odd, looks["Obsidian"]);
+            SetDieLook(sixes, looks["Ruby"]);
+            SetDieLook(fives, looks["Jade"]);
+            SetDieLook(worn, looks["Scratched"]);
+            SetDieLook(middle, looks["Wood"]);
+            SetDieLook(edges, looks["Marble"]);
+            SetDieLook(bone, looks["Bone"]);
+            SetDieLook(sharper, looks["Bronze"]);
 
             // Слоты косметики: ID слота = ID якоря в сцене, ракурс камеры = ID CameraShot.
             var envSlot = Slot("environment", "slot.environment", 0, "shop_environment", new AnchorPrefabApplier());
@@ -75,33 +94,33 @@ namespace Zonk.Editor.Setup
 
             var envHome = Item("env_home", envSlot, 0, new PrefabPayload { Prefab = art.EnvHome });
             var envTavern = Item("env_tavern", envSlot, 1, new PrefabPayload { Prefab = art.EnvTavern },
-                new ProgressPriceOption { HintKey = "hint.tavern" }, Coins(coins, 1500));
+                new ProgressPriceOption { HintKey = "hint.tavern" }, Coins(coins, 4000));
             var envBeach = Item("env_beach", envSlot, 2, new PrefabPayload { Prefab = art.EnvBeach },
-                Coins(coins, 2000), new RewardedAdPriceOption { AdsRequired = 5 });
-            var envShip = Item("env_ship", envSlot, 3, new PrefabPayload { Prefab = art.EnvShip }, Coins(coins, 3000));
+                Coins(coins, 6000), new RewardedAdPriceOption { AdsRequired = 5 });
+            var envShip = Item("env_ship", envSlot, 3, new PrefabPayload { Prefab = art.EnvShip }, Coins(coins, 10000));
 
             var tableOak = Item("table_oak", tableSlot, 0, new PrefabPayload { Prefab = art.Table });
-            var tableDark = Item("table_dark", tableSlot, 1, new MaterialPayload { Material = art["Table_Dark"] }, Coins(coins, 400));
-            Item("table_marble", tableSlot, 2, new MaterialPayload { Material = art["Table_Marble"] }, Coins(coins, 700));
+            var tableDark = Item("table_dark", tableSlot, 1, new MaterialPayload { Material = art["Table_Dark"] }, Coins(coins, 1200));
+            Item("table_marble", tableSlot, 2, new MaterialPayload { Material = art["Table_Marble"] }, Coins(coins, 2500));
 
             var feltGreen = Item("felt_green", traySlot, 0, new PrefabPayload { Prefab = art.Felt });
-            var feltRed = Item("felt_red", traySlot, 1, new MaterialPayload { Material = art["Felt_Red"] }, Coins(coins, 250));
+            var feltRed = Item("felt_red", traySlot, 1, new MaterialPayload { Material = art["Felt_Red"] }, Coins(coins, 800));
             Item("felt_blue", traySlot, 2, new MaterialPayload { Material = art["Felt_Blue"] }, new RewardedAdPriceOption { AdsRequired = 3 });
 
             var cupLeather = Item("cup_leather", cupSlot, 0, new PrefabPayload { Prefab = art.CupLeather });
-            var cupWood = Item("cup_wood", cupSlot, 1, new PrefabPayload { Prefab = art.CupWood }, Coins(coins, 300));
-            Item("cup_gold", cupSlot, 2, new MaterialPayload { Material = art["Cup_Gold"] }, Coins(coins, 900),
+            var cupWood = Item("cup_wood", cupSlot, 1, new PrefabPayload { Prefab = art.CupWood }, Coins(coins, 1000));
+            Item("cup_gold", cupSlot, 2, new MaterialPayload { Material = art["Cup_Gold"] }, Coins(coins, 4000),
                 new PurchasePriceOption { ProductId = "cup_gold" });
 
             var skinIvory = Item("skin_ivory", skinSlot, 0, new MeshMaterialPayload { Material = art["Die_Ivory"] });
             var skinSapphire = Item("skin_sapphire", skinSlot, 1, new MeshMaterialPayload { Material = art["Die_Sapphire"] });
-            Item("skin_ruby", skinSlot, 2, new MeshMaterialPayload { Material = art["Die_Ruby"] }, Coins(coins, 300));
+            Item("skin_ruby", skinSlot, 2, new MeshMaterialPayload { Material = art["Die_Ruby"] }, Coins(coins, 1000));
             Item("skin_jade", skinSlot, 3, new MeshMaterialPayload { Material = art["Die_Jade"] }, new RewardedAdPriceOption { AdsRequired = 3 });
-            Item("skin_obsidian", skinSlot, 4, new MeshMaterialPayload { Material = art["Die_Obsidian"] }, Coins(coins, 600));
-            Item("skin_gold", skinSlot, 5, new MeshMaterialPayload { Material = art["Die_Gold"] }, Coins(coins, 1200));
+            Item("skin_obsidian", skinSlot, 4, new MeshMaterialPayload { Material = art["Die_Obsidian"] }, Coins(coins, 2000));
+            Item("skin_gold", skinSlot, 5, new MeshMaterialPayload { Material = art["Die_Gold"] }, Coins(coins, 5000));
 
             var lampBasic = Item("lamp_basic", lampSlot, 0, new PrefabPayload { Prefab = art.LampBasic });
-            Item("lamp_lantern", lampSlot, 1, new PrefabPayload { Prefab = art.LampLantern }, Coins(coins, 350));
+            Item("lamp_lantern", lampSlot, 1, new PrefabPayload { Prefab = art.LampLantern }, Coins(coins, 1200));
 
             SetDefault(envSlot, envHome);
             SetDefault(tableSlot, tableOak);
@@ -115,7 +134,7 @@ namespace Zonk.Editor.Setup
                 Identity(t, "theme_pirate", "theme.pirate");
                 t.Items = new List<CosmeticItemConfig> { envShip, tableDark, feltRed, cupWood };
                 t.Price.Options.Add(new PurchasePriceOption { ProductId = "theme_pirate" });
-                t.Price.Options.Add(Coins(coins, 4000));
+                t.Price.Options.Add(Coins(coins, 11000));
             });
 
             // Характеры ИИ. Победы против «среднего игрока» (симулятор): азартный 34%, новичок 44%, жадный 47%,
@@ -213,19 +232,19 @@ namespace Zonk.Editor.Setup
             EnsureReaction(boLines, Reaction(MatchEventType.OtherBigBank, AvatarGesture.SlamTable, 0.8f, "line.bo.otherBig"));
 
             // Глава 1: Родной дом. Соперники по возрастанию силы, босс с правилом «три Зонка подряд = −500».
-            var vitya = Opponent("vitya", aiChaotic, friendly, new Color(0.3f, 0.35f, 0.5f), null, 60, 20);
-            var klava = Opponent("klava", aiNovice, friendly, new Color(0.55f, 0.3f, 0.35f), art.Hood, 70, 20);
-            var petrovich = Opponent("petrovich", aiGreedy, grumpy, new Color(0.3f, 0.3f, 0.3f), art.HatTop, 80, 25);
-            var semenych = Opponent("semenych", aiCautious, friendly, new Color(0.25f, 0.35f, 0.55f), art.HatTop, 90, 25, fives);
-            var agafya = Opponent("agafya", aiBalanced, agafyaLines, new Color(0.4f, 0.3f, 0.45f), art.Hood, 200, 60, lucky,
+            var vitya = Opponent("vitya", aiChaotic, friendly, new Color(0.3f, 0.35f, 0.5f), null, 60, 10);
+            var klava = Opponent("klava", aiNovice, friendly, new Color(0.55f, 0.3f, 0.35f), art.Hood, 70, 10);
+            var petrovich = Opponent("petrovich", aiGreedy, grumpy, new Color(0.3f, 0.3f, 0.3f), art.HatTop, 80, 12);
+            var semenych = Opponent("semenych", aiCautious, friendly, new Color(0.25f, 0.35f, 0.55f), art.HatTop, 90, 12, fives);
+            var agafya = Opponent("agafya", aiBalanced, agafyaLines, new Color(0.4f, 0.3f, 0.45f), art.Hood, 200, 30, lucky,
                 boss: true, rule: new ThreeZonkPenaltyModifier { Penalty = 500 });
 
             // Глава 2: Таверна. Босс: тройки и больше вдвое дороже.
-            var lutik = Opponent("lutik", aiChaotic, friendly, new Color(0.3f, 0.5f, 0.35f), art.HatPirate, 100, 30, null, dice: new[] { odd, odd });
-            var gustav = Opponent("gustav", aiBalanced, grumpy, new Color(0.45f, 0.35f, 0.25f), null, 110, 30);
-            var irma = Opponent("irma", aiGreedy, grumpy, new Color(0.5f, 0.25f, 0.2f), art.Hood, 120, 35, even, dice: new[] { sixes, sixes });
-            var zhora = Opponent("zhora", aiExpert, friendly, new Color(0.2f, 0.2f, 0.25f), art.HatTop, 140, 40, odd);
-            var bo = Opponent("bo", aiExpert, boLines, new Color(0.35f, 0.2f, 0.2f), art.HatPirate, 300, 80, sixes,
+            var lutik = Opponent("lutik", aiChaotic, friendly, new Color(0.3f, 0.5f, 0.35f), art.HatPirate, 100, 15, null);
+            var gustav = Opponent("gustav", aiBalanced, grumpy, new Color(0.45f, 0.35f, 0.25f), null, 110, 15);
+            var irma = Opponent("irma", aiGreedy, grumpy, new Color(0.5f, 0.25f, 0.2f), art.Hood, 120, 18, even);
+            var zhora = Opponent("zhora", aiExpert, friendly, new Color(0.2f, 0.2f, 0.25f), art.HatTop, 140, 20, odd);
+            var bo = Opponent("bo", aiExpert, boLines, new Color(0.35f, 0.2f, 0.2f), art.HatPirate, 300, 40, sixes,
                 boss: true, rule: new ComboMultiplierModifier { Category = ComboCategory.OfAKind, Multiplier = 2f }, extraReward: envTavern,
                 cup: cupWood);
 
@@ -358,9 +377,9 @@ namespace Zonk.Editor.Setup
             }
 
             var rollClassic = Item("roll_classic", rollSlot, 0, new RollStylePayload { Style = rollDefault });
-            Item("roll_calm", rollSlot, 1, new RollStylePayload { Style = rollCalm }, Coins(coins, 300));
-            Item("roll_quick", rollSlot, 2, new RollStylePayload { Style = rollQuick }, Coins(coins, 300));
-            Item("roll_wild", rollSlot, 3, new RollStylePayload { Style = rollWild }, Coins(coins, 500));
+            Item("roll_calm", rollSlot, 1, new RollStylePayload { Style = rollCalm }, Coins(coins, 1000));
+            Item("roll_quick", rollSlot, 2, new RollStylePayload { Style = rollQuick }, Coins(coins, 1000));
+            Item("roll_wild", rollSlot, 3, new RollStylePayload { Style = rollWild }, Coins(coins, 1800));
             Item("roll_showman", rollSlot, 4, new RollStylePayload { Style = rollShowman }, new RewardedAdPriceOption { AdsRequired = 3 });
             var rollGrannyItem = Item("roll_granny", rollSlot, 5, new RollStylePayload { Style = rollGranny },
                 new ProgressPriceOption { HintKey = "hint.granny" });
@@ -371,6 +390,173 @@ namespace Zonk.Editor.Setup
             // Фирменный стиль босса задаётся в его конфиге и достаётся игроку за первую победу.
             SetBossRollStyle(agafya, rollGranny, rollGrannyItem, rollDefault, rollWild, rollCalm);
             SetBossRollStyle(bo, rollPirate, rollPirateItem, rollDefault, rollWild, rollCalm);
+
+            // Особые кости за первую победу над обычными соперниками (у боссов и части соперников награды выше).
+            EnsureContentReward(vitya, worn);
+            EnsureContentReward(klava, middle);
+            EnsureContentReward(petrovich, edges);
+            EnsureContentReward(lutik, bone);
+            EnsureContentReward(gustav, sharper);
+
+            // Цены особых костей: монеты, реклама или покупка; запасной путь — победа над соперником (подсказка).
+            SetDiePrice(worn, 1, "hint.die.worn", Coins(coins, 800));
+            SetDiePrice(middle, 2, "hint.die.middle", Coins(coins, 800));
+            SetDiePrice(bone, 3, "hint.die.bone", Coins(coins, 1200));
+            SetDiePrice(fives, 4, "hint.die.fives", Coins(coins, 1200));
+            SetDiePrice(even, 5, "hint.die.even", Coins(coins, 1600));
+            SetDiePrice(odd, 6, "hint.die.odd", new RewardedAdPriceOption { AdsRequired = 4 });
+            SetDiePrice(edges, 7, "hint.die.edges", new RewardedAdPriceOption { AdsRequired = 4 });
+            SetDiePrice(sixes, 8, "hint.die.sixes", Coins(coins, 3000), new PurchasePriceOption { ProductId = "die_sixes" });
+            SetDiePrice(lucky, 9, "hint.die.lucky", Coins(coins, 3000), new PurchasePriceOption { ProductId = "die_lucky" });
+            SetDiePrice(sharper, 10, "hint.die.sharper", Coins(coins, 4000), new PurchasePriceOption { ProductId = "die_sharper" });
+
+            // Набор «Все кости» за покупку.
+            Asset<ThemeSetConfig>(ConfigsFolder + "/Themes/DicePack.asset", t =>
+            {
+                Identity(t, "theme_dice_pack", "theme.dicePack");
+                t.Dice = new List<DieConfig> { worn, middle, bone, fives, even, odd, edges, sixes, lucky, sharper };
+                t.Price.Options.Add(new PurchasePriceOption { ProductId = "dice_pack_all" });
+            });
+
+
+            // Глава 3: Пляж. Босс: одиночные пятёрки ничего не стоят (единицы и тройки пятёрок считаются).
+            var clawLines = Reactions("claw", new[]
+            {
+                Reaction(MatchEventType.MatchStarted, AvatarGesture.Laugh, 1f, "line.claw.start"),
+                Reaction(MatchEventType.SelfZonk, AvatarGesture.Angry, 0.9f, "line.claw.zonk"),
+                Reaction(MatchEventType.OtherZonk, AvatarGesture.Laugh, 0.8f, "line.claw.otherZonk"),
+                Reaction(MatchEventType.OtherBigKeep, AvatarGesture.SlamTwice, 0.9f, "line.claw.otherBig"),
+                Reaction(MatchEventType.OtherHotDice, AvatarGesture.SlamTwice, 1f, "line.claw.otherBig"),
+                Reaction(MatchEventType.Won, AvatarGesture.Cheer, 1f, "line.claw.won"),
+                Reaction(MatchEventType.Lost, AvatarGesture.SlamTable, 1f, "line.claw.lost"),
+                Reaction(MatchEventType.Thinking, AvatarGesture.Think, 0.5f),
+            });
+            var stepan = Opponent("stepan", aiBalanced, friendly, new Color(0.8f, 0.3f, 0.25f), null, 160, 22);
+            var zina = Opponent("zina", aiCautious, friendly, new Color(0.6f, 0.45f, 0.6f), art.Hood, 170, 22);
+            var surfer = Opponent("max", aiChaotic, friendly, new Color(0.2f, 0.55f, 0.7f), null, 180, 25);
+            var efim = Opponent("efim", aiGreedy, grumpy, new Color(0.35f, 0.4f, 0.3f), art.HatTop, 190, 25);
+            var claw = Opponent("claw", aiExpert, clawLines, new Color(0.75f, 0.2f, 0.15f), art.HatPirate, 400, 50, null,
+                boss: true, rule: new SingleFaceModifier { Face = 5, Multiplier = 0f }, extraReward: envBeach);
+            SetRollStyle(rollWild, claw);
+            SetRollStyle(rollQuick, surfer);
+            SetRollStyle(rollCalm, zina);
+
+            Asset<ChapterConfig>(ConfigsFolder + "/Chapters/Ch3_Beach.asset", c =>
+            {
+                Identity(c, "chapter_beach", "chapter.beach");
+                c.Order = 3;
+                c.Environment = envBeach;
+                c.Opponents = new List<OpponentConfig> { stepan, zina, surfer, efim, claw };
+                c.Intro = new List<StoryLine> { Line("story.narrator", "story.beach.1"), Line("story.claw", "story.beach.2") };
+                c.Outro = new List<StoryLine> { Line("story.claw", "story.beach.outro") };
+            });
+
+            // Глава 4: Корабль. Босс: забирать очки можно от 350 за ход, стриты вдвое дороже.
+            var captainLines = Reactions("captain", new[]
+            {
+                Reaction(MatchEventType.MatchStarted, AvatarGesture.Nod, 1f, "line.captain.start"),
+                Reaction(MatchEventType.SelfZonk, AvatarGesture.SlamTable, 0.9f, "line.captain.zonk"),
+                Reaction(MatchEventType.OtherZonk, AvatarGesture.Laugh, 0.8f, "line.captain.otherZonk"),
+                Reaction(MatchEventType.OtherBigKeep, AvatarGesture.SlamTwice, 0.9f, "line.captain.otherBig"),
+                Reaction(MatchEventType.OtherHotDice, AvatarGesture.SlamTwice, 1f, "line.captain.otherBig"),
+                Reaction(MatchEventType.OtherBigBank, AvatarGesture.Angry, 0.8f, "line.captain.otherBig"),
+                Reaction(MatchEventType.Won, AvatarGesture.Laugh, 1f, "line.captain.won"),
+                Reaction(MatchEventType.Lost, AvatarGesture.SlamTwice, 1f, "line.captain.lost"),
+                Reaction(MatchEventType.Thinking, AvatarGesture.Think, 0.5f),
+            });
+            var pit = Opponent("pit", aiCautious, friendly, new Color(0.4f, 0.5f, 0.7f), null, 200, 28);
+            var bart = Opponent("bart", aiGreedy, grumpy, new Color(0.9f, 0.9f, 0.85f), art.HatTop, 210, 28);
+            var greta = Opponent("greta", aiExpert, friendly, new Color(0.25f, 0.3f, 0.45f), art.Hood, 220, 30);
+            var hook = Opponent("hook", aiBalanced, grumpy, new Color(0.3f, 0.25f, 0.2f), art.HatPirate, 230, 30);
+            var captain = Opponent("captain", aiExpert, captainLines, new Color(0.12f, 0.1f, 0.12f), art.HatPirate, 500, 60, null,
+                boss: true, rule: new MinBankModifier { MinBankScore = 350 }, extraReward: envShip,
+                cup: ItemAt("cup_gold"));
+            EnsureModifier(captain, new ComboMultiplierModifier { Category = ComboCategory.Straight, Multiplier = 2f });
+            SetRollStyle(rollPirate, captain, hook);
+            SetRollStyle(rollWild, bart);
+
+            Asset<ChapterConfig>(ConfigsFolder + "/Chapters/Ch4_Ship.asset", c =>
+            {
+                Identity(c, "chapter_ship", "chapter.ship");
+                c.Order = 4;
+                c.Environment = envShip;
+                c.Opponents = new List<OpponentConfig> { pit, bart, greta, hook, captain };
+                c.Intro = new List<StoryLine> { Line("story.narrator", "story.ship.1"), Line("story.captain", "story.ship.2") };
+                c.Outro = new List<StoryLine> { Line("story.captain", "story.ship.outro") };
+            });
+
+            // Особые кости соперников: у первых соперников нет, у обычных до 3, у боссов от 3.
+            // Наборы подобраны симулятором под тактику и правило: победы против «среднего игрока» растут от главы к главе
+            // (Агафья 52.5%, Бо 54.5%, Клешня 56.8%, Капитан 53.7% при правиле, которое бьёт по обоим).
+            SetOpponentDice(semenych, null, worn);
+            SetOpponentDice(agafya, null, lucky, sharper, worn);
+            SetOpponentDice(lutik, new[] { odd, odd }, odd);
+            SetOpponentDice(gustav, null, worn);
+            SetOpponentDice(irma, new[] { sixes, sixes }, edges, odd);
+            SetOpponentDice(zhora, null, odd, sharper);
+            SetOpponentDice(bo, null, sharper, lucky, edges, odd);
+            SetOpponentDice(stepan, null, worn);
+            SetOpponentDice(zina, null, lucky, worn);
+            SetOpponentDice(surfer, null, edges, odd);
+            SetOpponentDice(efim, null, edges, worn, odd);
+            SetOpponentDice(claw, null, lucky, sharper, edges, even);
+            SetOpponentDice(pit, null, worn, middle);
+            SetOpponentDice(bart, null, worn, edges);
+            SetOpponentDice(greta, null, sharper, lucky, edges);
+            SetOpponentDice(hook, null, sharper, bone, edges);
+            SetOpponentDice(captain, null, sharper, lucky, edges, odd, worn);
+
+            // Лимит особых костей поднят до 6 (каждая особая — в одном слоте). Старый ассет со значением 2 обновляется.
+            if (set.Config.MaxSpecialDice == 2)
+            {
+                set.Config.MaxSpecialDice = 6;
+                EditorUtility.SetDirty(set.Config);
+            }
+
+            // Мастерство особых костей: уровни с наградами и вид кости на каждом уровне.
+            if (set.Config.MasteryLevels.Count == 0)
+            {
+                set.Config.MasteryLevels.Add(MasteryLevelOf("mastery.1", 5000, new Color(0.85f, 0.52f, 0.25f), 1.8f, Gift(coins, 50)));
+                set.Config.MasteryLevels.Add(MasteryLevelOf("mastery.2", 25000, new Color(0.85f, 0.88f, 0.95f), 2.6f, Gift(coins, 150)));
+                set.Config.MasteryLevels.Add(MasteryLevelOf("mastery.3", 80000, new Color(1f, 0.8f, 0.25f), 3.6f, Gift(coins, 300),
+                    new CurrencyReward { Currency = energy, Amount = 3 }));
+                EditorUtility.SetDirty(set.Config);
+            }
+
+            var masteryLooks = new (DieConfig die, string look)[]
+            {
+                (lucky, "Gold"), (even, "Porcelain"), (odd, "Obsidian"), (sixes, "Ruby"), (fives, "Jade"),
+                (worn, "Scratched"), (middle, "Wood"), (edges, "Marble"), (bone, "Bone"), (sharper, "Bronze"),
+            };
+            foreach (var (die, look) in masteryLooks)
+                SetMasteryLooks(die, look, set.Config.MasteryLevels);
+
+            BuildQuests(coins, energy, new[] { lucky, even, odd, sixes, fives, worn, middle, edges, bone, sharper });
+
+            // Награды за рекламу в главном меню: две кнопки — монеты и энергия.
+            if (set.Config.MenuAdOffers.Count == 0)
+            {
+                set.Config.MenuAdOffers.Add(new MenuAdOffer { Id = "coins", Currency = coins, Amount = 50, PerDay = 10, HideWhenFull = false });
+                set.Config.MenuAdOffers.Add(new MenuAdOffer { Id = "energy", Currency = energy, Amount = 1, PerDay = 10, HideWhenFull = true });
+                EditorUtility.SetDirty(set.Config);
+            }
+
+            // Лимиты подняты (реклама — доход): уже созданным кнопкам, если стоит прежнее значение генератора.
+            foreach (var (id, from, to) in new[] { ("coins", 3, 10), ("energy", 5, 10) })
+            {
+                var offer = set.Config.MenuAdOffers.Find(o => o != null && o.Id == id);
+                if (offer != null && offer.PerDay == from)
+                {
+                    offer.PerDay = to;
+                    EditorUtility.SetDirty(set.Config);
+                }
+            }
+
+            // Магазин за деньги: в каждой вкладке монеты, реклама и покупка; пакеты монет, стартовый набор, «Без рекламы».
+            BuildShopCatalog(coins, energy, lucky);
+
+            // Экономика v2: уже созданным ассетам — новые цены и награды, если в них стоят прежние значения.
+            RetuneEconomy(set.Config);
 
             if (set.Config.Ui == null)
             {
@@ -429,6 +615,189 @@ namespace Zonk.Editor.Setup
             style.SwingDuration = new Vector2(swingMin, swingMax);
             style.FollowThrough = new Vector2(followMin, followMax);
             EditorUtility.SetDirty(style);
+        }
+
+        private static CurrencyReward Gift(CurrencyConfig currency, int amount)
+        {
+            return new CurrencyReward { Currency = currency, Amount = amount };
+        }
+
+        private static MasteryLevel MasteryLevelOf(string nameKey, int points, Color color, float glow, params Reward[] rewards)
+        {
+            return new MasteryLevel { NameKey = nameKey, Points = points, Color = color, Glow = glow, Rewards = new List<Reward>(rewards) };
+        }
+
+        /// <summary>Вид кости на уровнях мастерства: только если список ещё пуст (свои материалы не затираются).</summary>
+        private static void SetMasteryLooks(DieConfig die, string lookName, List<MasteryLevel> levels)
+        {
+            if (die == null || die.MasteryLooks.Count > 0)
+                return;
+
+            for (var level = 1; level <= levels.Count; level++)
+                die.MasteryLooks.Add(BuildMasteryLook(lookName, level, levels[level - 1].Color));
+            EditorUtility.SetDirty(die);
+        }
+
+        /// <summary>
+        /// Задания дня и недели. Каждый день выдаются GameConfig.DailyQuestCount заданий из дневных по весу,
+        /// каждую неделю — WeeklyQuestCount из недельных. Задание «победите с костью» выпадает, только если кость открыта.
+        /// </summary>
+        private static void BuildQuests(CurrencyConfig coins, CurrencyConfig energy, DieConfig[] specialDice)
+        {
+            Quest("play", QuestPeriod.Daily, "quest.play", 1f, new PlayMatchesGoal { Target = 3 }, Gift(coins, 50));
+            Quest("win", QuestPeriod.Daily, "quest.win", 1f, new WinMatchesGoal { Target = 2 }, Gift(coins, 80));
+            Quest("bank", QuestPeriod.Daily, "quest.bank", 1f, new BankPointsGoal { Target = 3000 }, Gift(coins, 60));
+            Quest("big_turn", QuestPeriod.Daily, "quest.bigTurn", 1f, new BigTurnGoal { Target = 2, Points = 1000 }, Gift(coins, 80));
+            Quest("hot_dice", QuestPeriod.Daily, "quest.hotDice", 1f, new HotDiceGoal { Target = 1 }, Gift(coins, 80));
+            Quest("straight", QuestPeriod.Daily, "quest.straight", 0.8f, new ComboGoal { Target = 1, Category = ComboCategory.Straight },
+                Gift(coins, 100));
+            Quest("of_a_kind", QuestPeriod.Daily, "quest.ofAKind", 1f, new ComboGoal { Target = 4, Category = ComboCategory.OfAKind },
+                Gift(coins, 60));
+            Quest("plain_win", QuestPeriod.Daily, "quest.plainWin", 0.6f, new WinWithoutSpecialDiceGoal { Target = 1 },
+                Gift(coins, 100), new CurrencyReward { Currency = energy, Amount = 1 });
+            Quest("shop", QuestPeriod.Daily, "quest.shopAcquire", 0.4f,
+                new CustomEventGoal { Target = 1, Tag = Zonk.Progress.ShopService.AcquiredTag }, Gift(coins, 60));
+            // «Победите с костью …»: одна группа, вес каждого мал — вся группа выпадает примерно как одно обычное задание.
+            foreach (var die in specialDice)
+            {
+                SetGroup(Quest("win_with_" + die.Id.Replace("die_", string.Empty), QuestPeriod.Daily, "quest.winWithDie", 0.15f,
+                    new WinWithDieGoal { Target = 1, Die = die }, Gift(coins, 100)), "win_with_die");
+            }
+
+            // Обязательные задания: реклама за награду в каждом наборе дня и недели.
+            EnsureGuaranteed(Quest("watch_ads", QuestPeriod.Daily, "quest.watchAds", 1f, new WatchAdsGoal { Target = 2 },
+                Gift(coins, 80), new CurrencyReward { Currency = energy, Amount = 1 }));
+            EnsureGuaranteed(Quest("watch_ads_week", QuestPeriod.Weekly, "quest.watchAds", 1f, new WatchAdsGoal { Target = 10 },
+                Gift(coins, 400), new CurrencyReward { Currency = energy, Amount = 5 }));
+
+            Quest("visit_days", QuestPeriod.Weekly, "quest.visitDays", 1f, new VisitDaysGoal { Target = 5 },
+                Gift(coins, 300), new CurrencyReward { Currency = energy, Amount = 5 });
+            Quest("claim_dailies", QuestPeriod.Weekly, "quest.claimDailies", 1f, new ClaimDailyQuestsGoal { Target = 10 },
+                Gift(coins, 400));
+            Quest("win_week", QuestPeriod.Weekly, "quest.win", 1f, new WinMatchesGoal { Target = 10 }, Gift(coins, 300));
+            Quest("bosses", QuestPeriod.Weekly, "quest.bosses", 0.8f, new WinMatchesGoal { Target = 2, BossOnly = true },
+                Gift(coins, 300), new CurrencyReward { Currency = energy, Amount = 3 });
+            Quest("bank_week", QuestPeriod.Weekly, "quest.bank", 1f, new BankPointsGoal { Target = 20000 }, Gift(coins, 250));
+            Quest("hot_dice_week", QuestPeriod.Weekly, "quest.hotDice", 1f, new HotDiceGoal { Target = 5 }, Gift(coins, 250));
+        }
+
+        /// <summary>Задание в каждом наборе периода. Уже созданному ассету флаг ставится, если его ещё нет.</summary>
+        private static void EnsureGuaranteed(QuestConfig quest)
+        {
+            if (quest == null || quest.Guaranteed)
+                return;
+
+            quest.Guaranteed = true;
+            EditorUtility.SetDirty(quest);
+        }
+
+        /// <summary>Группа похожих заданий (в наборе не больше одного); только если группа ещё не задана.</summary>
+        private static void SetGroup(QuestConfig quest, string group)
+        {
+            if (quest == null || !string.IsNullOrEmpty(quest.Group))
+                return;
+
+            quest.Group = group;
+            EditorUtility.SetDirty(quest);
+        }
+
+        private static QuestConfig Quest(string id, QuestPeriod period, string textKey, float weight, QuestGoal goal,
+            params Reward[] rewards)
+        {
+            var folder = period == QuestPeriod.Daily ? "Daily" : "Weekly";
+            return Asset<QuestConfig>(ConfigsFolder + "/Quests/" + folder + "/Quest_" + id + ".asset", q =>
+            {
+                Identity(q, "quest_" + id, textKey);
+                q.Period = period;
+                q.Weight = weight;
+                q.Goal = goal;
+                q.Rewards = new List<Reward>(rewards);
+            });
+        }
+
+        private static CosmeticItemConfig ItemAt(string id)
+        {
+            return AssetDatabase.LoadAssetAtPath<CosmeticItemConfig>(ConfigsFolder + "/Cosmetics/Items/" + id + ".asset");
+        }
+
+        /// <summary>
+        /// Цена особой кости. Ставится, только если у кости ещё цена по умолчанию (одна «награда кампании» без подсказки):
+        /// ручные правки цены не затираются.
+        /// </summary>
+        private static void SetDiePrice(DieConfig die, int order, string hintKey, params PriceOption[] options)
+        {
+            if (die == null)
+                return;
+
+            if (die.Order == 0)
+                die.Order = order;
+
+            var current = die.Price.Options;
+            var untouched = current.Count == 0 ||
+                            (current.Count == 1 && current[0] is ProgressPriceOption progress && string.IsNullOrEmpty(progress.HintKey));
+            if (untouched)
+            {
+                current.Clear();
+                current.Add(new ProgressPriceOption { HintKey = hintKey });
+                current.AddRange(options);
+            }
+
+            EditorUtility.SetDirty(die);
+        }
+
+        /// <summary>
+        /// Особые кости соперника. Ставятся, если у соперника пусто или стоит прежний набор генератора
+        /// (previous): ручной выбор в ассете не затирается.
+        /// </summary>
+        private static void SetOpponentDice(OpponentConfig opponent, DieConfig[] previous, params DieConfig[] dice)
+        {
+            if (opponent == null)
+                return;
+
+            var current = opponent.Dice;
+            var untouched = current.Count == 0 || (previous != null && current.SequenceEqual(previous));
+            if (!untouched || current.SequenceEqual(dice))
+                return;
+
+            opponent.Dice = new List<DieConfig>(dice);
+            EditorUtility.SetDirty(opponent);
+        }
+
+        /// <summary>Добавить правило соперника, если правила этого типа у него ещё нет.</summary>
+        private static void EnsureModifier(OpponentConfig opponent, MatchModifier modifier)
+        {
+            foreach (var existing in opponent.Modifiers)
+            {
+                if (existing != null && existing.GetType() == modifier.GetType())
+                    return;
+            }
+
+            opponent.Modifiers.Add(modifier);
+            EditorUtility.SetDirty(opponent);
+        }
+
+        private static void SetDieLook(DieConfig die, Material look)
+        {
+            if (die == null || die.LookMaterial != null || look == null)
+                return;
+
+            die.LookMaterial = look;
+            EditorUtility.SetDirty(die);
+        }
+
+        private static void EnsureContentReward(OpponentConfig opponent, ContentConfig item)
+        {
+            if (opponent == null || item == null)
+                return;
+
+            foreach (var reward in opponent.FirstWinRewards)
+            {
+                if (reward is ContentReward content && content.Item == item)
+                    return;
+            }
+
+            opponent.FirstWinRewards.Add(new ContentReward { Item = item });
+            EditorUtility.SetDirty(opponent);
         }
 
         private static void SetRollStyle(RollStyleConfig style, params OpponentConfig[] opponents)

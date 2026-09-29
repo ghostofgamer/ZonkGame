@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Zonk.Core.Dice;
 
@@ -17,8 +18,19 @@ namespace Zonk.Configs
         [Tooltip("Относительные веса граней 1..6. Обычная кость: все по 1.")]
         public float[] Weights = { 1, 1, 1, 1, 1, 1 };
 
+        [Tooltip("Порядок в магазине")]
+        public int Order;
+
         [Tooltip("Цвет метки особой кости. Прозрачный = без метки.")]
         public Color MarkerColor = Color.clear;
+
+        [Tooltip("Свой вид особой кости: материал (и при желании меш). Перекрывает скин игрока, чтобы кость узнавалась. Пусто = скин игрока")]
+        public Material LookMaterial;
+
+        public Mesh LookMesh;
+
+        [Tooltip("Вид кости на уровнях мастерства: [0] — первый уровень и т.д. Пусто = LookMaterial")]
+        public List<Material> MasteryLooks = new List<Material>();
 
         [Tooltip("Как получить кость. Пусто = есть у всех с начала.")]
         public Price Price = new Price();

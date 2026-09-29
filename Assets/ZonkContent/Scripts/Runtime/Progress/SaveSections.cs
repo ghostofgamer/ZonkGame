@@ -15,6 +15,9 @@ namespace Zonk.Progress
         public const string Campaign = "zonk_campaign";
         public const string Settings = "zonk_settings";
         public const string HotSeat = "zonk_hotseat";
+        public const string Quests = "zonk_quests";
+        public const string Mastery = "zonk_mastery";
+        public const string AdBonus = "zonk_ad_bonus";
     }
 
     [Serializable]
@@ -45,6 +48,9 @@ namespace Zonk.Progress
     {
         public List<string> Owned = new List<string>();
         public List<AdProgressEntry> AdProgress = new List<AdProgressEntry>();
+
+        /// <summary>Наборы, чьи разовые награды (монеты, энергия) уже выданы.</summary>
+        public List<string> RewardedThemes = new List<string>();
     }
 
     [Serializable]
@@ -72,6 +78,11 @@ namespace Zonk.Progress
 
         /// <summary>ID костей по слотам 0..5. Пусто или неизвестный ID = обычная кость.</summary>
         public List<string> Dice = new List<string>();
+
+        /// <summary>Сохранённые наборы костей (ID по слотам). Dice — копия активного набора.</summary>
+        public List<DicePresetSave> Presets = new List<DicePresetSave>();
+
+        public int ActivePreset;
     }
 
     [Serializable]
@@ -118,5 +129,71 @@ namespace Zonk.Progress
         public int LastFirstPlayer = 1;
 
         public List<HotSeatPlayerSave> Players = new List<HotSeatPlayerSave>();
+    }
+
+    [Serializable]
+    public sealed class DicePresetSave
+    {
+        public List<string> Dice = new List<string>();
+    }
+
+    [Serializable]
+    public sealed class QuestEntry
+    {
+        public string Id;
+        public int Progress;
+        public bool Claimed;
+    }
+
+    [Serializable]
+    public sealed class QuestSave
+    {
+        /// <summary>Номер дня и недели выданных заданий (QuestCalendar). -1: ещё не выдавались.</summary>
+        public int Day = -1;
+        public int Week = -1;
+
+        public List<QuestEntry> Daily = new List<QuestEntry>();
+        public List<QuestEntry> Weekly = new List<QuestEntry>();
+
+        /// <summary>Сколько дневных заданий заменено сегодня.</summary>
+        public int Rerolls;
+
+        /// <summary>Последний день, когда игрок заходил (для недельного «заходи в разные дни»).</summary>
+        public int LastVisitDay = -1;
+    }
+
+    [Serializable]
+    public sealed class MasteryEntry
+    {
+        public string Id;
+        public int Points;
+
+        /// <summary>До какого уровня награды уже выданы.</summary>
+        public int RewardedLevel;
+    }
+
+    [Serializable]
+    public sealed class MasterySave
+    {
+        public List<MasteryEntry> Dice = new List<MasteryEntry>();
+    }
+
+    /// <summary>Награды за рекламу в главном меню: сколько раз взята каждая сегодня.</summary>
+    [Serializable]
+    public sealed class AdBonusSave
+    {
+        public int Day = -1;
+
+        /// <summary>Прежнее поле (одна кнопка монет), не используется.</summary>
+        public int Count;
+
+        public List<AdBonusEntry> Offers = new List<AdBonusEntry>();
+    }
+
+    [Serializable]
+    public sealed class AdBonusEntry
+    {
+        public string Id;
+        public int Count;
     }
 }

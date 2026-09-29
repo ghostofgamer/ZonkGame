@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Base.Services.Monetization;
 using Base.Services.Saves;
 using Zonk.Configs;
@@ -44,11 +46,14 @@ namespace Zonk.Progress
     {
         private readonly ISaveStore _saves;
         private readonly IEntitlements _entitlements;
+        private readonly ContentDatabase _content;
+        private Dictionary<ContentConfig, List<ThemeSetConfig>> _themesOf;
 
-        public Inventory(ISaveStore saves, IEntitlements entitlements)
+        public Inventory(ISaveStore saves, IEntitlements entitlements, ContentDatabase content)
         {
             _saves = saves;
             _entitlements = entitlements;
+            _content = content;
         }
 
         public event Action<ContentConfig> Granted;
@@ -60,6 +65,46 @@ namespace Zonk.Progress
             if (item == null)
                 return false;
 
+            if (IsOwnedDirectly(item))
+                return true;
+
+            // Предмет набора, купленного за деньги: право набора восстанавливается площадкой, а выдача предметов
+            // по одному могла остаться на старом устройстве.
+            foreach (var theme in ThemesOf(item))
+            {
+                // Бесплатный (без цены) набор ничего не открывает: иначе ошибка в ассете раздала бы всё.
+                if (!theme.Price.IsFree && IsOwnedDirectly(theme))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private List<ThemeSetConfig> ThemesOf(ContentConfig item)
+        {
+            if (_themesOf == null)
+            {
+                _themesOf = new Dictionary<ContentConfig, List<ThemeSetConfig>>();
+                foreach (var theme in _content != null ? _content.All<ThemeSetConfig>() : new List<ThemeSetConfig>())
+                {
+                    foreach (var member in theme.Items.Cast<ContentConfig>().Concat(theme.Dice))
+                    {
+                        if (member == null)
+                            continue;
+                        if (!_themesOf.TryGetValue(member, out var list))
+                            _themesOf[member] = list = new List<ThemeSetConfig>();
+                        list.Add(theme);
+                    }
+                }
+            }
+
+            return _themesOf.TryGetValue(item, out var themes) ? themes : NoThemes;
+        }
+
+        private static readonly List<ThemeSetConfig> NoThemes = new List<ThemeSetConfig>();
+
+        private bool IsOwnedDirectly(ContentConfig item)
+        {
             var price = Pricing.PriceOf(item);
             if (price == null || price.IsFree)
                 return true;
@@ -87,6 +132,8 @@ namespace Zonk.Progress
 
             if (item is ThemeSetConfig theme)
             {
+                foreach (var themeDie in theme.Dice)
+                    Grant(themeDie);
                 foreach (var themeItem in theme.Items)
                     Grant(themeItem);
             }

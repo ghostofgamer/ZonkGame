@@ -53,6 +53,8 @@ namespace Zonk.Editor
             }
 
             var texts = LoadTexts(warnings);
+            var config = AssetDatabase.FindAssets("t:GameConfig").Select(AssetDatabase.GUIDToAssetPath)
+                .Select(AssetDatabase.LoadAssetAtPath<GameConfig>).FirstOrDefault(c => c != null);
             var ids = new Dictionary<string, ContentConfig>();
 
             foreach (var item in database.Items)
@@ -90,7 +92,25 @@ namespace Zonk.Editor
                         ValidatePrice(theme, theme.Price, errors);
                         break;
                     case OpponentConfig opponent:
-                        ValidateOpponent(opponent, texts, errors);
+                        ValidateOpponent(opponent, texts, errors, warnings, config);
+                        break;
+                    case CoinPackConfig pack:
+                        if (string.IsNullOrEmpty(pack.ProductId) || pack.Currency == null || pack.Amount <= 0)
+                            errors.Add($"{pack.name}: coin pack needs ProductId, currency and amount");
+                        break;
+                    case QuestConfig quest:
+                        if (quest.Goal == null)
+                            errors.Add($"{quest.name}: quest goal is not set");
+                        else if (quest.Goal is WinWithDieGoal withDie && withDie.Die == null)
+                            errors.Add($"{quest.name}: die for the quest is not set");
+                        else if (quest.Goal is CustomEventGoal custom && string.IsNullOrEmpty(custom.Tag))
+                            errors.Add($"{quest.name}: custom event tag is empty");
+                        else if (!string.IsNullOrEmpty(quest.Goal.TextArgKey))
+                            CheckKey(quest, quest.Goal.TextArgKey, texts, errors);
+                        if (quest.Rewards.Count == 0 || quest.Rewards.Any(r => r == null))
+                            errors.Add($"{quest.name}: quest has no reward or an empty reward");
+                        if (quest.Conditions.Any(c => c == null))
+                            errors.Add($"{quest.name}: empty condition");
                         break;
                     case ChapterConfig chapter:
                         if (chapter.Opponents.Count == 0 || chapter.Opponents.Any(o => o == null))
@@ -119,6 +139,7 @@ namespace Zonk.Editor
             }
 
             ValidateGameConfig(errors);
+            ValidateShopVariety(database, warnings);
             ValidateScriptFiles(errors);
             return errors;
         }
@@ -235,8 +256,20 @@ namespace Zonk.Editor
             }
         }
 
-        private static void ValidateOpponent(OpponentConfig opponent, HashSet<string> texts, List<string> errors)
+        private static void ValidateOpponent(OpponentConfig opponent, HashSet<string> texts, List<string> errors,
+            List<string> warnings, GameConfig config)
         {
+            // Особые кости: у обычных соперников немного, у боссов больше; одна особая кость — один слот.
+            var special = opponent.Dice.Where(d => d != null && d.IsSpecial).ToList();
+            if (special.Count != special.Distinct().Count())
+                errors.Add($"{opponent.name}: the same special die is used twice (one special die = one slot)");
+            if (special.Count > 6)
+                errors.Add($"{opponent.name}: more than 6 dice");
+            if (config != null && !opponent.IsBoss && special.Count > config.OpponentMaxSpecialDice)
+                warnings.Add($"{opponent.name}: {special.Count} special dice, regular opponents have up to {config.OpponentMaxSpecialDice}");
+            if (config != null && opponent.IsBoss && special.Count < config.BossMinSpecialDice)
+                warnings.Add($"{opponent.name}: boss has {special.Count} special dice, bosses have at least {config.BossMinSpecialDice}");
+
             if (opponent.Ai == null)
                 errors.Add($"{opponent.name}: AI profile is not set");
             CheckKey(opponent, opponent.TitleKey, texts, errors);
@@ -272,6 +305,36 @@ namespace Zonk.Editor
             }
         }
 
+        /// <summary>
+        /// Правило магазина: в каждой вкладке (слот косметики, особые кости) есть что получить за монеты, за рекламу
+        /// и за покупку. Нарушение — предупреждение: вкладку можно временно оставить без одного вида.
+        /// </summary>
+        private static void ValidateShopVariety(ContentDatabase database, List<string> warnings)
+        {
+            var tabs = new Dictionary<string, List<Price>>();
+            foreach (var item in database.All<CosmeticItemConfig>())
+            {
+                if (item.Slot == null || !item.Slot.ShowInShop || item.HiddenInShop)
+                    continue;
+                if (!tabs.TryGetValue(item.Slot.name, out var prices))
+                    tabs[item.Slot.name] = prices = new List<Price>();
+                prices.Add(item.Price);
+            }
+
+            tabs["Dice"] = database.All<DieConfig>().Where(d => d.IsSpecial).Select(d => d.Price).ToList();
+
+            foreach (var tab in tabs)
+            {
+                var options = tab.Value.Where(p => p != null).SelectMany(p => p.Options).ToList();
+                if (!options.Any(o => o is CurrencyPriceOption))
+                    warnings.Add($"Shop tab {tab.Key}: nothing for coins");
+                if (!options.Any(o => o is RewardedAdPriceOption))
+                    warnings.Add($"Shop tab {tab.Key}: nothing for rewarded ads");
+                if (!options.Any(o => o is PurchasePriceOption))
+                    warnings.Add($"Shop tab {tab.Key}: nothing for real money");
+            }
+        }
+
         private static void ValidateGameConfig(List<string> errors)
         {
             var guid = AssetDatabase.FindAssets("t:" + nameof(GameConfig), new[] { ContentDatabaseBuilder.GameFolder }).FirstOrDefault();
@@ -287,6 +350,18 @@ namespace Zonk.Editor
             if (config.Energy == null) errors.Add("GameConfig: Energy is not set");
             if (config.HotSeatMode == null) errors.Add("GameConfig: HotSeatMode is not set");
             if (config.CampaignMode == null) errors.Add("GameConfig: CampaignMode is not set");
+
+            // Уровни мастерства по возрастанию очков, у каждого название.
+            for (var i = 0; i < config.MasteryLevels.Count; i++)
+            {
+                var level = config.MasteryLevels[i];
+                if (level == null || string.IsNullOrEmpty(level.NameKey))
+                    errors.Add($"GameConfig: mastery level {i + 1} has no NameKey");
+                else if (i > 0 && config.MasteryLevels[i - 1] != null && level.Points <= config.MasteryLevels[i - 1].Points)
+                    errors.Add($"GameConfig: mastery level {i + 1} needs more points than level {i}");
+                if (level != null && level.Rewards.Any(r => r == null))
+                    errors.Add($"GameConfig: mastery level {i + 1} has an empty reward");
+            }
         }
 
         private static HashSet<string> LoadTexts(List<string> warnings)

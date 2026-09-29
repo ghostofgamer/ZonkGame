@@ -28,8 +28,39 @@ namespace Zonk.Configs
         [Header("Кости")]
         public DieConfig StandardDie;
 
-        [Tooltip("Сколько особых костей можно взять в набор из шести")]
-        public int MaxSpecialDice = 2;
+        [Tooltip("Сколько особых костей можно взять в набор из шести. Каждая особая кость — не больше одной в наборе")]
+        public int MaxSpecialDice = 6;
+
+        [Tooltip("Сколько особых костей может быть у обычного соперника кампании (проверяет Zonk/Content/Validate)")]
+        public int OpponentMaxSpecialDice = 3;
+
+        [Tooltip("Сколько особых костей должно быть у босса, не меньше (проверяет Zonk/Content/Validate)")]
+        public int BossMinSpecialDice = 3;
+
+        [Tooltip("Сколько наборов костей можно сохранить и переключать одной кнопкой")]
+        public int DicePresetCount = 3;
+
+        [Header("Мастерство костей")]
+        [Tooltip("Уровни мастерства особых костей по возрастанию очков")]
+        public List<MasteryLevel> MasteryLevels = new List<MasteryLevel>();
+
+        [Header("Ставки в кампании")]
+        [Tooltip("Варианты ставки монетами перед партией кампании. 0 = без ставки")]
+        public int[] StakeOptions = { 0, 50, 100, 250, 500 };
+
+        [Header("Награды за рекламу в главном меню")]
+        [Tooltip("Кнопка на каждую строку: валюта, сколько за просмотр и сколько раз в день")]
+        public List<MenuAdOffer> MenuAdOffers = new List<MenuAdOffer>();
+
+        [Header("Задания")]
+        [Tooltip("Сколько заданий выдаётся на день")]
+        public int DailyQuestCount = 3;
+
+        [Tooltip("Сколько заданий выдаётся на неделю")]
+        public int WeeklyQuestCount = 3;
+
+        [Tooltip("Сколько раз в день можно заменить дневное задание за рекламу")]
+        public int QuestRerollsPerDay = 1;
 
         [Header("Игра вдвоём")]
         public int HotSeatMinTarget = 1000;

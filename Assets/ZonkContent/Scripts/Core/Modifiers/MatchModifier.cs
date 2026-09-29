@@ -91,4 +91,35 @@ namespace Zonk.Core.Modifiers
             rules.ThreeZonkPenalty = Penalty;
         }
     }
+
+    /// <summary>
+    /// Одиночная кость с гранью Face стоит иначе: Multiplier 0 — «одиночные пятёрки ничего не стоят».
+    /// Тройки и стриты с этой гранью не меняются.
+    /// </summary>
+    [Serializable]
+    public sealed class SingleFaceModifier : MatchModifier
+    {
+        public int Face = 5;
+        public float Multiplier;
+
+        public override int ModifyComboScore(ScoringCombo combo, int score)
+        {
+            if (combo.Category != ComboCategory.Single || Face < 1 || Face > 6 || combo.Used[Face] == 0)
+                return score;
+
+            return (int)Math.Round(score * Multiplier);
+        }
+    }
+
+    /// <summary>Забирать очки можно только от MinBankScore за ход: «мелочь не считается».</summary>
+    [Serializable]
+    public sealed class MinBankModifier : MatchModifier
+    {
+        public int MinBankScore = 350;
+
+        public override void ModifyRules(RuleSet rules)
+        {
+            rules.MinBankScore = Math.Max(rules.MinBankScore, MinBankScore);
+        }
+    }
 }

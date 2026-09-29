@@ -25,6 +25,9 @@ namespace Zonk.MatchFlow
         /// <summary>Кости по слотам 0..5.</summary>
         public IReadOnlyList<DieConfig> Dice;
 
+        /// <summary>Уровни мастерства костей по слотам (только у людей): вид кости и свечение метки.</summary>
+        public IReadOnlyList<int> MasteryLevels;
+
         public CosmeticItemConfig DiceSkin;
         public CosmeticItemConfig Cup;
 

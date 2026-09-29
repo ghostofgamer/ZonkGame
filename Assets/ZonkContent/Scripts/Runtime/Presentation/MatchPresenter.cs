@@ -26,6 +26,14 @@ namespace Zonk.Presentation
         private readonly DiceRollSimulator _simulator;
         private readonly List<int> _keptOrder = new List<int>();
 
+        // Рабочие списки броска: переиспользуются, чтобы бросок не оставлял мусора для сборщика.
+        private readonly List<int> _onTable = new List<int>();
+        private readonly List<int> _settleOrder = new List<int>();
+        private readonly List<Vector3> _placed = new List<Vector3>();
+        private readonly List<UniTask> _settleMoves = new List<UniTask>();
+        private static readonly List<Renderer> CupRenderers = new List<Renderer>();
+        private Comparison<int> _byHeight;
+
         private IReadOnlyList<MatchParticipant> _participants;
         private System.Random _visualRandom;
         private Quaternion _uprightHand = Quaternion.identity;
@@ -69,6 +77,9 @@ namespace Zonk.Presentation
                 var cup = participants[i].Cup;
                 if (cup != null)
                     _table.SeatOf(i).CupAnchor.Show(cup, cup.Slot != null ? cup.Slot.DefaultItem : null);
+
+                // Стакан мог остаться не на месте после прерванного показа: перед партией он всегда на столе.
+                CupOf(_table.SeatOf(i)).ReturnHome();
             }
 
             var north = participants.Count > 1 ? participants[1] : null;
@@ -96,7 +107,7 @@ namespace Zonk.Presentation
         {
             var participant = _participants[player];
             Dice.SetSkin(participant.DiceSkin);
-            Dice.SetLoadout(participant.Dice);
+            Dice.SetLoadout(participant.Dice, participant.MasteryLevels, _config.MasteryLevels);
             Dice.SetVisible(false);
             _keptOrder.Clear();
             foreach (var die in Dice.Dice)
@@ -114,9 +125,9 @@ namespace Zonk.Presentation
             var cup = CupOf(seat);
             var hand = seat.Hand;
             var cupTransform = cup.transform;
-            var cupParent = cupTransform.parent;
-            var cupLocalPosition = cupTransform.localPosition;
-            var cupLocalRotation = cupTransform.localRotation;
+            var cupParent = cup.HomeParent;
+            var cupLocalPosition = cup.HomeLocalPosition;
+            var cupLocalRotation = cup.HomeLocalRotation;
 
             var cameraMove = _table.Camera.MoveToAsync(CameraShots.Match, 0.4f / Speed, ct);
 
@@ -127,7 +138,8 @@ namespace Zonk.Presentation
             try
             {
                 // Повторный бросок: неотложенные кости со стола сначала возвращаются в стакан.
-                var onTable = new List<int>();
+                var onTable = _onTable;
+                onTable.Clear();
                 foreach (var slot in roll.RolledDice)
                 {
                     if (Dice[slot].gameObject.activeSelf)
@@ -170,11 +182,9 @@ namespace Zonk.Presentation
             finally
             {
                 // Партию могли прервать посреди броска: стакан возвращается на место, рука в исходную позу.
-                if (cupTransform != null && cupTransform.parent != cupParent)
+                if (cup != null && !cup.IsHome)
                 {
-                    cupTransform.SetParent(cupParent, false);
-                    cupTransform.localPosition = cupLocalPosition;
-                    cupTransform.localRotation = cupLocalRotation;
+                    cup.ReturnHome();
                     hand.SnapToRest();
                 }
             }
@@ -229,13 +239,15 @@ namespace Zonk.Presentation
 
         private static Bounds CupBounds(CupView cup)
         {
-            var renderers = cup.GetComponentsInChildren<Renderer>();
-            if (renderers.Length == 0)
+            var renderers = CupRenderers;
+            cup.GetComponentsInChildren(renderers);
+            if (renderers.Count == 0)
                 return new Bounds(cup.transform.position + Vector3.up * 0.45f, new Vector3(0.6f, 0.9f, 0.6f));
 
             var bounds = renderers[0].bounds;
-            for (var i = 1; i < renderers.Length; i++)
+            for (var i = 1; i < renderers.Count; i++)
                 bounds.Encapsulate(renderers[i].bounds);
+            renderers.Clear();
             return bounds;
         }
 
@@ -345,11 +357,15 @@ namespace Zonk.Presentation
             var rest = tray.RestHeight;
 
             // Сначала те, что ниже: лежащие на полу остаются на месте, лежащие сверху ищут свободное место.
-            var order = new List<int>(roll.RolledDice);
-            order.Sort((a, b) => Dice[a].transform.position.y.CompareTo(Dice[b].transform.position.y));
+            var order = _settleOrder;
+            order.Clear();
+            order.AddRange(roll.RolledDice);
+            order.Sort(_byHeight ?? (_byHeight = (a, b) => Dice[a].transform.position.y.CompareTo(Dice[b].transform.position.y)));
 
-            var placed = new List<Vector3>(order.Count);
-            var moves = new List<UniTask>(order.Count + 1);
+            var placed = _placed;
+            placed.Clear();
+            var moves = _settleMoves;
+            moves.Clear();
             foreach (var slot in order)
             {
                 var die = Dice[slot];
@@ -387,9 +403,9 @@ namespace Zonk.Presentation
             var cup = CupOf(seat);
             var hand = seat.Hand;
             var cupTransform = cup.transform;
-            var cupParent = cupTransform.parent;
-            var cupLocalPosition = cupTransform.localPosition;
-            var cupLocalRotation = cupTransform.localRotation;
+            var cupParent = cup.HomeParent;
+            var cupLocalPosition = cup.HomeLocalPosition;
+            var cupLocalRotation = cup.HomeLocalRotation;
             var style = (styleConfig != null ? styleConfig : RollStyleConfig.Fallback).Pick(_visualRandom ?? new System.Random());
 
             try
@@ -407,12 +423,8 @@ namespace Zonk.Presentation
             }
             finally
             {
-                if (cupTransform != null && cupTransform.parent != cupParent)
-                {
-                    cupTransform.SetParent(cupParent, false);
-                    cupTransform.localPosition = cupLocalPosition;
-                    cupTransform.localRotation = cupLocalRotation;
-                }
+                if (cup != null && !cup.IsHome)
+                    cup.ReturnHome();
 
                 if (hand != null)
                     hand.SnapToRest();

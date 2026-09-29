@@ -23,13 +23,25 @@ namespace Zonk.Table
         private readonly GameConfig _config;
         private readonly ILoadout _loadout;
         private readonly IInventory _inventory;
+        private readonly IDieMastery _mastery;
 
-        public ParticipantFactory(ContentDatabase content, GameConfig config, ILoadout loadout, IInventory inventory)
+        public ParticipantFactory(ContentDatabase content, GameConfig config, ILoadout loadout, IInventory inventory,
+            IDieMastery mastery)
         {
+            _mastery = mastery;
             _content = content;
             _config = config;
             _loadout = loadout;
             _inventory = inventory;
+        }
+
+        /// <summary>Уровни мастерства костей игрока по слотам: вид кости на столе.</summary>
+        public List<int> MasteryLevels(IReadOnlyList<DieConfig> dice)
+        {
+            var result = new List<int>(dice.Count);
+            foreach (var die in dice)
+                result.Add(_mastery.GetLevel(die));
+            return result;
         }
 
         public CosmeticSlotConfig Slot(string id) => _content.Get<CosmeticSlotConfig>(id);
@@ -55,6 +67,7 @@ namespace Zonk.Table
                 DiceSkin = _loadout.GetEquipped(Slot(SlotIds.DiceSkin)),
                 Cup = _loadout.GetEquipped(Slot(SlotIds.Cup)),
                 RollStyles = OwnedRollStyles(),
+                MasteryLevels = MasteryLevels(dice),
             };
         }
 
@@ -74,6 +87,7 @@ namespace Zonk.Table
                 DiceSkin = skin,
                 Cup = _loadout.GetEquipped(Slot(SlotIds.Cup)),
                 RollStyles = OwnedRollStyles(),
+                MasteryLevels = MasteryLevels(dice),
             };
         }
 
@@ -83,7 +97,10 @@ namespace Zonk.Table
             for (var i = 0; i < Core.Match.ZonkMatch.DiceCount; i++)
             {
                 var die = i < opponent.Dice.Count ? opponent.Dice[i] : null;
-                dice.Add(die != null ? die : _config.StandardDie);
+                // Правило то же, что у игрока: особая кость — только в одном слоте.
+                if (die == null || (die.IsSpecial && dice.Contains(die)))
+                    die = _config.StandardDie;
+                dice.Add(die);
             }
 
             var cupSlot = Slot(SlotIds.Cup);

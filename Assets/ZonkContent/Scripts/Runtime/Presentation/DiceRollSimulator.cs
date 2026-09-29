@@ -7,17 +7,45 @@ using Object = UnityEngine.Object;
 
 namespace Zonk.Presentation
 {
-    /// <summary>Записанный бросок: позы каждой кости по кадрам и какая ось тела в конце смотрит вверх.</summary>
+    /// <summary>
+    /// Записанный бросок: позы каждой кости по кадрам и какая ось тела в конце смотрит вверх. Массивы выделяются
+    /// один раз на максимум кадров и переиспользуются между бросками: действительны первые FrameCount кадров.
+    /// Запись принадлежит симулятору и верна до следующего Simulate.
+    /// </summary>
     public sealed class RollRecording
     {
         public int DieCount;
         public int FrameCount;
         public float FrameTime;
-        public Vector3[][] Positions;
-        public Quaternion[][] Rotations;
-        public Vector3[] UpAxes;
+        public Vector3[][] Positions = new Vector3[0][];
+        public Quaternion[][] Rotations = new Quaternion[0][];
+        public Vector3[] UpAxes = new Vector3[0];
 
         public float Duration => FrameCount * FrameTime;
+
+        /// <summary>Вырастить буферы под count костей и frames кадров. Растут только вверх: обычный бросок без мусора.</summary>
+        public void Ensure(int count, int frames)
+        {
+            if (Positions.Length < count)
+            {
+                var positions = new Vector3[count][];
+                var rotations = new Quaternion[count][];
+                Array.Copy(Positions, positions, Positions.Length);
+                Array.Copy(Rotations, rotations, Rotations.Length);
+                Positions = positions;
+                Rotations = rotations;
+                UpAxes = new Vector3[count];
+            }
+
+            for (var i = 0; i < count; i++)
+            {
+                if (Positions[i] == null || Positions[i].Length < frames)
+                {
+                    Positions[i] = new Vector3[frames];
+                    Rotations[i] = new Quaternion[frames];
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -25,6 +53,9 @@ namespace Zonk.Presentation
     /// как кости летят и катятся. Бросок просчитывается мгновенно в отдельной сцене физики с копией лотка,
     /// затем проигрывается записью. Визуал каждой кости поворачивается на симметрию куба так,
     /// чтобы в конце наверху была нужная грань (DieFaces.Correction). Физика при этом та же, коллайдер — куб.
+    ///
+    /// Память: тела, коллайдеры и две записи (текущая попытка и лучшая) создаются один раз и переиспользуются,
+    /// попытки меняют записи местами, а не копируют: бросок не оставляет мусора для сборщика.
     /// </summary>
     public sealed class DiceRollSimulator : IDisposable
     {
@@ -34,8 +65,13 @@ namespace Zonk.Presentation
         private const int Attempts = 10;
         private const float FlatTolerance = 0.985f;
 
+        private static readonly int MaxFrames = Mathf.CeilToInt(MaxDuration / FrameTime);
+
         private readonly DiceTrayView _tray;
         private readonly List<Rigidbody> _bodies = new List<Rigidbody>();
+        private readonly List<BoxCollider> _colliders = new List<BoxCollider>();
+        private RollRecording _work = new RollRecording();
+        private RollRecording _best = new RollRecording();
         private Scene _scene;
         private PhysicsScene _physics;
         private PhysicsMaterial _material;
@@ -49,20 +85,23 @@ namespace Zonk.Presentation
         /// origin: откуда высыпаются кости (горло стакана); direction: куда летят (горизонтально, к центру лотка).
         /// Бросок пересчитывается, пока все кости не лягут ровно, внутри лотка и не друг на друге (попытки невидимы
         /// и занимают миллисекунды). Если так и не вышло, берётся попытка с наименьшим числом проблем:
-        /// MatchPresenter докатит такие кости на свободное место.
+        /// MatchPresenter докатит такие кости на свободное место. Запись верна до следующего вызова.
         /// </summary>
         public RollRecording Simulate(int count, Vector3 origin, Vector3 direction, System.Random random, RollParams style)
         {
             EnsureScene(count);
+            _work.Ensure(count, MaxFrames);
+            _best.Ensure(count, MaxFrames);
 
-            RollRecording best = null;
             var bestProblems = int.MaxValue;
             for (var attempt = 0; attempt < Attempts; attempt++)
             {
-                var recording = SimulateOnce(count, origin, direction, random, style, out var problems);
+                var problems = SimulateOnce(_work, count, origin, direction, random, style);
                 if (problems < bestProblems)
                 {
-                    best = recording;
+                    var swap = _best;
+                    _best = _work;
+                    _work = swap;
                     bestProblems = problems;
                 }
 
@@ -70,11 +109,12 @@ namespace Zonk.Presentation
                     break;
             }
 
-            return best;
+            return _best;
         }
 
-        private RollRecording SimulateOnce(int count, Vector3 origin, Vector3 direction, System.Random random, RollParams style,
-            out int problems)
+        /// <summary>Одна попытка в запись recording. Возвращает число проблемных костей.</summary>
+        private int SimulateOnce(RollRecording recording, int count, Vector3 origin, Vector3 direction, System.Random random,
+            RollParams style)
         {
             direction.y = 0f;
             direction = direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector3.forward;
@@ -86,11 +126,12 @@ namespace Zonk.Presentation
             {
                 var body = _bodies[i];
                 var active = i < count;
-                body.gameObject.SetActive(active);
+                if (body.gameObject.activeSelf != active)
+                    body.gameObject.SetActive(active);
                 if (!active)
                     continue;
 
-                body.GetComponent<BoxCollider>().size = Vector3.one * size;
+                _colliders[i].size = Vector3.one * size;
                 var spread = size * style.Spread;
                 var offset = side * Range(random, -spread, spread) + Vector3.up * (i * size * 0.35f) +
                              direction * Range(random, -spread, spread) * 0.5f;
@@ -104,30 +145,26 @@ namespace Zonk.Presentation
                 body.WakeUp();
             }
 
-            var maxFrames = Mathf.CeilToInt(MaxDuration / FrameTime);
-            var positions = new List<Vector3>[count];
-            var rotations = new List<Quaternion>[count];
+            var positions = recording.Positions;
+            var rotations = recording.Rotations;
             for (var i = 0; i < count; i++)
             {
-                positions[i] = new List<Vector3>(maxFrames);
-                rotations[i] = new List<Quaternion>(maxFrames);
-                positions[i].Add(_bodies[i].position);
-                rotations[i].Add(_bodies[i].rotation);
+                positions[i][0] = _bodies[i].position;
+                rotations[i][0] = _bodies[i].rotation;
             }
 
             var calm = 0;
             var frames = 1;
-            while (frames < maxFrames && calm < CalmFramesToStop)
+            while (frames < MaxFrames && calm < CalmFramesToStop)
             {
                 _physics.Simulate(FrameTime);
-                frames++;
 
                 var allCalm = true;
                 for (var i = 0; i < count; i++)
                 {
                     var body = _bodies[i];
-                    positions[i].Add(body.position);
-                    rotations[i].Add(body.rotation);
+                    positions[i][frames] = body.position;
+                    rotations[i][frames] = body.rotation;
                     if (!body.IsSleeping() &&
                         (body.linearVelocity.sqrMagnitude > 0.0025f || body.angularVelocity.sqrMagnitude > 0.01f))
                     {
@@ -135,26 +172,19 @@ namespace Zonk.Presentation
                     }
                 }
 
+                frames++;
                 calm = allCalm ? calm + 1 : 0;
             }
 
-            var recording = new RollRecording
-            {
-                DieCount = count,
-                FrameCount = frames,
-                FrameTime = FrameTime,
-                Positions = new Vector3[count][],
-                Rotations = new Quaternion[count][],
-                UpAxes = new Vector3[count],
-            };
+            recording.DieCount = count;
+            recording.FrameCount = frames;
+            recording.FrameTime = FrameTime;
 
-            problems = 0;
+            var problems = 0;
             for (var i = 0; i < count; i++)
             {
-                recording.Positions[i] = positions[i].ToArray();
-                recording.Rotations[i] = rotations[i].ToArray();
-                var rotation = recording.Rotations[i][frames - 1];
-                var position = recording.Positions[i][frames - 1];
+                var rotation = rotations[i][frames - 1];
+                var position = positions[i][frames - 1];
                 recording.UpAxes[i] = DieFaces.UpAxis(rotation);
 
                 // Вне лотка, на ребре или на другой кости (центр выше лежащей кости).
@@ -164,7 +194,7 @@ namespace Zonk.Presentation
                     problems++;
             }
 
-            return recording;
+            return problems;
         }
 
         private void EnsureScene(int count)
@@ -212,6 +242,7 @@ namespace Zonk.Presentation
                 body.interpolation = RigidbodyInterpolation.None;
                 body.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
                 _bodies.Add(body);
+                _colliders.Add(collider);
             }
         }
 
@@ -224,6 +255,7 @@ namespace Zonk.Presentation
                 Object.Destroy(_material);
 
             _bodies.Clear();
+            _colliders.Clear();
         }
 
         private static float Range(System.Random random, float min, float max)

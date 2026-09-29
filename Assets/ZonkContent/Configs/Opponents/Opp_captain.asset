@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f87d2b53912aca947b723c9fb666bc03, type: 3}
+  m_Name: Opp_captain
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.OpponentConfig
+  Id: opp_captain
+  NameKey: opp.captain
+  TitleKey: opp.captain.title
+  RuleKey: opp.captain.rule
+  Portrait: {fileID: 0}
+  BodyColor: {r: 0.12, g: 0.1, b: 0.12, a: 1}
+  Accessory: {fileID: 6265717507291405549, guid: c2c4633ed2829554b976130a4555dfc1, type: 3}
+  IsBoss: 1
+  Ai: {fileID: 11400000, guid: 9b4a3294963375b4a8ec29e18cb26386, type: 2}
+  Dice:
+  - {fileID: 11400000, guid: db28c967133efcc4c9ab1fab49f4f19e, type: 2}
+  - {fileID: 11400000, guid: e71f1b038b70cf941b9a7bf2a6e1d519, type: 2}
+  - {fileID: 11400000, guid: 5d99a9cbded23d447b3705e2805736e3, type: 2}
+  - {fileID: 11400000, guid: 42719080d241b904087f9b8147e75f3f, type: 2}
+  - {fileID: 11400000, guid: a24cdadb60225194e92cd76b26771c82, type: 2}
+  DiceSkin: {fileID: 0}
+  Cup: {fileID: 11400000, guid: 230408a19d8cc9041af634eb49ee594f, type: 2}
+  TargetScore: 0
+  StakePayout: 1.1
+  Modifiers:
+  - rid: 4243792294545719405
+  - rid: 4243792294545719432
+  Reactions: {fileID: 11400000, guid: 15c8f1d5cd031814684f7cc5ae1c5a23, type: 2}
+  RollStyle: {fileID: 11400000, guid: fdbc7844b3188254d89f8b102836c79e, type: 2}
+  EnergyCost: -1
+  FirstWinRewards:
+  - rid: 4243792294545719406
+  - rid: 4243792294545719407
+  RepeatWinRewards:
+  - rid: 4243792294545719408
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792294545719405
+      type: {class: MinBankModifier, ns: Zonk.Core.Modifiers, asm: Zonk.Core}
+      data:
+        MinBankScore: 350
+    - rid: 4243792294545719406
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 500
+    - rid: 4243792294545719407
+      type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Item: {fileID: 11400000, guid: cc50f5aabf6e0a34f87ae7f8efbd478f, type: 2}
+    - rid: 4243792294545719408
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 60
+    - rid: 4243792294545719432
+      type: {class: ComboMultiplierModifier, ns: Zonk.Core.Modifiers, asm: Zonk.Core}
+      data:
+        Category: straight
+        Multiplier: 2

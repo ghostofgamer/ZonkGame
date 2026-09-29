@@ -98,16 +98,27 @@ namespace Zonk.MatchFlow
             }
         }
 
+        /// <summary>Случайная реакция на событие: два прохода по списку вместо нового списка на каждое событие партии.</summary>
         private static ReactionEntry Find(ReactionSetConfig reactions, MatchEventType type)
         {
-            var matches = new List<ReactionEntry>();
+            var count = 0;
             foreach (var entry in reactions.Entries)
             {
                 if (entry != null && entry.Event == type)
-                    matches.Add(entry);
+                    count++;
             }
 
-            return matches.Count == 0 ? null : matches[UnityEngine.Random.Range(0, matches.Count)];
+            if (count == 0)
+                return null;
+
+            var pick = UnityEngine.Random.Range(0, count);
+            foreach (var entry in reactions.Entries)
+            {
+                if (entry != null && entry.Event == type && pick-- == 0)
+                    return entry;
+            }
+
+            return null;
         }
     }
 

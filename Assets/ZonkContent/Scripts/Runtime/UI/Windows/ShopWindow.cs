@@ -39,14 +39,24 @@ namespace Zonk.UI.Windows
         private UiKit _kit;
         private List<CosmeticSlotConfig> _slots;
         private List<ThemeSetConfig> _themes;
+        private List<DieConfig> _shopDice;
+        private List<CoinPackConfig> _coinPacks;
+        private bool _coinsTab;
+        private ContentConfig _current;
+        private bool _diceTab;
         private CosmeticSlotConfig _slot;
         private CancellationToken _ct;
         private CancellationTokenSource _previewCts;
+        private UniTask _previewTask = UniTask.CompletedTask;
+        private IDieMastery _mastery;
+        private GameConfig _config;
 
         [Inject]
         public void Construct(ContentDatabase content, IInventory inventory, ILoadout loadout, ShopService shop, TableView table,
-            MatchPresenter presenter, UiKit kit)
+            MatchPresenter presenter, UiKit kit, IDieMastery mastery, GameConfig config)
         {
+            _mastery = mastery;
+            _config = config;
             _content = content;
             _inventory = inventory;
             _loadout = loadout;
@@ -95,6 +105,9 @@ namespace Zonk.UI.Windows
             _slots = _content.All<CosmeticSlotConfig>().FindAll(s => s.ShowInShop);
             _slots.Sort((a, b) => a.Order.CompareTo(b.Order));
             _themes = _content.All<ThemeSetConfig>();
+            _themes.Sort((a, b) => a.Order.CompareTo(b.Order));
+            _coinPacks = _content.All<CoinPackConfig>();
+            _coinPacks.Sort((a, b) => a.Order.CompareTo(b.Order));
 
             foreach (var slot in _slots)
             {
@@ -104,6 +117,16 @@ namespace Zonk.UI.Windows
                 tab.OnClick(() => SelectSlot(captured));
             }
 
+            // Вкладка особых костей: за монеты, рекламу, покупку или победу над соперником.
+            _shopDice = _content.All<DieConfig>().FindAll(d => d.IsSpecial);
+            _shopDice.Sort((a, b) => a.Order != b.Order ? a.Order.CompareTo(b.Order) : string.CompareOrdinal(a.Id, b.Id));
+            if (_shopDice.Count > 0)
+            {
+                var diceTab = _tabTemplate.Spawn(_tabs);
+                diceTab.SetText(T("shop.dice"));
+                diceTab.OnClick(SelectDice);
+            }
+
             if (_themes.Count > 0)
             {
                 var themes = _tabTemplate.Spawn(_tabs);
@@ -111,14 +134,43 @@ namespace Zonk.UI.Windows
                 themes.OnClick(() => SelectSlot(null));
             }
 
+            // Пакеты монет за деньги: только там, где на площадке есть покупки.
+            if (_coinPacks.Count > 0 && _shop.IsPurchaseAvailable)
+            {
+                var coinsTab = _tabTemplate.Spawn(_tabs);
+                coinsTab.SetText(T("shop.coins"));
+                coinsTab.OnClick(SelectCoins);
+            }
+
             _back.transform.SetAsLastSibling();
         }
 
-        public async UniTask RunAsync(CancellationToken ct)
+        /// <param name="focus">Что показать сразу: набор (особое предложение из меню), кость или предмет.</param>
+        public async UniTask RunAsync(CancellationToken ct, ContentConfig focus = null)
         {
             _ct = ct;
-            if (_slots.Count > 0)
-                SelectSlot(_slots[0]);
+            switch (focus)
+            {
+                case ThemeSetConfig theme:
+                    SelectSlot(null);
+                    SelectItem(theme);
+                    break;
+                case DieConfig _:
+                    SelectDice();
+                    SelectItem(focus);
+                    break;
+                case CosmeticItemConfig item when item.Slot != null:
+                    SelectSlot(item.Slot);
+                    SelectItem(item);
+                    break;
+                default:
+                    if (_slots.Count > 0)
+                        SelectSlot(_slots[0]);
+                    break;
+            }
+
+            // Цены площадки («99 RUB») приходят позже: кнопки покупки перерисовываются.
+            LoadPricesAsync().Forget();
 
             try
             {
@@ -134,6 +186,8 @@ namespace Zonk.UI.Windows
         {
             RestoreEquipped();
             _slot = slot;
+            _diceTab = false;
+            _coinsTab = false;
             _title.text = slot != null ? T(slot.NameKey) : T("shop.themes");
 
             var shot = slot != null ? slot.CameraShotId : CameraShots.Menu;
@@ -169,14 +223,107 @@ namespace Zonk.UI.Windows
             SelectItem(slot != null ? (ContentConfig)_loadout.GetEquipped(slot) : entries.Count > 0 ? entries[0] : null);
         }
 
+        /// <summary>Вкладка особых костей: камера на лоток, в нём шесть костей в виде выбранной.</summary>
+        private void SelectDice()
+        {
+            RestoreEquipped();
+            _slot = null;
+            _diceTab = true;
+            _coinsTab = false;
+            _title.text = T("shop.dice");
+            _table.Camera.MoveToAsync("shop_dice", 0.6f, _ct).Forget();
+
+            Clear(_items, _cardTemplate.transform);
+            foreach (var die in _shopDice)
+            {
+                var captured = die;
+                var owned = _inventory.IsOwned(die);
+                var card = _cardTemplate.Spawn(_items);
+                card.SetText(T(die.NameKey) + "\n" + T(owned ? "shop.owned" : "shop.forSale"));
+                card.SetColor(owned ? UiColors.Button : UiColors.ButtonMuted);
+                card.OnClick(() => SelectItem(captured));
+            }
+
+            SelectItem(_shopDice.Count > 0 ? _shopDice[0] : null);
+        }
+
+        /// <summary>Перерисовать текущую вкладку (после покупки или смены отметки).</summary>
+        private void Reselect()
+        {
+            if (_coinsTab)
+                SelectCoins();
+            else if (_diceTab)
+                SelectDice();
+            else
+                SelectSlot(_slot);
+        }
+
+        /// <summary>Вкладка пакетов монет за деньги: камера на меню, карточки пакетов.</summary>
+        private void SelectCoins()
+        {
+            RestoreEquipped();
+            _slot = null;
+            _diceTab = false;
+            _coinsTab = true;
+            _title.text = T("shop.coins");
+            _table.Camera.MoveToAsync(CameraShots.Menu, 0.6f, _ct).Forget();
+
+            Clear(_items, _cardTemplate.transform);
+            foreach (var pack in _coinPacks)
+            {
+                var captured = pack;
+                var card = _cardTemplate.Spawn(_items);
+                card.SetText(pack.Amount + "\n" + (pack.BonusPercent > 0 ? T("shop.bonus", pack.BonusPercent) : T(pack.NameKey)));
+                card.SetColor(pack.BonusPercent > 0 ? UiColors.ButtonAccent : UiColors.Button);
+                card.OnClick(() => SelectItem(captured));
+            }
+
+            SelectItem(_coinPacks.Count > 0 ? _coinPacks[0] : null);
+        }
+
+        private async UniTaskVoid LoadPricesAsync()
+        {
+            try
+            {
+                await _shop.LoadPricesAsync(this.GetCancellationTokenOnDestroy());
+            }
+            catch (System.OperationCanceledException)
+            {
+                return;
+            }
+
+            if (this != null && _current != null)
+                SelectItem(_current);
+        }
+
         private void SelectItem(ContentConfig item)
         {
             Clear(_details, _detailButtonTemplate.transform, _detailTextTemplate.transform);
             _itemName.text = item != null ? T(item.NameKey) : string.Empty;
             if (item == null)
                 return;
+            _current = item;
+
+            if (item is CoinPackConfig pack)
+            {
+                DetailText(T("shop.coinPack", pack.Amount, pack.Currency != null ? T(pack.Currency.NameKey) : string.Empty), UiColors.Text);
+                DetailButton(RealPriceText(pack.ProductId), UiColors.ButtonAccent, () => BuyCoinPackAsync(pack).Forget());
+                return;
+            }
+
+            if (item is ThemeSetConfig set)
+            {
+                if (!string.IsNullOrEmpty(set.DescriptionKey))
+                    DetailText(T(set.DescriptionKey), UiColors.Text);
+                var contents = SetContents(set);
+                if (contents.Length > 0)
+                    DetailText(T("shop.setContents", contents), UiColors.TextMuted);
+            }
 
             Preview(item);
+
+            if (item is DieConfig described && !string.IsNullOrEmpty(described.DescriptionKey))
+                DetailText(T(described.DescriptionKey), UiColors.Text);
 
             if (_inventory.IsOwned(item))
             {
@@ -208,7 +355,9 @@ namespace Zonk.UI.Windows
                 }
                 else
                 {
-                    DetailText(T("shop.owned"), UiColors.Good);
+                    DetailText(T(item is DieConfig ? "shop.dieOwned" : "shop.owned"), UiColors.Good);
+                    if (item is DieConfig mastered)
+                        DetailText(MasteryText(mastered), UiColors.TextMuted);
                 }
 
                 return;
@@ -232,6 +381,19 @@ namespace Zonk.UI.Windows
                 var captured = option;
                 DetailButton(OptionText(item, option), UiColors.Button, () => BuyAsync(item, captured).Forget());
             }
+        }
+
+        /// <summary>Мастерство кости: уровень и очки до следующего уровня.</summary>
+        private string MasteryText(DieConfig die)
+        {
+            var level = _mastery.GetLevel(die);
+            var points = _mastery.GetPoints(die);
+            var current = _mastery.GetLevelInfo(level);
+            var next = _mastery.GetLevelInfo(level + 1);
+            var name = current != null ? T(current.NameKey) : T("mastery.none");
+            return next != null
+                ? T("mastery.info", name, points, next.Points)
+                : T("mastery.max", name, points);
         }
 
         private UiButtonView DetailButton(string text, Color color, UnityEngine.Events.UnityAction onClick)
@@ -259,10 +421,60 @@ namespace Zonk.UI.Windows
                     return T("shop.buyFor", currency.Amount, currency.Currency != null ? T(currency.Currency.NameKey) : string.Empty);
                 case RewardedAdPriceOption ads:
                     return T("shop.watchAds", _inventory.GetAdProgress(item), ads.AdsRequired);
-                case PurchasePriceOption _:
-                    return T("shop.buyReal");
+                case PurchasePriceOption purchase:
+                    return RealPriceText(purchase.ProductId);
                 default:
                     return option.GetType().Name;
+            }
+        }
+
+        /// <summary>«Купить за 99 RUB», пока цена из каталога площадки не пришла — «Купить».</summary>
+        private string RealPriceText(string productId)
+        {
+            var price = _shop.PriceText(productId);
+            return string.IsNullOrEmpty(price) ? T("shop.buyReal") : T("shop.buyForReal", price);
+        }
+
+        /// <summary>Что внутри набора: предметы, кости, разовые награды.</summary>
+        private string SetContents(ThemeSetConfig set)
+        {
+            var parts = new List<string>();
+            foreach (var item in set.Items)
+            {
+                if (item != null)
+                    parts.Add(T(item.NameKey));
+            }
+
+            foreach (var die in set.Dice)
+            {
+                if (die != null)
+                    parts.Add(T(die.NameKey));
+            }
+
+            foreach (var reward in set.Rewards)
+            {
+                if (reward is CurrencyReward currency && currency.Currency != null)
+                    parts.Add(currency.Amount + " " + T(currency.Currency.NameKey));
+            }
+
+            return string.Join(", ", parts);
+        }
+
+        private async UniTaskVoid BuyCoinPackAsync(CoinPackConfig pack)
+        {
+            var result = await _shop.BuyCoinPackAsync(pack, _ct);
+            if (this == null)
+                return;
+
+            var lifetime = this.GetCancellationTokenOnDestroy();
+            if (result == AcquireResult.Acquired)
+            {
+                _table.Sound.Play(Sfx.Coin);
+                Toast.ShowAsync(_kit, (RectTransform)transform, T("shop.coinsAdded", pack.Amount), UiColors.Good, 0.9f, lifetime).Forget();
+            }
+            else if (result == AcquireResult.Unavailable)
+            {
+                Toast.ShowAsync(_kit, (RectTransform)transform, T("shop.unavailable"), UiColors.Bad, 0.8f, lifetime).Forget();
             }
         }
 
@@ -290,7 +502,7 @@ namespace Zonk.UI.Windows
                     break;
             }
 
-            SelectSlot(_slot);
+            Reselect();
             if (result != AcquireResult.Acquired)
                 SelectItem(item);
         }
@@ -305,6 +517,9 @@ namespace Zonk.UI.Windows
                 case CosmeticItemConfig cosmetic:
                     _table.Stage.Apply(cosmetic);
                     break;
+                case DieConfig die:
+                    ShowDiceShowcase(true, die);
+                    break;
                 case ThemeSetConfig theme:
                     foreach (var themeItem in theme.Items)
                         _table.Stage.Apply(themeItem);
@@ -312,13 +527,26 @@ namespace Zonk.UI.Windows
             }
         }
 
-        /// <summary>Рука берёт стакан и трясёт его выбранным стилем. Новый выбор прерывает прошлый показ.</summary>
+        /// <summary>
+        /// Рука берёт стакан и трясёт его выбранным стилем. Новый выбор прерывает прошлый показ, но начинается только
+        /// после того, как прошлый вернул стакан на место: два показа одновременно уводили стакан вместе с рукой под стол.
+        /// </summary>
         private void PreviewRollStyle(RollStyleConfig style)
         {
             _previewCts?.Cancel();
             _previewCts?.Dispose();
             _previewCts = CancellationTokenSource.CreateLinkedTokenSource(_ct, this.GetCancellationTokenOnDestroy());
-            _presenter.PreviewShakeAsync(style, _previewCts.Token).SuppressCancellationThrow().Forget();
+            _previewTask = RunPreviewAsync(_previewTask, style, _previewCts.Token).Preserve();
+            _previewTask.Forget();
+        }
+
+        private async UniTask RunPreviewAsync(UniTask previous, RollStyleConfig style, CancellationToken ct)
+        {
+            await previous.SuppressCancellationThrow();
+            if (ct.IsCancellationRequested)
+                return;
+
+            await _presenter.PreviewShakeAsync(style, ct).SuppressCancellationThrow();
         }
 
         private void RestoreEquipped()
@@ -329,7 +557,7 @@ namespace Zonk.UI.Windows
         }
 
         /// <summary>На вкладке скинов кости лежат рядом в лотке, гранями 1..6.</summary>
-        private void ShowDiceShowcase(bool show)
+        private void ShowDiceShowcase(bool show, DieConfig look = null)
         {
             var dice = _table.Dice;
             if (!show)
@@ -345,6 +573,15 @@ namespace Zonk.UI.Windows
                 var die = dice[i];
                 die.SetFace(i + 1, Quaternion.identity);
                 die.transform.SetPositionAndRotation(_table.Tray.RowPosition(i, dice.Dice.Count), die.RootRotationForFaceUp(yaw));
+                if (look != null)
+                {
+                    var level = _inventory.IsOwned(look) ? _mastery.GetLevel(look) : 0;
+                    var info = _mastery.GetLevelInfo(level);
+                    die.SetLook(look.LookMesh, DiceSetView.LookFor(look, level));
+                    die.SetMarker(look.MarkerColor);
+                    die.SetGlow(info != null ? info.Glow : 1f);
+                }
+
                 die.SetVisible(true);
             }
         }

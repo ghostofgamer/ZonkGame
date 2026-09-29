@@ -27,10 +27,15 @@ namespace Zonk.Table
         private readonly IInterstitialService _interstitials;
         private readonly ISaveStore _saves;
         private readonly IUiService _ui;
+        private readonly IQuestService _quests;
+        private readonly IDieMastery _mastery;
 
         public MatchAftermath(UiKit kit, TableView table, MatchPresenter presenter, RewardGranter granter,
-            IRewardService rewards, IInterstitialService interstitials, ISaveStore saves, IUiService ui)
+            IRewardService rewards, IInterstitialService interstitials, ISaveStore saves, IUiService ui, IQuestService quests,
+            IDieMastery mastery)
         {
+            _quests = quests;
+            _mastery = mastery;
             _kit = kit;
             _table = table;
             _presenter = presenter;
@@ -43,7 +48,8 @@ namespace Zonk.Table
 
         /// <summary>Показывает итоги. rewards выдаются здесь; удвоение: те же валютные награды ещё раз за рекламу.</summary>
         public async UniTask<ResultsChoice> ShowAsync(MatchOutcome outcome, IReadOnlyList<MatchParticipant> participants,
-            IReadOnlyList<Reward> rewards, string interstitialTrigger, bool canAgain, CancellationToken ct)
+            IReadOnlyList<Reward> rewards, string interstitialTrigger, bool canAgain, CancellationToken ct,
+            IReadOnlyList<GrantedReward> alreadyGranted = null)
         {
             var match = outcome.Match;
             var winner = outcome.Winner >= 0 ? participants[outcome.Winner] : null;
@@ -68,6 +74,9 @@ namespace Zonk.Table
             await _presenter.ShowResultAsync(localWon || !vsAi, ct);
 
             var granted = localWon && rewards != null ? _granter.Grant(rewards) : new List<GrantedReward>();
+            // Уже выданное вне наград режима (выигрыш ставки): показывается, но не удваивается рекламой.
+            if (alreadyGranted != null)
+                granted.InsertRange(0, alreadyGranted);
             await _saves.SaveNowAsync(ct);
 
             var canDouble = HasCurrency(rewards) && localWon && _rewards.CanOffer;
@@ -99,11 +108,33 @@ namespace Zonk.Table
 
             _presenter.EndMatch();
 
+            await ShowProgressNoticesAsync(ct);
+
             // Естественная пауза между партиями: общий слой сам решит, пора ли показывать рекламу.
             if (!string.IsNullOrEmpty(interstitialTrigger))
                 await _interstitials.TryShowAsync(interstitialTrigger, ct);
 
             return choice;
+        }
+
+        /// <summary>Сообщения после партии: выполненные задания и новые уровни мастерства костей.</summary>
+        private async UniTask ShowProgressNoticesAsync(CancellationToken ct)
+        {
+            foreach (var quest in _quests.TakeCompleted())
+            {
+                _table.Sound.Play(Sfx.Coin);
+                await Toast.ShowAsync(_kit, _table.UiRoot, _kit.T("quests.completed", quest.Describe(_kit.T)),
+                    UiColors.Gold, 1.1f, ct);
+            }
+
+            foreach (var levelUp in _mastery.TakeLevelUps())
+            {
+                var info = _mastery.GetLevelInfo(levelUp.Level);
+                _table.Sound.Play(Sfx.Coin);
+                await Toast.ShowAsync(_kit, _table.UiRoot,
+                    _kit.T("mastery.levelUp", _kit.T(levelUp.Die.NameKey), info != null ? _kit.T(info.NameKey) : levelUp.Level.ToString()),
+                    info != null ? info.Color : UiColors.Gold, 1.2f, ct);
+            }
         }
 
         private static bool HasCurrency(IReadOnlyList<Reward> rewards)
@@ -132,6 +163,7 @@ namespace Zonk.Table
     /// <summary>Игра вдвоём на одном экране: бесплатно, без наград.</summary>
     public sealed class HotSeatState : ITableState
     {
+        private readonly IQuestService _quests;
         private readonly UiKit _kit;
         private readonly TableView _table;
         private readonly HotSeatSettings _settings;
@@ -147,8 +179,9 @@ namespace Zonk.Table
 
         public HotSeatState(UiKit kit, TableView table, HotSeatSettings settings, GameConfig config, ContentDatabase content,
             IInventory inventory, OwnedContent owned, ParticipantFactory participants, MatchRunner runner,
-            MatchAftermath aftermath, IPlatformService platform, IUiService ui)
+            MatchAftermath aftermath, IPlatformService platform, IUiService ui, IQuestService quests)
         {
+            _quests = quests;
             _kit = kit;
             _table = table;
             _settings = settings;
@@ -210,6 +243,14 @@ namespace Zonk.Table
                 _platform.NotifyGameplayStart();
                 var outcome = await _runner.RunAsync(settings, players, ct);
                 _platform.NotifyGameplayStop();
+                _quests.Report(new QuestEvent
+                {
+                    Kind = QuestEventKind.MatchFinished,
+                    HotSeat = true,
+                    Won = outcome.Winner >= 0,
+                    Surrendered = outcome.Surrendered,
+                    Dice = outcome.Winner >= 0 ? players[outcome.Winner].Dice : null,
+                });
 
                 var choice = await _aftermath.ShowAsync(outcome, players, mode != null ? mode.WinRewards : null,
                     mode != null ? mode.InterstitialTrigger : null, true, ct);
@@ -227,6 +268,7 @@ namespace Zonk.Table
     {
         private const string EnergyPlacement = "energy_refill";
 
+        private readonly IQuestService _quests;
         private readonly UiKit _kit;
         private readonly TableView _table;
         private readonly ICampaignProgress _progress;
@@ -247,8 +289,9 @@ namespace Zonk.Table
         public CampaignState(UiKit kit, TableView table, ICampaignProgress progress, IWallet wallet, GameConfig config,
             ContentDatabase content, IInventory inventory, ILoadout loadout, OwnedContent owned,
             ParticipantFactory participants, MatchRunner runner, MatchAftermath aftermath, StageDresser dresser,
-            IRewardService rewards, IPlatformService platform, IUiService ui)
+            IRewardService rewards, IPlatformService platform, IUiService ui, IQuestService quests)
         {
+            _quests = quests;
             _kit = kit;
             _table = table;
             _progress = progress;
@@ -275,6 +318,7 @@ namespace Zonk.Table
             {
                 OpponentConfig opponent;
                 ChapterConfig chapter;
+                int stake;
                 var allowSpecial = _config.CampaignMode == null || _config.CampaignMode.AllowSpecialDice;
                 var screen = await _ui.OpenAsync<CampaignWindow>(ct,
                     w => w.Setup(_progress, _config, _loadout, _owned.Dice(allowSpecial)));
@@ -282,6 +326,7 @@ namespace Zonk.Table
                 {
                     opponent = await screen.WaitChoiceAsync(ct);
                     chapter = screen.Chapter;
+                    stake = screen.Stake;
                 }
                 finally
                 {
@@ -300,16 +345,23 @@ namespace Zonk.Table
                 if (!await PayEnergyAsync(opponent, ct))
                     continue;
 
-                while (await PlayAsync(chapter, opponent, allowSpecial, ct) && await PayEnergyAsync(opponent, ct))
+                while (await PlayAsync(chapter, opponent, allowSpecial, stake, ct) && await PayEnergyAsync(opponent, ct))
                 {
                 }
             }
         }
 
         /// <summary>Партия с соперником. true: игрок хочет ещё раз с тем же соперником.</summary>
-        private async UniTask<bool> PlayAsync(ChapterConfig chapter, OpponentConfig opponent, bool allowSpecial,
+        private async UniTask<bool> PlayAsync(ChapterConfig chapter, OpponentConfig opponent, bool allowSpecial, int stake,
             CancellationToken ct)
         {
+            // Ставка списывается до партии; не хватает монет (потратил между партиями) — играем без ставки.
+            if (stake > 0 && (_config.Coins == null || !_wallet.TrySpend(_config.Coins, stake)))
+            {
+                await Toast.ShowAsync(_kit, _table.UiRoot, _kit.T("campaign.stakeNoCoins"), UiColors.Bad, 1f, ct);
+                stake = 0;
+            }
+
             _dresser.Override(chapter.Environment);
 
             var me = _participants.LocalPlayer(_kit.T("campaign.you"), allowSpecial);
@@ -336,6 +388,14 @@ namespace Zonk.Table
             _platform.NotifyGameplayStop();
 
             var won = outcome.Winner == 0;
+            _quests.Report(new QuestEvent
+            {
+                Kind = QuestEventKind.MatchFinished,
+                Won = won,
+                Surrendered = outcome.Surrendered,
+                VsBoss = opponent.IsBoss,
+                Dice = me.Dice,
+            });
             var firstWin = won && _progress.MarkBeaten(opponent);
             var rewards = new List<Reward>();
             if (won)
@@ -345,8 +405,20 @@ namespace Zonk.Table
                     rewards.AddRange(mode.WinRewards);
             }
 
+            var stakeRewards = new List<GrantedReward>();
+            if (stake > 0 && won)
+            {
+                var payout = stake + CampaignWindow.StakeWin(opponent, stake);
+                _wallet.Add(_config.Coins, payout);
+                stakeRewards.Add(new GrantedReward(null, _config.Coins, payout));
+            }
+            else if (stake > 0)
+            {
+                Toast.ShowAsync(_kit, _table.UiRoot, _kit.T("campaign.stakeLost", stake), UiColors.Bad, 1.2f, ct).Forget();
+            }
+
             var choice = await _aftermath.ShowAsync(outcome, players, rewards, mode != null ? mode.InterstitialTrigger : null,
-                true, ct);
+                true, ct, stakeRewards);
 
             _dresser.ApplyEquipped();
 

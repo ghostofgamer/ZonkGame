@@ -7,7 +7,8 @@ using Zonk.Configs;
 namespace Zonk.UI.Views
 {
     /// <summary>
-    /// Шесть кнопок-костей в префабе: нажатие перебирает открытые кости. Особых не больше лимита.
+    /// Шесть кнопок-костей в префабе: нажатие перебирает открытые кости. Особых не больше лимита,
+    /// каждая особая кость — не больше чем в одном слоте.
     /// Используется в игре вдвоём (у каждого свой ряд) и в кампании.
     /// </summary>
     public sealed class DiceLoadoutView : MonoBehaviour
@@ -19,6 +20,8 @@ namespace Zonk.UI.Views
         private int _maxSpecial;
         private Action<int, DieConfig> _changed;
         private ILocalization _localization;
+        private Func<DieConfig, int> _mastery;
+        private IReadOnlyList<MasteryLevel> _levels;
 
         public IReadOnlyList<DieConfig> Dice => _dice;
 
@@ -29,9 +32,12 @@ namespace Zonk.UI.Views
         }
 #endif
 
+        /// <param name="mastery">Уровень мастерства кости (необязательно): рядом с названием римская цифра цветом уровня.</param>
         public void Setup(ILocalization localization, List<DieConfig> available, IReadOnlyList<DieConfig> current, int maxSpecial,
-            Action<int, DieConfig> changed)
+            Action<int, DieConfig> changed, Func<DieConfig, int> mastery = null, IReadOnlyList<MasteryLevel> levels = null)
         {
+            _mastery = mastery;
+            _levels = levels;
             _localization = localization;
             _available = available;
             _maxSpecial = maxSpecial;
@@ -64,7 +70,8 @@ namespace Zonk.UI.Views
             for (var step = 1; step <= _available.Count; step++)
             {
                 var candidate = _available[(index + step + _available.Count) % _available.Count];
-                if (candidate.IsSpecial && specialsElsewhere >= _maxSpecial)
+                // Особая кость — только в одном слоте; лимит особых — из GameConfig.
+                if (candidate.IsSpecial && (specialsElsewhere >= _maxSpecial || UsedElsewhere(candidate, slot)))
                     continue;
 
                 _dice[slot] = candidate;
@@ -75,12 +82,36 @@ namespace Zonk.UI.Views
             Refresh();
         }
 
+        private bool UsedElsewhere(DieConfig die, int slot)
+        {
+            for (var i = 0; i < _dice.Count; i++)
+            {
+                if (i != slot && _dice[i] == die)
+                    return true;
+            }
+
+            return false;
+        }
+
+        private static readonly string[] Roman = { "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" };
+
+        private string MasteryMark(DieConfig die)
+        {
+            var level = _mastery != null ? _mastery(die) : 0;
+            if (level <= 0)
+                return string.Empty;
+
+            var color = _levels != null && level <= _levels.Count && _levels[level - 1] != null ? _levels[level - 1].Color : UiColors.Gold;
+            var mark = level <= Roman.Length ? Roman[level - 1] : level.ToString();
+            return " <color=#" + ColorUtility.ToHtmlStringRGB(color) + ">" + mark + "</color>";
+        }
+
         private void Refresh()
         {
             for (var i = 0; i < _slots.Length; i++)
             {
                 var die = i < _dice.Count ? _dice[i] : null;
-                _slots[i].SetText(die != null && _localization != null ? _localization.Get(die.NameKey) : "?");
+                _slots[i].SetText(die != null && _localization != null ? _localization.Get(die.NameKey) + MasteryMark(die) : "?");
                 _slots[i].SetColor(die != null && die.IsSpecial
                     ? Color.Lerp(UiColors.ButtonMuted, die.MarkerColor, 0.6f)
                     : UiColors.ButtonMuted);

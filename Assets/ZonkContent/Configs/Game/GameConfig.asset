@@ -18,7 +18,45 @@ MonoBehaviour:
   Coins: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
   Energy: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
   StandardDie: {fileID: 11400000, guid: 195c3bb8342a7674a92609dae87667df, type: 2}
-  MaxSpecialDice: 2
+  MaxSpecialDice: 6
+  OpponentMaxSpecialDice: 3
+  BossMinSpecialDice: 3
+  DicePresetCount: 3
+  MasteryLevels:
+  - NameKey: mastery.1
+    Points: 5000
+    Color: {r: 0.85, g: 0.52, b: 0.25, a: 1}
+    Glow: 1.8
+    Rewards:
+    - rid: 4243792294545719503
+  - NameKey: mastery.2
+    Points: 25000
+    Color: {r: 0.85, g: 0.88, b: 0.95, a: 1}
+    Glow: 2.6
+    Rewards:
+    - rid: 4243792294545719504
+  - NameKey: mastery.3
+    Points: 80000
+    Color: {r: 1, g: 0.8, b: 0.25, a: 1}
+    Glow: 3.6
+    Rewards:
+    - rid: 4243792294545719505
+    - rid: 4243792294545719506
+  StakeOptions: 000000003200000064000000fa000000f4010000
+  MenuAdOffers:
+  - Id: coins
+    Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+    Amount: 50
+    PerDay: 10
+    HideWhenFull: 0
+  - Id: energy
+    Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+    Amount: 1
+    PerDay: 10
+    HideWhenFull: 1
+  DailyQuestCount: 3
+  WeeklyQuestCount: 3
+  QuestRerollsPerDay: 1
   HotSeatMinTarget: 1000
   HotSeatMaxTarget: 10000
   HotSeatTargetStep: 500
@@ -28,8 +66,32 @@ MonoBehaviour:
   - {r: 0.95, g: 0.75, b: 0.3, a: 1}
   - {r: 0.4, g: 0.75, b: 0.95, a: 1}
   BigBankScore: 1000
+  BigKeepScore: 1000
   RiskyRollScore: 500
   DieSize: 0.24
   RollStyle: {fileID: 11400000, guid: 0109f7fd4977c474082902f84aa44ffa, type: 2}
   SettleDuration: 0.35
   KeepDuration: 0.3
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792294545719503
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 50
+    - rid: 4243792294545719504
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 150
+    - rid: 4243792294545719505
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 300
+    - rid: 4243792294545719506
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 3

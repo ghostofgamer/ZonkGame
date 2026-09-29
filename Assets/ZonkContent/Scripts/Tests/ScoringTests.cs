@@ -73,6 +73,19 @@ namespace Zonk.Tests
             Assert.That(calculator.EvaluateFaces(new[] { 3, 3, 3, 1 }).Score, Is.EqualTo(700));
         }
 
+
+        [Test]
+        public void SingleFiveWorthNothingButTriplesStay()
+        {
+            var calculator = new ScoreCalculator(RuleSet.CreateClassicRules(), new MatchModifier[]
+            {
+                new SingleFaceModifier { Face = 5, Multiplier = 0f },
+            });
+
+            Assert.That(calculator.EvaluateFaces(new[] { 1, 5 }).Score, Is.EqualTo(100));
+            Assert.That(calculator.EvaluateFaces(new[] { 5, 5, 5 }).Score, Is.EqualTo(500));
+            Assert.That(calculator.EvaluateFaces(new[] { 5 }).IsValid, Is.False);
+        }
         [Test]
         public void BreakdownListsCombos()
         {

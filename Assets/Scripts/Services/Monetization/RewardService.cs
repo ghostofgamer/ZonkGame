@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Base.Platform;
@@ -18,6 +19,8 @@ namespace Base.Services.Monetization
             _entitlements = entitlements;
             _rules = config.Rewards;
         }
+
+        public event Action<string, RewardOutcome> Completed;
 
         public bool CanOffer => !_showing && (IsFree || _ads.IsRewardedAvailable || _rules.FreeWhenAdsUnavailable);
 
@@ -54,9 +57,10 @@ namespace Base.Services.Monetization
             }
         }
 
-        private static RewardOutcome Log(string placement, RewardOutcome outcome)
+        private RewardOutcome Log(string placement, RewardOutcome outcome)
         {
             Debug.Log($"[Ads] Reward '{placement}' -> {outcome}");
+            Completed?.Invoke(placement, outcome);
             return outcome;
         }
     }

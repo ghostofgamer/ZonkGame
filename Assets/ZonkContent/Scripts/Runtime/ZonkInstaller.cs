@@ -59,11 +59,16 @@ namespace Zonk
             Container.Bind<HotSeatSettings>().AsSingle();
             Container.Bind<RewardGranter>().AsSingle();
             Container.Bind<ShopService>().AsSingle();
+            Container.Bind<IGameClock>().To<SystemGameClock>().AsSingle();
+            Container.Bind<IQuestService>().To<QuestService>().AsSingle();
+            Container.Bind<IDieMastery>().To<DieMastery>().AsSingle();
+            Container.Bind<MenuAdRewards>().AsSingle();
         }
 
         /// <summary>
-        /// Товары за реальные деньги берутся из контента: каждый PurchasePriceOption — постоянный товар,
-        /// его ID совпадает с ID в консоли площадки. Плюс товары шаблона (no_ads).
+        /// Товары за реальные деньги берутся из контента: каждый PurchasePriceOption — постоянный товар, каждый пакет монет
+        /// (CoinPackConfig) — расходуемый; ID совпадает с ID в консоли площадки. Плюс товары шаблона (no_ads: набор
+        /// «Без рекламы» продаётся с этим же ID и даёт право шаблона).
         /// </summary>
         private void BindMonetization()
         {
@@ -77,6 +82,13 @@ namespace Zonk
             {
                 foreach (var item in _content.Items)
                 {
+                    if (item is CoinPackConfig pack)
+                    {
+                        if (!string.IsNullOrEmpty(pack.ProductId) && known.Add(pack.ProductId))
+                            products.Add(new ProductDefinition(pack.ProductId, ProductKind.Consumable));
+                        continue;
+                    }
+
                     var price = Pricing.PriceOf(item);
                     if (price == null)
                         continue;

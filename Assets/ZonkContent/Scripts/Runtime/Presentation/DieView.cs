@@ -24,8 +24,10 @@ namespace Zonk.Presentation
         private Material _baseMaterial;
         private MaterialPropertyBlock _block;
         private Color _markerColor = Color.clear;
+        private float _glow = 1f;
         private Color _tint = Color.white;
         private bool _selected;
+        private BoxCollider _box;
 
         public event Action<DieView> Clicked;
 
@@ -54,6 +56,7 @@ namespace Zonk.Presentation
             _baseMesh = _meshFilter.sharedMesh;
             _baseMaterial = _renderer.sharedMaterial;
             _block = new MaterialPropertyBlock();
+            TryGetComponent(out _box);
             SetSelected(false);
         }
 
@@ -79,9 +82,28 @@ namespace Zonk.Presentation
             ApplyBlock();
         }
 
+        /// <summary>Свой вид особой кости поверх скина. mesh пустой = текущий меш.</summary>
+        public void SetLook(Mesh mesh, Material material)
+        {
+            if (material == null)
+                return;
+
+            if (mesh != null)
+                _meshFilter.sharedMesh = mesh;
+            _renderer.sharedMaterial = material;
+            ApplyBlock();
+        }
+
         public void SetMarker(Color color)
         {
             _markerColor = color;
+            ApplyBlock();
+        }
+
+        /// <summary>Сила свечения метки: растёт с уровнем мастерства кости.</summary>
+        public void SetGlow(float glow)
+        {
+            _glow = Mathf.Max(0f, glow);
             ApplyBlock();
         }
 
@@ -108,9 +130,7 @@ namespace Zonk.Presentation
             if (_selectionRing == null || !_selectionRing.activeSelf)
                 return;
 
-            var halfHeight = transform.lossyScale.y * 0.15f;
-            if (TryGetComponent<BoxCollider>(out var box))
-                halfHeight = box.size.y * transform.lossyScale.y * 0.5f;
+            var halfHeight = _box != null ? _box.size.y * transform.lossyScale.y * 0.5f : transform.lossyScale.y * 0.15f;
 
             _selectionRing.transform.SetPositionAndRotation(transform.position + Vector3.down * (halfHeight * 0.97f),
                 Quaternion.identity);
@@ -172,7 +192,7 @@ namespace Zonk.Presentation
             var material = _renderer.sharedMaterial;
             if (_tint != Color.white && material != null && material.HasProperty(BaseColorId))
                 _block.SetColor(BaseColorId, material.GetColor(BaseColorId) * _tint);
-            _block.SetColor(EmissionColorId, _markerColor.a > 0f ? _markerColor * 0.35f : Color.black);
+            _block.SetColor(EmissionColorId, _markerColor.a > 0f ? _markerColor * (0.35f * _glow) : Color.black);
             _renderer.SetPropertyBlock(_block);
         }
     }

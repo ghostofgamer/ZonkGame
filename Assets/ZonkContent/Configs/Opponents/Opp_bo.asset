@@ -21,10 +21,15 @@ MonoBehaviour:
   Accessory: {fileID: 6265717507291405549, guid: c2c4633ed2829554b976130a4555dfc1, type: 3}
   IsBoss: 1
   Ai: {fileID: 11400000, guid: 9b4a3294963375b4a8ec29e18cb26386, type: 2}
-  Dice: []
+  Dice:
+  - {fileID: 11400000, guid: db28c967133efcc4c9ab1fab49f4f19e, type: 2}
+  - {fileID: 11400000, guid: e71f1b038b70cf941b9a7bf2a6e1d519, type: 2}
+  - {fileID: 11400000, guid: 5d99a9cbded23d447b3705e2805736e3, type: 2}
+  - {fileID: 11400000, guid: 42719080d241b904087f9b8147e75f3f, type: 2}
   DiceSkin: {fileID: 0}
   Cup: {fileID: 11400000, guid: 14412b5df1531be48ab2929d6a68133a, type: 2}
   TargetScore: 0
+  StakePayout: 1.1
   Modifiers:
   - rid: 4243792291812082134
   Reactions: {fileID: 11400000, guid: 9899c067802b17d4cba89ac0ca6dae16, type: 2}
@@ -62,7 +67,7 @@ MonoBehaviour:
       type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
       data:
         Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
-        Amount: 80
+        Amount: 40
     - rid: 4243792291812082179
       type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
       data:

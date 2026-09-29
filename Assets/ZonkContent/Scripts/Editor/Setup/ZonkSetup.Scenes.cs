@@ -31,8 +31,16 @@ namespace Zonk.Editor.Setup
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
                 return;
 
-            BuildBootstrapScene(content);
-            BuildTableScene(content);
+            // Заблокированная сцена (ZonkLocked) не пересоздаётся: в ней ручные правки.
+            if (IsLocked(BootstrapScene))
+                Debug.Log($"[Zonk] {BootstrapScene} is locked ({LockLabel}): kept as is");
+            else
+                BuildBootstrapScene(content);
+
+            if (IsLocked(TableScene))
+                Debug.Log($"[Zonk] {TableScene} is locked ({LockLabel}): kept as is. New scene objects from the generator are not added");
+            else
+                BuildTableScene(content);
         }
 
         private static void BuildBootstrapScene(ContentSet content)

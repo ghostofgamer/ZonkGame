@@ -22,14 +22,32 @@ MonoBehaviour:
   - 1
   - 1
   - 1.5
+  Order: 8
   MarkerColor: {r: 1, g: 0.35, b: 0.3, a: 1}
+  LookMaterial: {fileID: 2100000, guid: 911448410cd9d174586439333ba67224, type: 2}
+  LookMesh: {fileID: 0}
+  MasteryLooks:
+  - {fileID: 2100000, guid: 3955c61449fd3a645bec11695c25356b, type: 2}
+  - {fileID: 2100000, guid: c5ee4eac68a8b6b4dbd7d221636964e4, type: 2}
+  - {fileID: 2100000, guid: 06a64bdaf01a68444a61fd85f5dd33e9, type: 2}
   Price:
     Options:
-    - rid: 4243792291812081748
+    - rid: 4243792294545719429
+    - rid: 4243792294545719430
+    - rid: 4243792294545719431
   references:
     version: 2
     RefIds:
-    - rid: 4243792291812081748
+    - rid: 4243792294545719429
       type: {class: ProgressPriceOption, ns: Zonk.Configs, asm: Zonk}
       data:
-        HintKey: 
+        HintKey: hint.die.sixes
+    - rid: 4243792294545719430
+      type: {class: CurrencyPriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 3000
+    - rid: 4243792294545719431
+      type: {class: PurchasePriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        ProductId: die_sixes

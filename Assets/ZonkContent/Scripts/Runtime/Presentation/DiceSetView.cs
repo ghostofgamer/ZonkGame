@@ -64,14 +64,39 @@ namespace Zonk.Presentation
                 die.SetSkin(skin);
         }
 
-        /// <summary>Метки особых костей набора. dice: по слотам, null = обычная.</summary>
-        public void SetLoadout(IReadOnlyList<DieConfig> dice)
+        /// <summary>
+        /// Особые кости набора: метка и свой вид (перекрывает скин, поэтому вызывать после SetSkin).
+        /// dice: по слотам, null = обычная. mastery: уровни мастерства по слотам, levels — их описание (GameConfig).
+        /// </summary>
+        public void SetLoadout(IReadOnlyList<DieConfig> dice, IReadOnlyList<int> mastery = null,
+            IReadOnlyList<MasteryLevel> levels = null)
         {
             for (var i = 0; i < _dice.Count; i++)
             {
                 var config = dice != null && i < dice.Count ? dice[i] : null;
+                var level = mastery != null && i < mastery.Count ? mastery[i] : 0;
                 _dice[i].SetMarker(config != null && config.IsSpecial ? config.MarkerColor : Color.clear);
+                _dice[i].SetGlow(level > 0 && levels != null && level <= levels.Count && levels[level - 1] != null
+                    ? levels[level - 1].Glow
+                    : 1f);
+                if (config != null)
+                    _dice[i].SetLook(config.LookMesh, LookFor(config, level));
             }
+        }
+
+        /// <summary>Вид кости на уровне мастерства: свой материал уровня, иначе обычный вид особой кости.</summary>
+        public static Material LookFor(DieConfig die, int level)
+        {
+            if (die == null)
+                return null;
+
+            for (var i = Mathf.Min(level, die.MasteryLooks.Count); i >= 1; i--)
+            {
+                if (die.MasteryLooks[i - 1] != null)
+                    return die.MasteryLooks[i - 1];
+            }
+
+            return die.LookMaterial;
         }
 
         public void SetVisible(bool visible)

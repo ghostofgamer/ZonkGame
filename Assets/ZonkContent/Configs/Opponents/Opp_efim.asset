@@ -1,0 +1,52 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f87d2b53912aca947b723c9fb666bc03, type: 3}
+  m_Name: Opp_efim
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.OpponentConfig
+  Id: opp_efim
+  NameKey: opp.efim
+  TitleKey: opp.efim.title
+  RuleKey: 
+  Portrait: {fileID: 0}
+  BodyColor: {r: 0.35, g: 0.4, b: 0.3, a: 1}
+  Accessory: {fileID: 2827515006440756545, guid: 1aa3c401c6857e140ac2eb5a20c4cc17, type: 3}
+  IsBoss: 0
+  Ai: {fileID: 11400000, guid: 0cb08a7a725a0174ebcc0379a7e05d46, type: 2}
+  Dice:
+  - {fileID: 11400000, guid: 5d99a9cbded23d447b3705e2805736e3, type: 2}
+  - {fileID: 11400000, guid: a24cdadb60225194e92cd76b26771c82, type: 2}
+  - {fileID: 11400000, guid: 42719080d241b904087f9b8147e75f3f, type: 2}
+  DiceSkin: {fileID: 0}
+  Cup: {fileID: 0}
+  TargetScore: 0
+  StakePayout: 0.65
+  Modifiers: []
+  Reactions: {fileID: 11400000, guid: 5b73bd7a00b5bc949ae07e3ea2c1eb9b, type: 2}
+  RollStyle: {fileID: 0}
+  EnergyCost: -1
+  FirstWinRewards:
+  - rid: 4243792294545719386
+  RepeatWinRewards:
+  - rid: 4243792294545719388
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792294545719386
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 190
+    - rid: 4243792294545719388
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 25

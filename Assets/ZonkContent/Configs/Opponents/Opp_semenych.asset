@@ -21,10 +21,12 @@ MonoBehaviour:
   Accessory: {fileID: 2827515006440756545, guid: 1aa3c401c6857e140ac2eb5a20c4cc17, type: 3}
   IsBoss: 0
   Ai: {fileID: 11400000, guid: 436a9e21ba1262b4ca21c35bd013b918, type: 2}
-  Dice: []
+  Dice:
+  - {fileID: 11400000, guid: a24cdadb60225194e92cd76b26771c82, type: 2}
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
   TargetScore: 0
+  StakePayout: 0.7
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 096e3e429b23d4c498ffca9732e7ea3b, type: 2}
   RollStyle: {fileID: 11400000, guid: 88367962bd0ac044d823ce245f6aa80d, type: 2}
@@ -50,4 +52,4 @@ MonoBehaviour:
       type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
       data:
         Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
-        Amount: 25
+        Amount: 12
