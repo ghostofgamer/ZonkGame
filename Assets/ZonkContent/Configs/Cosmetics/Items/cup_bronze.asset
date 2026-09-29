@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3758024ff1cf4ad4caa14cc6c86d79b3, type: 3}
+  m_Name: cup_bronze
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticItemConfig
+  Id: cup_bronze
+  NameKey: item.cup_bronze
+  Slot: {fileID: 11400000, guid: bb6bca31cc0ddd449a6b22ba768c8092, type: 2}
+  Icon: {fileID: 0}
+  Order: 5
+  Payload:
+    rid: 4243792294545719637
+  Price:
+    Options:
+    - rid: 4243792294545719695
+  HiddenInShop: 0
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792294545719637
+      type: {class: MaterialPayload, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Material: {fileID: 2100000, guid: 69682db1c3ecc9b49869d6ec68175dc2, type: 2}
+    - rid: 4243792294545719695
+      type: {class: CurrencyPriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 2500

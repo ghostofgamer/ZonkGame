@@ -34,7 +34,7 @@ MonoBehaviour:
   Price:
     Options:
     - rid: 4243792294545719410
-    - rid: 4243792294545719411
+    - rid: 4243792294545719649
   references:
     version: 2
     RefIds:
@@ -42,8 +42,7 @@ MonoBehaviour:
       type: {class: ProgressPriceOption, ns: Zonk.Configs, asm: Zonk}
       data:
         HintKey: hint.die.even
-    - rid: 4243792294545719411
-      type: {class: CurrencyPriceOption, ns: Zonk.Configs, asm: Zonk}
+    - rid: 4243792294545719649
+      type: {class: RewardedAdPriceOption, ns: Zonk.Configs, asm: Zonk}
       data:
-        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
-        Amount: 1600
+        AdsRequired: 5

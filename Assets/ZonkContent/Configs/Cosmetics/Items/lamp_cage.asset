@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3758024ff1cf4ad4caa14cc6c86d79b3, type: 3}
+  m_Name: lamp_cage
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticItemConfig
+  Id: lamp_cage
+  NameKey: item.lamp_cage
+  Slot: {fileID: 11400000, guid: 58c84ab6b52919946bba62d21bc3ba77, type: 2}
+  Icon: {fileID: 0}
+  Order: 4
+  Payload:
+    rid: 4243792294545719628
+  Price:
+    Options:
+    - rid: 4243792294545719686
+  HiddenInShop: 0
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792294545719628
+      type: {class: PrefabPayload, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Prefab: {fileID: 4909719907967041673, guid: 50003079bbf3f89428a22369b44a71ed, type: 3}
+        Lighting: {fileID: 0}
+    - rid: 4243792294545719686
+      type: {class: PurchasePriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        ProductId: lamp_cage

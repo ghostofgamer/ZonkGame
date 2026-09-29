@@ -773,6 +773,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6008132832122283482}
   - component: {fileID: 5999894822224146669}
+  - component: {fileID: 7805994519254225017}
   m_Layer: 0
   m_Name: Light
   m_TagString: Untagged
@@ -860,6 +861,19 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!114 &7805994519254225017
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5538626204287054442}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ee7fc5c48bb76c4aa2143ae6d31dcde, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Zonk::Zonk.Presentation.SceneLight
+  _minTier: 1
 --- !u!1 &5629184169797628703
 GameObject:
   m_ObjectHideFlags: 0
@@ -1050,6 +1064,7 @@ GameObject:
   m_Component:
   - component: {fileID: 420422444614255088}
   - component: {fileID: 742453693764101197}
+  - component: {fileID: 335776390134940579}
   m_Layer: 0
   m_Name: Light
   m_TagString: Untagged
@@ -1137,3 +1152,16 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
+--- !u!114 &335776390134940579
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9012455320984002854}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1ee7fc5c48bb76c4aa2143ae6d31dcde, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Zonk::Zonk.Presentation.SceneLight
+  _minTier: 1

@@ -33,5 +33,8 @@ namespace Zonk.Configs
 
         [Tooltip("Можно отметить несколько предметов сразу; при использовании берётся случайный из отмеченных (стиль броска)")]
         public bool MultiSelect;
+
+        [Tooltip("Предмет этого слота задаёт освещение сцены (локации): профиль из PrefabPayload.Lighting")]
+        public bool DrivesLighting;
     }
 }

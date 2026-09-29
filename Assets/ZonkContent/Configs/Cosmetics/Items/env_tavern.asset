@@ -22,8 +22,7 @@ MonoBehaviour:
   Price:
     Options:
     - rid: 4243792291812082073
-    - rid: 4243792291812082074
-    - rid: 4243792294545719536
+    - rid: 4243792294545719647
   HiddenInShop: 0
   references:
     version: 2
@@ -32,16 +31,13 @@ MonoBehaviour:
       type: {class: PrefabPayload, ns: Zonk.Configs, asm: Zonk}
       data:
         Prefab: {fileID: 4058353131712762132, guid: 6c90638ffe007f348a61ac51194abf63, type: 3}
+        Lighting: {fileID: 11400000, guid: da17bd8aac7112b4b9708b95ad289901, type: 2}
     - rid: 4243792291812082073
       type: {class: ProgressPriceOption, ns: Zonk.Configs, asm: Zonk}
       data:
         HintKey: hint.tavern
-    - rid: 4243792291812082074
+    - rid: 4243792294545719647
       type: {class: CurrencyPriceOption, ns: Zonk.Configs, asm: Zonk}
       data:
         Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
-        Amount: 4000
-    - rid: 4243792294545719536
-      type: {class: PurchasePriceOption, ns: Zonk.Configs, asm: Zonk}
-      data:
-        ProductId: env_tavern
+        Amount: 5000

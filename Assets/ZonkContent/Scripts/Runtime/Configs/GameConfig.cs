@@ -91,6 +91,13 @@ namespace Zonk.Configs
         [Tooltip("Бросок при стольких очках хода и 1–2 костях считается рискованным")]
         public int RiskyRollScore = 500;
 
+        [Tooltip("Версия раскладки цен магазина, которую применил генератор. Руками не менять")]
+        public int ShopLayoutVersion;
+
+        [Header("Освещение")]
+        [Tooltip("Освещение локации без своего профиля")]
+        public LightingProfileConfig DefaultLighting;
+
         [Header("Стол и бросок")]
         [Tooltip("Ребро кости в метрах сцены. Модель 0.3, меньше = кости мельче относительно стакана и лотка")]
         public float DieSize = 0.24f;

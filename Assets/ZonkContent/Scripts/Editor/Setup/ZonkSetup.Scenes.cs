@@ -104,6 +104,17 @@ namespace Zonk.Editor.Setup
             var sound = soundGo.AddComponent<SoundPlayer>();
             sound.EditorSetup(source);
 
+            // Свет и атмосфера по профилю локации. Постобработка (Volume) выключена, пока профиль её не включит
+            // на подходящем уровне качества: для телефонов и браузера она дорогая.
+            var volume = new GameObject("PostProcess").AddComponent<UnityEngine.Rendering.Volume>();
+            volume.isGlobal = true;
+            volume.enabled = false;
+            var cameraData = rig.Camera.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+            if (cameraData == null)
+                cameraData = rig.Camera.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+            cameraData.renderPostProcessing = false;
+            new GameObject("Lighting").AddComponent<LightingDirector>().EditorSetup(sun, rig.Camera, volume, stage, sound);
+
             var canvas = CreateCanvas();
             var eventSystem = new GameObject("EventSystem");
             eventSystem.AddComponent<EventSystem>();

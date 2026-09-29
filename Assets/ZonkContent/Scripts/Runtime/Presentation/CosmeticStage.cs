@@ -59,6 +59,9 @@ namespace Zonk.Presentation
 
         public DiceSetView Dice => _dice;
 
+        /// <summary>Предмет надет на стол (экипировка, примерка в магазине, локация главы). Слушает LightingDirector.</summary>
+        public event Action<CosmeticItemConfig> ItemApplied;
+
 #if UNITY_EDITOR
         public void EditorSetup(List<CosmeticAnchor> anchors, DiceSetView dice)
         {
@@ -83,6 +86,7 @@ namespace Zonk.Presentation
 
             var applier = item.Slot.Applier ?? new AnchorPrefabApplier();
             applier.Apply(item, item.Slot, this);
+            ItemApplied?.Invoke(item);
         }
 
         /// <summary>Показать предмет слота; null = базовый предмет слота.</summary>
@@ -94,7 +98,21 @@ namespace Zonk.Presentation
             item = item != null ? item : slot.DefaultItem;
             var applier = slot.Applier ?? new AnchorPrefabApplier();
             if (item != null)
+            {
                 applier.Apply(item, slot, this);
+                ItemApplied?.Invoke(item);
+            }
+        }
+
+        /// <summary>Все источники света (SceneLight) в предметах на столе: лампа, локация. Вызывается при смене предметов.</summary>
+        public void CollectLights(List<SceneLight> result)
+        {
+            result.Clear();
+            foreach (var anchor in _anchors)
+            {
+                if (anchor != null && anchor.Instance != null)
+                    result.AddRange(anchor.Instance.GetComponentsInChildren<SceneLight>(true));
+            }
         }
     }
 }

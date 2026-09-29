@@ -147,7 +147,8 @@ namespace Zonk.Editor.Setup
             return root;
         }
 
-        private static void AddLight(Transform parent, Vector3 position, Color color, float intensity, float range)
+        /// <summary>Источник света префаба: без теней и с SceneLight (яркость масштабирует профиль освещения).</summary>
+        private static Light AddLight(Transform parent, Vector3 position, Color color, float intensity, float range)
         {
             var go = Empty("Light", parent, position);
             var light = go.AddComponent<Light>();
@@ -156,6 +157,8 @@ namespace Zonk.Editor.Setup
             light.intensity = intensity;
             light.range = range;
             light.shadows = LightShadows.None;
+            go.AddComponent<Zonk.Presentation.SceneLight>();
+            return light;
         }
     }
 }

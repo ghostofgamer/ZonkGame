@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3758024ff1cf4ad4caa14cc6c86d79b3, type: 3}
+  m_Name: env_garden
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticItemConfig
+  Id: env_garden
+  NameKey: item.env_garden
+  Slot: {fileID: 11400000, guid: b5b03c2e258799e41b822426b6cf1aa0, type: 2}
+  Icon: {fileID: 0}
+  Order: 6
+  Payload:
+    rid: 4243792294545719645
+  Price:
+    Options:
+    - rid: 4243792294545719697
+  HiddenInShop: 0
+  references:
+    version: 2
+    RefIds:
+    - rid: 4243792294545719645
+      type: {class: PrefabPayload, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Prefab: {fileID: 1818354266847001465, guid: 1a75aa2458e74e149b83498bf1f9cd2e, type: 3}
+        Lighting: {fileID: 11400000, guid: c2d64deab98107c4ab6e79fe594f0d2b, type: 2}
+    - rid: 4243792294545719697
+      type: {class: RewardedAdPriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        AdsRequired: 6

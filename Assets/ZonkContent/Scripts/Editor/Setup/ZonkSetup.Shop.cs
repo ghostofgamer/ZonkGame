@@ -22,47 +22,42 @@ namespace Zonk.Editor.Setup
             var lampSlot = SlotAt("lamp");
             var rollSlot = SlotAt("roll_style");
 
-            // Локации: за монеты, рекламу (пляж) и покупку — все три, путь через боссов тоже остаётся.
-            EnsurePurchase(ItemAt("env_tavern"), "env_tavern");
-            EnsurePurchase(ItemAt("env_beach"), "env_beach");
-            EnsurePurchase(ItemAt("env_ship"), "env_ship");
+            // Новые предметы-заглушки (цвет материала). Цена у всех — из раскладки магазина ниже (ShopLayoutV3):
+            // в каждой вкладке 2 предмета за монеты, 2 за рекламу, 2 за покупку, у каждого один способ получения.
+            var dieTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(Textures + "/Die_Classic.png");
+            Item("table_walnut", tableSlot, 3, new MaterialPayload { Material = ShopMat("Table_Walnut", new Color(0.36f, 0.22f, 0.12f), 0.45f) });
+            Item("table_royal", tableSlot, 4, new MaterialPayload { Material = ShopMat("Table_Royal", new Color(0.05f, 0.35f, 0.25f), 0.85f, 0.2f) });
+            Item("table_birch", tableSlot, 5, new MaterialPayload { Material = ShopMat("Table_Birch", new Color(0.86f, 0.78f, 0.62f), 0.35f) });
+            Item("table_gold", tableSlot, 6, new MaterialPayload { Material = ShopMat("Table_Gold", new Color(0.95f, 0.75f, 0.3f), 0.8f, 0.85f) });
 
-            // Столы: реклама — ореховый, покупка — мраморный и «Королевский» (только за деньги).
-            Item("table_walnut", tableSlot, 3, new MaterialPayload { Material = ShopMat("Table_Walnut", new Color(0.36f, 0.22f, 0.12f), 0.45f) },
-                Coins(coins, 1500), new RewardedAdPriceOption { AdsRequired = 4 });
-            Item("table_royal", tableSlot, 4, new MaterialPayload { Material = ShopMat("Table_Royal", new Color(0.05f, 0.35f, 0.25f), 0.85f, 0.2f) },
-                new PurchasePriceOption { ProductId = "table_royal" });
-            EnsurePurchase(ItemAt("table_marble"), "table_marble");
+            Item("felt_purple", traySlot, 3, new MaterialPayload { Material = ShopMat("Felt_Purple", new Color(0.35f, 0.12f, 0.4f), 0.1f) });
+            Item("felt_royal", traySlot, 4, new MaterialPayload { Material = ShopMat("Felt_Royal", new Color(0.06f, 0.05f, 0.07f), 0.2f) });
+            Item("felt_teal", traySlot, 5, new MaterialPayload { Material = ShopMat("Felt_Teal", new Color(0.08f, 0.38f, 0.4f), 0.05f) });
+            Item("felt_gold", traySlot, 6, new MaterialPayload { Material = ShopMat("Felt_Gold", new Color(0.7f, 0.52f, 0.15f), 0.3f, 0.4f) });
 
-            // Сукно: реклама — синее, монеты — красное и фиолетовое, покупка — «Королевское».
-            Item("felt_purple", traySlot, 3, new MaterialPayload { Material = ShopMat("Felt_Purple", new Color(0.35f, 0.12f, 0.4f), 0.1f) },
-                Coins(coins, 1500));
-            Item("felt_royal", traySlot, 4, new MaterialPayload { Material = ShopMat("Felt_Royal", new Color(0.06f, 0.05f, 0.07f), 0.2f) },
-                new PurchasePriceOption { ProductId = "felt_royal" });
+            Item("cup_silver", cupSlot, 3, new MaterialPayload { Material = ShopMat("Cup_Silver", new Color(0.8f, 0.82f, 0.86f), 0.8f, 0.9f) });
+            Item("cup_ruby", cupSlot, 4, new MaterialPayload { Material = ShopMat("Cup_Ruby", new Color(0.6f, 0.05f, 0.1f), 0.85f, 0.1f) });
+            Item("cup_bronze", cupSlot, 5, new MaterialPayload { Material = ShopMat("Cup_Bronze", new Color(0.62f, 0.4f, 0.2f), 0.6f, 0.8f) });
+            Item("cup_jade", cupSlot, 6, new MaterialPayload { Material = ShopMat("Cup_Jade", new Color(0.3f, 0.65f, 0.45f), 0.8f, 0.1f) });
 
-            // Стаканы: реклама — серебряный, покупка — золотой и рубиновый.
-            Item("cup_silver", cupSlot, 3, new MaterialPayload { Material = ShopMat("Cup_Silver", new Color(0.8f, 0.82f, 0.86f), 0.8f, 0.9f) },
-                Coins(coins, 2500), new RewardedAdPriceOption { AdsRequired = 5 });
-            Item("cup_ruby", cupSlot, 4, new MaterialPayload { Material = ShopMat("Cup_Ruby", new Color(0.6f, 0.05f, 0.1f), 0.85f, 0.1f) },
-                new PurchasePriceOption { ProductId = "cup_ruby" });
+            var skinSlot = SlotAt("dice_skin");
+            Item("skin_pearl", skinSlot, 6, new MeshMaterialPayload
+            {
+                Material = Mat(new ArtSet(), "Die_Pearl", new Color(0.95f, 0.93f, 1f), dieTexture, 0.9f, 0.15f, Color.black),
+            });
+            Item("skin_emerald", skinSlot, 7, new MeshMaterialPayload
+            {
+                Material = Mat(new ArtSet(), "Die_Emerald", new Color(0.35f, 0.85f, 0.5f), dieTexture, 0.85f, 0.2f, Color.black),
+            });
 
-            // Скины: реклама — нефрит, покупка — обсидиан и золото.
-            EnsurePurchase(ItemAt("skin_obsidian"), "skin_obsidian");
-            EnsurePurchase(ItemAt("skin_gold"), "skin_gold");
-
-            // Лампы: монеты — фонарь, реклама — латунная, покупка — хрустальная.
-            Item("lamp_brass", lampSlot, 2, new MaterialPayload { Material = ShopMat("Lamp_Brass", new Color(0.72f, 0.55f, 0.25f), 0.6f, 0.8f) },
-                Coins(coins, 1500), new RewardedAdPriceOption { AdsRequired = 4 });
+            Item("lamp_brass", lampSlot, 2, new MaterialPayload { Material = ShopMat("Lamp_Brass", new Color(0.72f, 0.55f, 0.25f), 0.6f, 0.8f) });
             Item("lamp_crystal", lampSlot, 3, new MaterialPayload
-                {
-                    Material = ShopMat("Lamp_Crystal", new Color(0.82f, 0.9f, 1f), 0.95f, 0f, new Color(0.25f, 0.32f, 0.4f)),
-                },
-                new PurchasePriceOption { ProductId = "lamp_crystal" });
+            {
+                Material = ShopMat("Lamp_Crystal", new Color(0.82f, 0.9f, 1f), 0.95f, 0f, new Color(0.25f, 0.32f, 0.4f)),
+            });
+            Item("lamp_paper", lampSlot, 5, new MaterialPayload { Material = ShopMat("Lamp_Paper", new Color(0.8f, 0.2f, 0.15f), 0.2f, 0f, new Color(0.3f, 0.06f, 0.03f)) });
+            Item("lamp_glass", lampSlot, 6, new MaterialPayload { Material = ShopMat("Lamp_Glass", new Color(0.2f, 0.55f, 0.3f), 0.9f, 0.1f) });
 
-            // Стили броска: монеты и реклама уже есть; босс-стили можно купить, «Королевский» — только за деньги.
-            EnsureCoins(ItemAt("roll_granny"), coins, 2500);
-            EnsureCoins(ItemAt("roll_pirate"), coins, 3000);
-            EnsurePurchase(ItemAt("roll_pirate"), "roll_pirate");
             var rollRoyal = Asset<RollStyleConfig>(ConfigsFolder + "/Game/RollStyle_Royal.asset", s =>
             {
                 s.ShakeDuration = new Vector2(1.1f, 1.4f);
@@ -74,7 +69,26 @@ namespace Zonk.Editor.Setup
                 s.SpinSpeed = new Vector2(20f, 28f);
             });
             TuneThrow(rollRoyal, 0.3f, 0.4f, 20f, 30f, 0.4f, 0.5f, 0.2f, 0.3f, 0.2f, 0.25f, 0.1f, 0.15f);
-            Item("roll_royal", rollSlot, 7, new RollStylePayload { Style = rollRoyal }, new PurchasePriceOption { ProductId = "roll_royal" });
+            Item("roll_royal", rollSlot, 7, new RollStylePayload { Style = rollRoyal });
+
+            // «Шторм»: резкая тряска, стакан почти переворачивается, кости летят быстро и крутятся.
+            var rollStorm = Asset<RollStyleConfig>(ConfigsFolder + "/Game/RollStyle_Storm.asset", s =>
+            {
+                s.ShakeDuration = new Vector2(0.6f, 0.9f);
+                s.ShakeAmplitude = new Vector2(0.1f, 0.16f);
+                s.ShakeFrequency = new Vector2(30f, 38f);
+                s.ShakeTilt = new Vector2(25f, 40f);
+                s.PourAngle = new Vector2(130f, 150f);
+                s.DirectionJitter = 30f;
+                s.ThrowSpeed = new Vector2(3.4f, 4f);
+                s.SpinSpeed = new Vector2(22f, 30f);
+            });
+            TuneThrow(rollStorm, 0.55f, 0.75f, 35f, 50f, 0.18f, 0.24f, 0.05f, 0.1f, 0.08f, 0.1f, 0.3f, 0.4f);
+            Item("roll_storm", rollSlot, 8, new RollStylePayload { Style = rollStorm });
+
+            // Две новые локации за рекламу: чердак (тёплый вечерний свет) и сад (солнечный день).
+            Item("env_attic", envSlot, 5, new PrefabPayload { Prefab = AtticPrefab(), Lighting = AtticLighting() });
+            Item("env_garden", envSlot, 6, new PrefabPayload { Prefab = GardenPrefab(), Lighting = GardenLighting() });
 
             // Пакеты монет (расходуемые товары). Рекомендуемые цены на площадке — в README.
             CoinPack("coins_small", "pack.small", coins, 2000, 0, 1);
@@ -192,24 +206,5 @@ namespace Zonk.Editor.Setup
             }
         }
 
-        /// <summary>Вариант «купить за деньги», если у предмета его ещё нет.</summary>
-        private static void EnsurePurchase(CosmeticItemConfig item, string productId)
-        {
-            if (item == null || item.Price.Options.Exists(o => o is PurchasePriceOption))
-                return;
-
-            item.Price.Options.Add(new PurchasePriceOption { ProductId = productId });
-            EditorUtility.SetDirty(item);
-        }
-
-        /// <summary>Вариант «за монеты», если у предмета его ещё нет.</summary>
-        private static void EnsureCoins(CosmeticItemConfig item, CurrencyConfig coins, int amount)
-        {
-            if (item == null || item.Price.Options.Exists(o => o is CurrencyPriceOption))
-                return;
-
-            item.Price.Options.Add(Coins(coins, amount));
-            EditorUtility.SetDirty(item);
-        }
     }
 }

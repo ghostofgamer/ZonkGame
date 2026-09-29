@@ -75,6 +75,8 @@ namespace Zonk.Editor
                 {
                     case DieConfig die:
                         ValidateDie(die, texts, errors);
+                        if (die.IsSpecial && die.Price.IsFree)
+                            warnings.Add($"{die.name}: special die without price — free for everyone");
                         break;
                     case CosmeticSlotConfig slot:
                         if (slot.DefaultItem == null)
@@ -84,6 +86,10 @@ namespace Zonk.Editor
                         break;
                     case CosmeticItemConfig cosmetic:
                         ValidateCosmetic(cosmetic, errors, warnings);
+                        // Предмет без цены есть у всех: так задуман только базовый предмет слота (и запасной скин второго игрока).
+                        if (cosmetic.Price.IsFree && cosmetic.Slot != null && cosmetic.Slot.DefaultItem != cosmetic && !cosmetic.HiddenInShop &&
+                            (config == null || config.SecondPlayerFallbackSkin != cosmetic))
+                            warnings.Add($"{cosmetic.name}: no price — free for everyone. Tick a way to get it (coins, ads, money)");
                         ValidatePrice(cosmetic, cosmetic.Price, errors);
                         break;
                     case ThemeSetConfig theme:

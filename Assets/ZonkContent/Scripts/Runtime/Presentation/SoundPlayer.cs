@@ -20,6 +20,7 @@ namespace Zonk.Presentation
         Coin,
         Thud,
         Whoosh,
+        Thunder,
     }
 
     /// <summary>
@@ -108,6 +109,7 @@ namespace Zonk.Presentation
                 case Sfx.Coin: return Chord("coin", 0.25f, new[] { 988f, 1318f }, 0.3f);
                 case Sfx.Thud: return Sweep("thud", 0.3f, 120f, 40f, 0.8f);
                 case Sfx.Whoosh: return Whoosh("whoosh", 0.28f, 0.45f);
+                case Sfx.Thunder: return Rumble("thunder", 2.4f, 0.8f);
                 default: return null;
             }
         }
@@ -129,6 +131,28 @@ namespace Zonk.Presentation
                 }
             }
 
+            return Build(name, samples);
+        }
+
+        /// <summary>Гром: «коричневый» шум (низкий гул) с быстрым нарастанием, раскатами и долгим затуханием.</summary>
+        private static AudioClip Rumble(string name, float duration, float volume)
+        {
+            var samples = new float[Mathf.CeilToInt(Rate * duration)];
+            var random = new System.Random(name.GetHashCode());
+            var value = 0f;
+            var peak = 0.0001f;
+            for (var i = 0; i < samples.Length; i++)
+            {
+                var t = i / (float)Rate;
+                value = Mathf.Clamp(value + ((float)random.NextDouble() * 2f - 1f) * 0.05f, -1f, 1f) * 0.995f;
+                var attack = Mathf.Clamp01(t / 0.06f);
+                var roll = 0.75f + 0.25f * Mathf.Sin(t * 9f + Mathf.Sin(t * 2.3f) * 3f);
+                samples[i] = value * attack * roll * Mathf.Exp(-t * 1.6f);
+                peak = Mathf.Max(peak, Mathf.Abs(samples[i]));
+            }
+
+            for (var i = 0; i < samples.Length; i++)
+                samples[i] = samples[i] / peak * volume;
             return Build(name, samples);
         }
 

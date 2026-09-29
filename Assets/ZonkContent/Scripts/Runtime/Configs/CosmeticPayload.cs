@@ -18,6 +18,9 @@ namespace Zonk.Configs
     public sealed class PrefabPayload : CosmeticPayload
     {
         public GameObject Prefab;
+
+        [Tooltip("Освещение и атмосфера сцены с этим предметом (для локаций; у слота должно быть DrivesLighting). Пусто — GameConfig.DefaultLighting")]
+        public LightingProfileConfig Lighting;
     }
 
     /// <summary>Только материал (текстура, цвет) на базовой модели слота.</summary>
