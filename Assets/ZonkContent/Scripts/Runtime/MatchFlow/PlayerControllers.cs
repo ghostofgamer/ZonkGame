@@ -41,10 +41,24 @@ namespace Zonk.MatchFlow
             _kit = kit;
         }
 
-        public UniTask WaitRollAsync(ZonkMatch match, CancellationToken ct)
+        /// <summary>Бросок кнопкой «Бросить» или своей рукой: игрок зажимает стакан (MatchPresenter.WaitGrabAsync).</summary>
+        public async UniTask WaitRollAsync(ZonkMatch match, CancellationToken ct)
         {
-            _hud.SetHint(_kit.T("match.hintRoll", match.CurrentPlayer.Name));
-            return _hud.WaitRollAsync(ct);
+            // Начало хода — чей ход; середина хода — сколько костей осталось в стакане.
+            _hud.SetHint(match.TurnScore > 0
+                ? _kit.T("match.hintRollMore", match.DiceInHandCount)
+                : _kit.T("match.hintRoll", match.CurrentPlayer.Name));
+            using (var race = CancellationTokenSource.CreateLinkedTokenSource(ct))
+            {
+                var (winner, _, grab) = await UniTask.WhenAny(
+                    _hud.WaitRollAsync(race.Token).SuppressCancellationThrow(),
+                    _presenter.WaitGrabAsync(match.CurrentPlayerIndex, null, true, race.Token, ct).SuppressCancellationThrow());
+                race.Cancel();
+                ct.ThrowIfCancellationRequested();
+
+                if (winner == 1 && !grab.IsCanceled && grab.Result)
+                    _hud.SetHint(_kit.T("match.hintShake"));
+            }
         }
 
         public async UniTask<TurnDecision> DecideAsync(ZonkMatch match, CancellationToken ct)
@@ -85,6 +99,8 @@ namespace Zonk.MatchFlow
             OnSelectionChanged(_dice.Selection);
             try
             {
+                // Здесь только решение: «Забрать» или «Продолжить». Сам бросок — следующим шагом (WaitRollAsync),
+                // кнопкой или своей рукой, уже в ракурсе броска.
                 var action = await _hud.WaitActionAsync(State, ct);
                 return new TurnDecision(new List<int>(_dice.Selection), action == HudAction.Bank);
             }

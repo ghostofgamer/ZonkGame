@@ -3,6 +3,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
+using Base.Services.Haptics;
 using Zenject;
 using Zonk.Configs;
 using Zonk.Progress;
@@ -20,21 +21,27 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _sound;
         [SerializeField] private UiButtonView _music;
         [SerializeField] private UiButtonView _speed;
+
+        [Tooltip("Вибрация (показывается только там, где она есть). Пусто — кнопки нет")]
+        [SerializeField] private UiButtonView _vibration;
         [SerializeField] private UiButtonView _back;
 
         [Tooltip("Кнопка текущего языка (копия Parts/LanguageButton). Пусто — выбора языка в окне нет")]
         [SerializeField] private LanguageButtonView _language;
 
         private IGameSettings _settings;
+        private IHapticsService _haptics;
         private IUiService _ui;
         private LanguagePreference _languages;
         private UiConfig _uiConfig;
         private bool _choosing;
 
         [Inject]
-        public void Construct(IGameSettings settings, IUiService ui, LanguagePreference languages, GameConfig config)
+        public void Construct(IGameSettings settings, IUiService ui, LanguagePreference languages, GameConfig config,
+            IHapticsService haptics)
         {
             _settings = settings;
+            _haptics = haptics;
             _ui = ui;
             _languages = languages;
             _uiConfig = config != null ? config.Ui : null;
@@ -42,7 +49,7 @@ namespace Zonk.UI.Windows
 
 #if UNITY_EDITOR
         public void EditorSetup(TMP_Text title, UiButtonView sound, UiButtonView music, UiButtonView speed, UiButtonView back,
-            LanguageButtonView language)
+            LanguageButtonView language, UiButtonView vibration = null)
         {
             _title = title;
             _sound = sound;
@@ -50,6 +57,7 @@ namespace Zonk.UI.Windows
             _speed = speed;
             _back = back;
             _language = language;
+            _vibration = vibration;
         }
 #endif
 
@@ -70,6 +78,17 @@ namespace Zonk.UI.Windows
                 _settings.Speed = _settings.Speed >= 2 ? 1 : 2;
                 Refresh();
             });
+            if (_vibration != null)
+            {
+                _vibration.OnClick(() =>
+                {
+                    _settings.Vibration = !_settings.Vibration;
+                    if (_settings.Vibration)
+                        _haptics?.Pulse(40);
+                    Refresh();
+                });
+            }
+
             _back.OnClick(RequestClose);
         }
 
@@ -85,6 +104,13 @@ namespace Zonk.UI.Windows
             _sound.SetText(T(_settings.Sound ? "settings.soundOn" : "settings.soundOff"));
             _music.SetText(T(_settings.Music ? "settings.musicOn" : "settings.musicOff"));
             _speed.SetText(T("settings.speed", _settings.Speed));
+            if (_vibration != null)
+            {
+                var supported = _haptics != null && _haptics.IsSupported;
+                _vibration.gameObject.SetActive(supported);
+                if (supported)
+                    _vibration.SetText(T(_settings.Vibration ? "settings.vibrationOn" : "settings.vibrationOff"));
+            }
 
             if (_language != null)
             {

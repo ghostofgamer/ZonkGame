@@ -8,11 +8,11 @@
       "hash": "2e993ff18f28c931602a07292df0b0804eebef99"
     },
     "com.google.external-dependency-manager": {
-      "version": "1.2.189",
+      "version": "https://github.com/googlesamples/unity-jar-resolver.git?path=upm#v1.2.189",
       "depth": 0,
-      "source": "registry",
+      "source": "git",
       "dependencies": {},
-      "url": "https://package.openupm.com"
+      "hash": "1a9384872d6b8b954a8c0115fdcdf146c995062a"
     },
     "com.unity.ai.navigation": {
       "version": "2.0.14",
@@ -208,21 +208,30 @@
       "url": "https://packages.unity.com"
     },
     "com.yandex.mobileads": {
-      "version": "8.4.0",
+      "version": "https://github.com/yandexmobile/yandex-ads-unity-plugin.git?path=mobileads-sdk#8.4.0",
       "depth": 0,
-      "source": "registry",
+      "source": "git",
       "dependencies": {
         "com.google.external-dependency-manager": "1.2.178",
         "com.yandex.mobileads.appmetrica.adrevenue.adapter": "1.0.0"
       },
-      "url": "https://package.openupm.com"
+      "hash": "326048ab9461592ac7603f62d338fce422336dd8"
     },
     "com.yandex.mobileads.appmetrica.adrevenue.adapter": {
-      "version": "1.0.0",
-      "depth": 1,
-      "source": "registry",
+      "version": "https://github.com/appmetrica/appmetrica-adrevenue-adapter-unity-plugin.git#v1.0.0",
+      "depth": 0,
+      "source": "git",
       "dependencies": {},
-      "url": "https://package.openupm.com"
+      "hash": "57cd78d33e67084fbd1d1b18011bdf075e31d202"
+    },
+    "io.appmetrica.analytics": {
+      "version": "https://github.com/appmetrica/appmetrica-unity-plugin.git#v6.10.0",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.google.external-dependency-manager": "1.2.187"
+      },
+      "hash": "3c536f6a20c2f03c539887be4e209a138c3979a5"
     },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",

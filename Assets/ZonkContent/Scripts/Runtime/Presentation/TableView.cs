@@ -28,10 +28,16 @@ namespace Zonk.Presentation
         public SoundPlayer Sound => _sound;
         public RectTransform UiRoot => _uiRoot;
 
-        /// <summary>Место игрока: первый игрок сидит на юге (у камеры), второй на севере.</summary>
+        /// <summary>
+        /// Кто сидит на юге, у камеры. Обычно первый игрок; в игре вдвоём на одном устройстве — тот, чей ход
+        /// (MatchPresenter меняет места в начале хода).
+        /// </summary>
+        public int NearPlayer { get; set; }
+
+        /// <summary>Место игрока: ближний (NearPlayer) сидит на юге, у камеры, другой — на севере.</summary>
         public SeatView SeatOf(int player)
         {
-            return player == 0 ? _south : _north;
+            return player == NearPlayer ? _south : _north;
         }
 
 #if UNITY_EDITOR

@@ -90,7 +90,8 @@ namespace Zonk.UI
     {
         private readonly ILocalization _localization;
         private readonly System.Collections.Generic.Stack<TMP_Text> _toasts = new System.Collections.Generic.Stack<TMP_Text>();
-        private readonly System.Collections.Generic.Stack<Image> _bubbles = new System.Collections.Generic.Stack<Image>();
+        private readonly System.Collections.Generic.Stack<TMP_Text> _popups = new System.Collections.Generic.Stack<TMP_Text>();
+        private readonly System.Collections.Generic.Stack<Image> _bubbles =new System.Collections.Generic.Stack<Image>();
         private readonly System.Collections.Generic.Stack<Image> _coins = new System.Collections.Generic.Stack<Image>();
         private Transform _poolRoot;
 
@@ -209,6 +210,42 @@ namespace Zonk.UI
             label.gameObject.SetActive(false);
             label.transform.SetParent(PoolRoot, false);
             _toasts.Push(label);
+        }
+
+        /// <summary>
+        /// Всплывающая надпись над костями («+350», «Стрит») из пула, отдельного от Toast: у неё свой размер шрифта.
+        /// Вернуть — ReturnPopup.
+        /// </summary>
+        public TMP_Text RentPopup(Transform parent, float fontSize)
+        {
+            TMP_Text label = null;
+            while (label == null && _popups.Count > 0)
+                label = _popups.Pop();
+
+            if (label == null)
+            {
+                label = Label(parent, string.Empty, 64, TextAnchor.MiddleCenter, UiColors.Text, true);
+                label.name = "Popup";
+                label.textWrappingMode = TextWrappingModes.NoWrap;
+                label.rectTransform.sizeDelta = new Vector2(700f, 120f);
+                Outline(label, new Color(0f, 0f, 0f, 0.85f), 0.28f);
+            }
+
+            label.fontSize = fontSize;
+            label.transform.SetParent(parent, false);
+            label.transform.SetAsLastSibling();
+            label.gameObject.SetActive(true);
+            return label;
+        }
+
+        public void ReturnPopup(TMP_Text label)
+        {
+            if (label == null)
+                return;
+
+            label.gameObject.SetActive(false);
+            label.transform.SetParent(PoolRoot, false);
+            _popups.Push(label);
         }
 
         /// <summary>Облачко реплики из пула (панель с надписью внутри). Вернуть — ReturnBubble.</summary>

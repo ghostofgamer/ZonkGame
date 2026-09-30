@@ -28,6 +28,9 @@ namespace Zonk.MatchFlow
     /// </summary>
     public sealed class MatchRunner
     {
+        /// <summary>Тег события заданий: игрок бросил кости своей рукой (CustomEventGoal).</summary>
+        public const string ManualRollTag = "manual_roll";
+
         private readonly TableView _table;
         private readonly MatchPresenter _presenter;
         private readonly ReactionDirector _reactions;
@@ -159,7 +162,12 @@ namespace Zonk.MatchFlow
             var controller = controllers[player];
             progress.Turn[player].Reset();
             var local = progress.IsLocal(player);
-            _tutorial.Show(local ? TutorialTrigger.BeforeFirstRoll : TutorialTrigger.OpponentTurn);
+            if (!local)
+                _tutorial.Show(TutorialTrigger.OpponentTurn);
+            else if (!_tutorial.WasSeen(TutorialTrigger.BeforeFirstRoll))
+                _tutorial.Show(TutorialTrigger.BeforeFirstRoll);
+            else if (_presenter.ManualRollEnabled)
+                _tutorial.Show(TutorialTrigger.ManualRoll); // со второго хода: можно бросать своей рукой
 
             hud.Refresh(match);
             await _presenter.BeginTurnAsync(player, ct);
@@ -169,6 +177,9 @@ namespace Zonk.MatchFlow
             {
                 var roll = match.Roll();
                 await _presenter.PlayRollAsync(roll, ct);
+                hud.SetHint(string.Empty);
+                if (_presenter.LastRollManual && local && !progress.HotSeat)
+                    _quests.Report(QuestEvent.CustomEvent(ManualRollTag));
 
                 if (roll.IsZonk)
                 {
@@ -190,6 +201,11 @@ namespace Zonk.MatchFlow
                 var decision = await controller.DecideAsync(match, ct);
                 var keep = match.Keep(decision.Keep);
                 OnKeep(progress, player, keep);
+
+                // Очки всплывают над костями, пока они ещё лежат в лотке.
+                if (keep.Score != null)
+                    hud.ShowKeepScore(_presenter.PopupPoint(keep.KeptDice), _presenter.TableCamera, keep.Score.Score,
+                        ComboNames.KeyFor(keep.Score), keep.HotDice || keep.Score.Score >= _config.BigKeepScore);
                 if (local)
                     _tutorial.Show(keep.HotDice ? TutorialTrigger.HotDice : TutorialTrigger.AfterKeep);
                 hud.Refresh(match);
@@ -231,6 +247,11 @@ namespace Zonk.MatchFlow
 
                 if (match.DiceInHandCount <= 2 && match.TurnScore >= _config.RiskyRollScore)
                     _reactions.Fire(player, MatchEventType.SelfRiskyRoll, null);
+
+                // «Продолжить»: оставшиеся кости — в стакан, камера — в ракурс броска, затем бросок как в начале хода:
+                // кнопкой или своей рукой.
+                await _presenter.PrepareNextRollAsync(match, ct);
+                await controller.WaitRollAsync(match, ct);
             }
         }
 

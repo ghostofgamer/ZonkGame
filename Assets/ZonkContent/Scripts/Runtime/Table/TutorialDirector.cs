@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using Base.Services.Analytics;
 using Base.Services.Saves;
 using Cysharp.Threading.Tasks;
 using Zonk.Configs;
@@ -20,15 +21,17 @@ namespace Zonk.Table
         private readonly GameConfig _config;
         private readonly ISaveStore _saves;
         private readonly UiKit _kit;
+        private readonly IAnalytics _analytics;
         private TutorialTipWindow _tip;
         private CancellationTokenSource _tipCts;
 
-        public TutorialDirector(IUiService ui, GameConfig config, ISaveStore saves, UiKit kit)
+        public TutorialDirector(IUiService ui, GameConfig config, ISaveStore saves, UiKit kit, IAnalytics analytics)
         {
             _ui = ui;
             _config = config;
             _saves = saves;
             _kit = kit;
+            _analytics = analytics;
         }
 
 #if UNITY_EDITOR
@@ -53,9 +56,18 @@ namespace Zonk.Table
             {
                 data.Seen.Add(id);
                 _saves.RequestSave();
+
+                // Воронка обучения: tutorial → step → момент. По числу игроков на каждом шаге видно, где уходят новички.
+                _analytics?.Track("tutorial", "step", id);
             }
 
             ShowTipAsync(_kit.T(step.TextKey)).Forget();
+        }
+
+        /// <summary>Подсказка момента уже показывалась игроку.</summary>
+        public bool WasSeen(TutorialTrigger trigger)
+        {
+            return _saves.IsLoaded && Data.Seen.Contains(trigger.ToString());
         }
 
         /// <summary>Убрать подсказку (конец партии, уход из меню).</summary>

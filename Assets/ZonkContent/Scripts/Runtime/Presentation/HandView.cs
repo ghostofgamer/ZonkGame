@@ -1,6 +1,7 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using Zonk.Configs;
 using Zonk.Utils;
 
 namespace Zonk.Presentation
@@ -28,6 +29,36 @@ namespace Zonk.Presentation
             _rightHanded = rightHanded;
         }
 #endif
+
+        private Renderer[] _renderers;
+        private Material[] _baseMaterials;
+        private CosmeticItemConfig _skin;
+
+        /// <summary>
+        /// Вид руки игрока. Сейчас понимает материал (MaterialPayload) — перекрашивает всю руку; null или другое —
+        /// материалы по умолчанию. Модель руки и аксессуары (часы, цепочки) лягут сюда же, вызовы не изменятся.
+        /// </summary>
+        public void SetSkin(CosmeticItemConfig skin)
+        {
+            if (_renderers == null)
+            {
+                _renderers = GetComponentsInChildren<Renderer>(true);
+                _baseMaterials = new Material[_renderers.Length];
+                for (var i = 0; i < _renderers.Length; i++)
+                    _baseMaterials[i] = _renderers[i].sharedMaterial;
+            }
+
+            if (_skin == skin)
+                return;
+
+            _skin = skin;
+            var material = skin != null && skin.Payload is MaterialPayload payload ? payload.Material : null;
+            for (var i = 0; i < _renderers.Length; i++)
+            {
+                if (_renderers[i] != null)
+                    _renderers[i].sharedMaterial = material != null ? material : _baseMaterials[i];
+            }
+        }
 
         public UniTask MoveToAsync(Vector3 position, Quaternion rotation, float duration, CancellationToken ct)
         {

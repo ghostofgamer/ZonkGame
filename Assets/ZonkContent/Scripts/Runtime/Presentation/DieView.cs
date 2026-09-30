@@ -26,6 +26,9 @@ namespace Zonk.Presentation
         private Color _markerColor = Color.clear;
         private float _glow = 1f;
         private Color _tint = Color.white;
+        private bool _dimmed;
+        private float _dimBrightness = 1f;
+        private float _dimDesaturate;
         private bool _selected;
         private BoxCollider _box;
 
@@ -107,10 +110,25 @@ namespace Zonk.Presentation
             ApplyBlock();
         }
 
-        /// <summary>Затемнение: например, кость не входит ни в одну комбинацию.</summary>
+        /// <summary>Оттенок кости (множитель цвета скина), например красный при Зонке. Снимает приглушение SetDimmed.</summary>
         public void SetTint(Color tint)
         {
             _tint = tint;
+            _dimmed = false;
+            ApplyBlock();
+        }
+
+        /// <summary>
+        /// Приглушить кость, которая не входит ни в одну комбинацию: обесцветить и затемнить. Заметно на любом скине —
+        /// простое умножение цвета на тёмных и цветных костях (сапфир, обсидиан) почти не видно.
+        /// brightness — яркость (1 = как есть), desaturate — доля серого (0..1).
+        /// </summary>
+        public void SetDimmed(float brightness, float desaturate)
+        {
+            _tint = Color.white;
+            _dimmed = true;
+            _dimBrightness = brightness;
+            _dimDesaturate = Mathf.Clamp01(desaturate);
             ApplyBlock();
         }
 
@@ -190,8 +208,19 @@ namespace Zonk.Presentation
             // Цвет материала скина не перекрываем: блок только умножает его на оттенок.
             _block.Clear();
             var material = _renderer.sharedMaterial;
-            if (_tint != Color.white && material != null && material.HasProperty(BaseColorId))
-                _block.SetColor(BaseColorId, material.GetColor(BaseColorId) * _tint);
+            if ((_tint != Color.white || _dimmed) && material != null && material.HasProperty(BaseColorId))
+            {
+                var color = material.GetColor(BaseColorId) * _tint;
+                if (_dimmed)
+                {
+                    var alpha = color.a;
+                    var luma = color.r * 0.3f + color.g * 0.59f + color.b * 0.11f;
+                    color = Color.Lerp(color, new Color(luma, luma, luma), _dimDesaturate) * _dimBrightness;
+                    color.a = alpha;
+                }
+
+                _block.SetColor(BaseColorId, color);
+            }
             _block.SetColor(EmissionColorId, _markerColor.a > 0f ? _markerColor * (0.35f * _glow) : Color.black);
             _renderer.SetPropertyBlock(_block);
         }

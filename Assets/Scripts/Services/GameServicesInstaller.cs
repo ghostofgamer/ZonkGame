@@ -22,6 +22,8 @@ namespace Base.Services
             Container.Bind<IRewardService>().To<RewardService>().AsSingle();
             Container.BindInterfacesTo<InterstitialService>().AsSingle();
             Container.BindInterfacesTo<AdPauseController>().AsSingle();
+            Container.Bind<Haptics.IHapticsService>().To<Haptics.HapticsService>().AsSingle();
+            Container.Bind<Analytics.IAnalytics>().To<Analytics.Analytics>().AsSingle();
         }
     }
 }

@@ -609,6 +609,26 @@ namespace Zonk.Editor.Setup
                 EditorUtility.SetDirty(set.Config);
             }
 
+            // Новые моменты обучения — и в уже созданный ассет, если их там нет.
+            foreach (var trigger in new[] { TutorialTrigger.ManualRoll })
+            {
+                if (tutorial.Find(trigger) != null)
+                    continue;
+                tutorial.Steps.Add(new TutorialStep { Trigger = trigger, TextKey = "tutorial." + trigger });
+                EditorUtility.SetDirty(tutorial);
+            }
+
+            // Бросок своей рукой: трясти стакан и толкать к столу.
+            var manualRoll = Asset<ManualRollConfig>(ConfigsFolder + "/Game/ManualRoll.asset", m => { });
+            if (set.Config.ManualRoll == null)
+            {
+                set.Config.ManualRoll = manualRoll;
+                EditorUtility.SetDirty(set.Config);
+            }
+
+            // Ощущение партии: всплывающие очки, накрутка, замедление, искры, пыль, вибрация.
+            BuildFeel(set.Config);
+
             BuildPortraits(art);
             BuildCoinSprite(set.Ui);
             BuildIconSprites(set.Ui);
@@ -717,6 +737,8 @@ namespace Zonk.Editor.Setup
                 Gift(coins, 100), new CurrencyReward { Currency = energy, Amount = 1 });
             Quest("shop", QuestPeriod.Daily, "quest.shopAcquire", 0.4f,
                 new CustomEventGoal { Target = 1, Tag = Zonk.Progress.ShopService.AcquiredTag }, Gift(coins, 60));
+            Quest("manual_roll", QuestPeriod.Daily, "quest.manualRoll", 0.6f,
+                new CustomEventGoal { Target = 10, Tag = Zonk.MatchFlow.MatchRunner.ManualRollTag }, Gift(coins, 50));
             // «Победите с костью …»: одна группа, вес каждого мал — вся группа выпадает примерно как одно обычное задание.
             foreach (var die in specialDice)
             {

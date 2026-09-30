@@ -124,7 +124,7 @@ namespace Zonk.Editor.Setup
         private static SettingsWindow BuildSettings(RectTransform root)
         {
             Dim(root, 0.55f);
-            var panel = CenterPanel(root, new Vector2(640f, 680f));
+            var panel = CenterPanel(root, new Vector2(640f, 770f));
             var column = Column(panel, 18, 32);
             var title = Text("Title", column, _ui.BoldFont, 44, _ui.Palette.Gold);
             Height(title, 80);
@@ -135,12 +135,13 @@ namespace Zonk.Editor.Setup
             var sound = ButtonView("Sound", column, 28, _ui.Palette.Button);
             var music = ButtonView("Music", column, 28, _ui.Palette.Button);
             var speed = ButtonView("Speed", column, 28, _ui.Palette.Button);
+            var vibration = ButtonView("Vibration", column, 28, _ui.Palette.Button);
             var back = ButtonView("Back", column, 28, _ui.Palette.ButtonMuted);
-            foreach (var button in new[] { sound, music, speed, back })
+            foreach (var button in new[] { sound, music, speed, vibration, back })
                 Height(button, 72);
 
             var window = root.gameObject.AddComponent<SettingsWindow>();
-            window.EditorSetup(title, sound, music, speed, back, language);
+            window.EditorSetup(title, sound, music, speed, back, language, vibration);
             return window;
         }
 

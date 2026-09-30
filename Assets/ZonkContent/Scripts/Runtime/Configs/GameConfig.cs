@@ -105,6 +105,12 @@ namespace Zonk.Configs
         [Tooltip("Стиль броска по умолчанию: тряска и высыпание")]
         public RollStyleConfig RollStyle;
 
+        [Tooltip("Бросок своей рукой: игрок трясёт стакан и толкает его к столу")]
+        public ManualRollConfig ManualRoll;
+
+        [Tooltip("Ощущение партии: всплывающие очки, накрутка счёта, замедление, искры, пыль, вибрация")]
+        public MatchFeelConfig Feel;
+
         [Header("Анимация")]
         public float SettleDuration = 0.35f;
         public float KeepDuration = 0.3f;

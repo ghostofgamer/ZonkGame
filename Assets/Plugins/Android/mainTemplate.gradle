@@ -6,9 +6,11 @@ apply from: '../shared/common.gradle'
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 // Android Resolver Dependencies Start
+    implementation 'androidx.annotation:annotation:1.7.1' // Packages/io.appmetrica.analytics/Editor/AppMetricaDependencies.xml:5
     implementation 'androidx.lifecycle:lifecycle-process:2.4.1' // Packages/com.yandex.mobileads/Assets/YandexMobileAds/Editor/YandexMobileadsDependencies.xml:12
     implementation 'com.yandex.android:mobileads:8.4.0' // Packages/com.yandex.mobileads/Assets/YandexMobileAds/Editor/YandexMobileadsDependencies.xml:7
-    implementation 'io.appmetrica.analytics:analytics:8.0.0' // Packages/com.yandex.mobileads/Assets/YandexMobileAds/Editor/YandexMobileadsDependencies.xml:17
+    // implementation 'io.appmetrica.analytics:analytics:8.0.0' // Packages/com.yandex.mobileads/Assets/YandexMobileAds/Editor/YandexMobileadsDependencies.xml:17
+    implementation 'io.appmetrica.analytics:analytics:8.4.1' // Packages/io.appmetrica.analytics/Editor/AppMetricaDependencies.xml:4
 // Android Resolver Dependencies End
 **DEPS**}
 

@@ -107,6 +107,9 @@ namespace Zonk.Progress
         /// <summary>Скорость анимаций: 1 = обычная, 2 = быстрая.</summary>
         public int Speed = 1;
 
+        /// <summary>Вибрация телефона (там, где она есть: Android).</summary>
+        public bool Vibration = true;
+
         /// <summary>Язык, выбранный игроком в настройках (код ISO 639-1). Пусто — язык площадки.</summary>
         public string Language;
     }

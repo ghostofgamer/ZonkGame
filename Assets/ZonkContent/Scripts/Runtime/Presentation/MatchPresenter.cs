@@ -8,6 +8,7 @@ using Zonk.Core.Match;
 using Zonk.MatchFlow;
 using Zonk.Progress;
 using Zonk.Utils;
+using Base.Services.Haptics;
 
 namespace Zonk.Presentation
 {
@@ -16,7 +17,7 @@ namespace Zonk.Presentation
     /// физики и ложатся рядом, отложенные уезжают к игроку. Все шаги — UniTask, их ждёт MatchRunner.
     /// Скорость анимаций берётся из настроек игрока.
     /// </summary>
-    public sealed class MatchPresenter : IDisposable
+    public sealed partial class MatchPresenter : IDisposable
     {
         private const float ClackCooldown = 0.05f;
 
@@ -41,11 +42,12 @@ namespace Zonk.Presentation
         private Vector3 _gripOffset;
         private float _gripHeight = 0.4f;
 
-        public MatchPresenter(TableView table, GameConfig config, IGameSettings settings)
+        public MatchPresenter(TableView table, GameConfig config, IGameSettings settings, IHapticsService haptics)
         {
             _table = table;
             _config = config;
             _settings = settings;
+            _haptics = haptics;
             _simulator = new DiceRollSimulator(table.Tray);
 
             // Размер костей на столе — из конфига: модель одна, масштаб и физика подстраиваются.
@@ -58,6 +60,7 @@ namespace Zonk.Presentation
         public void Dispose()
         {
             _table.Opponent.TableImpact -= OnTableImpact;
+            StopCupDice(false);
             _simulator.Dispose();
         }
 
@@ -72,15 +75,12 @@ namespace Zonk.Presentation
             Dice.ClearSelection(false);
             Dice.SetVisible(false);
 
-            for (var i = 0; i < participants.Count && i < 2; i++)
-            {
-                var cup = participants[i].Cup;
-                if (cup != null)
-                    _table.SeatOf(i).CupAnchor.Show(cup, cup.Slot != null ? cup.Slot.DefaultItem : null);
+            // Первый игрок — у камеры. В игре вдвоём места потом меняются каждый ход (SwapSeatsAsync).
+            _table.NearPlayer = 0;
+            _swapSeats = IsHotSeat(participants);
 
-                // Стакан мог остаться не на месте после прерванного показа: перед партией он всегда на столе.
-                CupOf(_table.SeatOf(i)).ReturnHome();
-            }
+            // Стакан мог остаться не на месте после прерванного показа: перед партией он всегда на столе.
+            ShowCups();
 
             var north = participants.Count > 1 ? participants[1] : null;
 
@@ -95,6 +95,17 @@ namespace Zonk.Presentation
 
         public void EndMatch()
         {
+            AbortManual();
+            StopCupDice(true);
+
+            // После игры вдвоём у камеры мог остаться второй игрок: меню и магазин показывают стакан первого.
+            if (_table.NearPlayer != 0)
+            {
+                _table.NearPlayer = 0;
+                ShowCups();
+            }
+
+            _swapSeats = false;
             Dice.DisableSelection();
             Dice.ClearSelection(false);
             Dice.SetVisible(false);
@@ -105,6 +116,9 @@ namespace Zonk.Presentation
 
         public async UniTask BeginTurnAsync(int player, CancellationToken ct)
         {
+            AbortManual();
+            StopCupDice(true);
+            SetCupContentsAll();
             var participant = _participants[player];
             Dice.SetSkin(participant.DiceSkin);
             Dice.SetLoadout(participant.Dice, participant.MasteryLevels, _config.MasteryLevels);
@@ -117,6 +131,36 @@ namespace Zonk.Presentation
             }
 
             await _table.Camera.MoveToAsync(CameraShots.Match, 0.5f / Speed, ct);
+
+            // Игра вдвоём: ходящий садится к камере — стаканы меняются местами на глазах у игроков.
+            if (_swapSeats && _table.NearPlayer != player)
+                await SwapSeatsAsync(player, ct);
+        }
+
+        /// <summary>
+        /// Игрок решил продолжить ход: оставшиеся в лотке кости запрыгивают обратно в стакан, камера переходит
+        /// в ракурс броска. Дальше — как в начале хода: «Бросить» или стакан своей рукой.
+        /// </summary>
+        public async UniTask PrepareNextRollAsync(ZonkMatch match, CancellationToken ct)
+        {
+            var seat = _table.SeatOf(match.CurrentPlayerIndex);
+            SetCupContents(match);
+            var onTable = _onTable;
+            onTable.Clear();
+            for (var slot = 0; slot < Dice.Dice.Count; slot++)
+            {
+                if (match.IsInHand(slot) && Dice[slot].gameObject.activeSelf)
+                    onTable.Add(slot);
+            }
+
+            var camera = _table.Camera.MoveToAsync(CameraShots.Match, 0.45f / Speed, ct);
+            if (onTable.Count > 0)
+            {
+                _table.Sound.Play(Sfx.DiceKeep, 0.6f);
+                await HideDiceAsync(onTable, CupOf(seat).Mouth.position, ct);
+            }
+
+            await camera;
         }
 
         public async UniTask PlayRollAsync(RollOutcome roll, CancellationToken ct)
@@ -129,7 +173,10 @@ namespace Zonk.Presentation
             var cupLocalPosition = cup.HomeLocalPosition;
             var cupLocalRotation = cup.HomeLocalRotation;
 
-            var cameraMove = _table.Camera.MoveToAsync(CameraShots.Match, 0.4f / Speed, ct);
+            // Бросок своей рукой: стакан уже в руке игрока, камера остаётся там, где он его взял.
+            var manual = _manualActive && _manualPlayer == roll.Player;
+            LastRollManual = manual;
+            var cameraMove = manual ? UniTask.CompletedTask : _table.Camera.MoveToAsync(CameraShots.Match, 0.4f / Speed, ct);
 
             // Стиль броска участника: у соперника может быть свой. Значения случайны в пределах стиля, броски не повторяются.
             var styleConfig = PickStyle(_participants[roll.Player]);
@@ -142,7 +189,7 @@ namespace Zonk.Presentation
                 onTable.Clear();
                 foreach (var slot in roll.RolledDice)
                 {
-                    if (Dice[slot].gameObject.activeSelf)
+                    if (Dice[slot].gameObject.activeSelf && !IsInCup(slot))
                         onTable.Add(slot);
                 }
 
@@ -152,19 +199,35 @@ namespace Zonk.Presentation
                     await HideDiceAsync(onTable, cup.Mouth.position, ct);
                 }
 
-                // Рука берёт стакан и несёт его к краю лотка.
-                await GrabCupAsync(hand, cup, 0.25f / Speed, ct);
-                await MoveCupToAsync(hand, cup, seat.ShakePoint.position, 0.3f / Speed, ct);
-                await cameraMove;
+                Vector3 direction;
+                if (manual)
+                {
+                    // Игрок трясёт стакан сам: ждём, пока отпустит, и бросаем в сторону толчка.
+                    direction = await ManualThrowAsync(hand, style, ct);
+                }
+                else
+                {
+                    // Рука берёт стакан и несёт его к краю лотка.
+                    SetCupContents(roll.RolledDice);
+                    await GrabCupAsync(hand, cup, 0.25f / Speed, ct);
+                    StartCupDice(cup);
+                    await MoveCupToAsync(hand, cup, seat.ShakePoint.position, 0.3f / Speed, ct);
+                    await cameraMove;
 
-                _table.Sound.Play(Sfx.DiceRattle, 0.8f);
-                await hand.ShakeAsync(style.ShakeDuration / Speed, style.ShakeAmplitude, style.ShakeFrequency, style.ShakeTilt,
-                    (float)_visualRandom.NextDouble() * 10f, ct);
+                    _table.Sound.Play(Sfx.DiceRattle, 0.8f);
+                    await hand.ShakeAsync(style.ShakeDuration / Speed, style.ShakeAmplitude, style.ShakeFrequency, style.ShakeTilt,
+                        (float)_visualRandom.NextDouble() * 10f, ct);
 
-                // Замах к себе, пауза, рывок вперёд с опрокидыванием: кости вылетают в конце рывка.
-                var direction = await WindUpAndSwingAsync(hand, seat, style, Speed, ct);
+                    // Замах к себе, пауза, рывок вперёд с опрокидыванием: кости вылетают в конце рывка.
+                    direction = await WindUpAndSwingAsync(hand, seat, style, Speed, ct);
+                }
 
-                var recording = _simulator.Simulate(roll.RolledDice.Count, cup.Mouth.position, direction, _visualRandom, style);
+                // Кости из стакана переходят в запись броска: вылетают из горла.
+                StopCupDice(false);
+
+                // Кости вылетают из горла стакана. Свой стакан игрок мог увести к краю: тогда кости всё равно внутри лотка.
+                var origin = manual ? ClampToTray(cup.Mouth.position, _table.Tray.DieSize) : cup.Mouth.position;
+                var recording = _simulator.Simulate(roll.RolledDice.Count, origin, direction, _visualRandom, style);
                 for (var i = 0; i < roll.RolledDice.Count; i++)
                 {
                     var die = Dice[roll.RolledDice[i]];
@@ -176,11 +239,14 @@ namespace Zonk.Presentation
 
                 var returnCup = ReturnCupAsync(hand, cupTransform, cupParent, cupLocalPosition, cupLocalRotation,
                     direction * style.FollowThrough, ct);
-                await PlaybackAsync(recording, roll.RolledDice, ct);
+                await PlaybackAsync(recording, roll.RolledDice, IsLocal(roll.Player), ct);
                 await returnCup;
             }
             finally
             {
+                _manualActive = false;
+                StopCupDice(true);
+
                 // Партию могли прервать посреди броска: стакан возвращается на место, рука в исходную позу.
                 if (cup != null && !cup.IsHome)
                 {
@@ -294,12 +360,14 @@ namespace Zonk.Presentation
             cup.localRotation = localRotation;
         }
 
-        private async UniTask PlaybackAsync(RollRecording recording, IReadOnlyList<int> slots, CancellationToken ct)
+        private async UniTask PlaybackAsync(RollRecording recording, IReadOnlyList<int> slots, bool local, CancellationToken ct)
         {
             var time = 0f;
             var lastClack = -1f;
             var duration = recording.Duration;
             var previousFrame = 0;
+            var feel = Feel;
+            SlowMoWindow(recording, slots.Count, out var slowFrom, out var slowTo);
 
             while (time < duration)
             {
@@ -314,16 +382,25 @@ namespace Zonk.Presentation
                     var rotation = Quaternion.Slerp(recording.Rotations[i][frame], recording.Rotations[i][next], t);
                     Dice[slots[i]].transform.SetPositionAndRotation(position, rotation);
 
-                    if (frame > previousFrame && time - lastClack > ClackCooldown && IsImpact(recording, i, frame))
+                    if (frame > previousFrame && IsImpact(recording, i, frame))
                     {
-                        _table.Sound.Play(Sfx.DiceClack, 0.5f, 0.2f);
-                        lastClack = time;
+                        // Удар о стол: стук, пыль по силе удара, у своего броска — лёгкая вибрация.
+                        if (time - lastClack > ClackCooldown)
+                        {
+                            _table.Sound.Play(Sfx.DiceClack, 0.5f, 0.2f);
+                            lastClack = time;
+                            if (local)
+                                Haptic(feel.HapticDiceLand);
+                        }
+
+                        DustAt(position, FallSpeed(recording, i, frame));
                     }
                 }
 
                 previousFrame = frame;
                 await UniTask.Yield(PlayerLoopTiming.Update, ct);
-                time += Time.deltaTime * Speed;
+                var slow = time >= slowFrom && time < slowTo ? feel.SlowMoFactor : 1f;
+                time += Time.deltaTime * Speed * slow;
             }
 
             for (var i = 0; i < slots.Count; i++)
@@ -509,9 +586,23 @@ namespace Zonk.Presentation
             _table.Sound.Play(Sfx.DiceKeep);
             await UniTask.WhenAll(moves);
 
+            var feel = Feel;
+            var local = IsLocal(keep.Player);
+            if (local)
+                Haptic(keep.HotDice ? feel.HapticHotDice : feel.HapticKeep);
+
+            // Крупная комбинация искрит у отложенных костей.
+            if (!keep.HotDice && keep.Score != null && keep.Score.Score >= _config.BigKeepScore)
+                SparksAt(keep.KeptDice, feel.BigKeepSparks);
+
             if (keep.HotDice)
             {
+                // Горячие кости: все шесть искрят, камеру встряхивает, затем кости летят обратно в стакан.
                 _table.Sound.Play(Sfx.HotDice);
+                SparksAt(_keptOrder, feel.HotDiceSparks);
+                if (feel.HotDiceCameraShake.x > 0f)
+                    _table.Camera.Shake(feel.HotDiceCameraShake.x, feel.HotDiceCameraShake.y);
+                await UniTask.Delay(TimeSpan.FromSeconds(0.3f / Speed), cancellationToken: ct);
                 await HideDiceAsync(_keptOrder, CupOf(seat).Mouth.position, ct);
                 _keptOrder.Clear();
             }
@@ -521,6 +612,8 @@ namespace Zonk.Presentation
         {
             _table.Sound.Play(Sfx.Zonk);
             _table.Camera.Shake(0.05f, 0.35f);
+            if (IsLocal(player))
+                Haptic(Feel.HapticZonk);
             foreach (var die in Dice.Dice)
             {
                 if (die.gameObject.activeSelf && !_keptOrder.Contains(die.Slot))
@@ -534,6 +627,8 @@ namespace Zonk.Presentation
         public async UniTask PlayBankAsync(int player, CancellationToken ct)
         {
             _table.Sound.Play(Sfx.Bank);
+            if (IsLocal(player))
+                Haptic(Feel.HapticBank);
             await UniTask.Delay(TimeSpan.FromSeconds(0.3f / Speed), cancellationToken: ct);
             await CollectAsync(player, ct);
         }
@@ -575,23 +670,35 @@ namespace Zonk.Presentation
             await _table.Camera.MoveToAsync(CameraShots.Opponent, 0.8f, ct);
         }
 
-        /// <summary>Подсветка костей, которые не входят ни в одну комбинацию: подсказка новичку.</summary>
+        /// <summary>
+        /// Кости, которые не входят ни в одну комбинацию, приглушаются (серые и тёмные) — подсказка новичку.
+        /// Обесцвечивание, а не только затемнение: на цветных скинах (у второго игрока в игре вдвоём) иначе не видно.
+        /// </summary>
         public void HighlightScoringDice(ZonkMatch match)
         {
             var options = match.GetKeepOptions();
-            var useful = new bool[ZonkMatch.DiceCount];
+            var useful = _usefulDice;
+            System.Array.Clear(useful, 0, useful.Length);
             foreach (var option in options)
             {
                 foreach (var die in option.Dice)
                     useful[die] = true;
             }
 
+            var feel = Feel;
             foreach (var die in Dice.Dice)
             {
-                if (match.IsInHand(die.Slot) && match.Faces[die.Slot] > 0)
-                    die.SetTint(useful[die.Slot] ? Color.white : new Color(0.7f, 0.7f, 0.7f));
+                if (!match.IsInHand(die.Slot) || match.Faces[die.Slot] <= 0)
+                    continue;
+
+                if (useful[die.Slot])
+                    die.SetTint(Color.white);
+                else
+                    die.SetDimmed(feel.UnusedDiceBrightness, feel.UnusedDiceDesaturate);
             }
         }
+
+        private readonly bool[] _usefulDice = new bool[ZonkMatch.DiceCount];
 
         private void OnTableImpact()
         {

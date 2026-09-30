@@ -12,6 +12,9 @@ namespace Zonk.Progress
         /// <summary>Множитель скорости анимаций: 1 или 2.</summary>
         int Speed { get; set; }
 
+        /// <summary>Вибрация телефона. Где её нет (браузер), настройка не показывается.</summary>
+        bool Vibration { get; set; }
+
         /// <summary>Язык, выбранный игроком. Пусто — язык площадки (определяется при запуске).</summary>
         string Language { get; set; }
 
@@ -47,6 +50,12 @@ namespace Zonk.Progress
         {
             get => Data.Speed < 1 ? 1 : Data.Speed;
             set => Set(() => Data.Speed = value < 1 ? 1 : value > 3 ? 3 : value);
+        }
+
+        public bool Vibration
+        {
+            get => Data.Vibration;
+            set => Set(() => Data.Vibration = value);
         }
 
         public string Language

@@ -31,6 +31,10 @@ namespace Zonk.MatchFlow
         public CosmeticItemConfig DiceSkin;
         public CosmeticItemConfig Cup;
 
+        /// <summary>Вид руки (скин руки, позже — перчатки, часы, цепочки). null — рука по умолчанию. Рука следует за игроком,
+        /// а не за местом: в игре вдвоём у камеры рука того, кто ходит.</summary>
+        public CosmeticItemConfig HandSkin;
+
         /// <summary>Для ИИ: соперник кампании (аватар, реакции). null у людей.</summary>
         public OpponentConfig Opponent;
 

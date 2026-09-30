@@ -25,6 +25,8 @@ namespace Zonk.Configs
         OpponentTurn,
         /// <summary>Кто-то набрал цель: начался последний круг.</summary>
         FinalRound,
+        /// <summary>Ход игрока после первого: кости можно бросить своей рукой, потряся стакан.</summary>
+        ManualRoll,
     }
 
     [Serializable]

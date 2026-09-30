@@ -171,6 +171,9 @@ Toast и облачко реплики. Новое окно добавляетс
 - **Качество графики** игра получает только через `IQualityService` (уровни Low/Medium/High).
   Уровень выбирается по `IPlatformService.Device` и включает Quality Level Unity с тем же смыслом.
   Что меняется на уровне (URP-ассет, render scale, ужатие текстур), настраивается в Project Settings > Quality, не в коде.
+- **Аналитика только через `IAnalytics`** (`Base.Services.Analytics`): имя события — «папка» (категория), `Path` — вложенные
+  папки, `Param` — значения. Имена латиницей в snake_case, в значениях ID контента. Прямые вызовы AppMetrica из игры запрещены.
+  События редкие и значимые (не каждый кадр и не каждый бросок).
 - **Сохранение только через `ISaveStore`**, не через `ICloudSaveService` напрямую. Каждая система игры берёт свой раздел
   (`Get<T>(key)`, `[Serializable]`-класс для JsonUtility). Переименовать или перенести поле раздела можно только
   вместе с новой `ISaveMigration` (FromVersion = текущая версия раздела). Старые миграции не удалять.
@@ -194,6 +197,8 @@ Assets/
     Services/             Base.Services.asmdef   общий слой игры поверх площадки; ссылается на Core и Abstractions
       Debugging/PlatformTestPanel.cs  отладочная панель: кнопка на каждый метод платформенных интерфейсов, UI строится в коде
       Quality/              IQualityService, QualityService, QualityTier: уровень качества по типу устройства
+      Haptics/              IHapticsService, HapticsService: короткая вибрация (Android); в браузере и редакторе недоступна
+      Analytics/            IAnalytics, Analytics, AnalyticsEvent: события по «папкам» (имя события → Path → Param) поверх IAnalyticsService
       Texts/                TextAssetLocalizationSource: CSV-файл игры как источник ILocalization
       Saves/                ISaveStore, SaveStore, ISaveMigration: сохранение по разделам с версиями поверх ICloudSaveService
       Monetization/         MonetizationConfig    товары, частота рекламы, правила наград: правится в каждой игре
@@ -210,6 +215,7 @@ Assets/
                             IPurchaseService     каталог, покупка, pending-покупки, consume
                             ICloudSaveService    один JSON-блоб на игрока
                             ILeaderboardService  submit, top, запись игрока
+                            IAnalyticsService    события и свойства игрока (RuStore — AppMetrica, остальные — заглушка)
                             DeviceKind, DeviceKinds  тип устройства и запасное определение через Unity
                             PlatformId, PlatformDefines
       Stub/               Base.Platform.Stub.asmdef     заглушки: редактор и билды без SDK (PlayerPrefs, мгновенный успех)
@@ -229,6 +235,8 @@ Assets/
       RuStore/            Base.Platform.RuStore.asmdef  define BASE_RUSTORE, платформы Android+Editor
                             RuStoreAdsService    Яндекс Реклама (пакет com.yandex.mobileads), предзагрузка обоих форматов
                             RuStoreAdUnits       идентификаторы рекламных блоков (сейчас демо)
+                            RuStoreAppMetrica    запуск AppMetrica до первой сцены, API key приложения
+                            RuStoreAnalyticsService  события и свойства игрока в AppMetrica
                             RuStoreLinker.xml    защита сборок Яндекса от стриппинга, только в Android-сборке
         Plugins/Android/    .aar SDK RuStore, когда понадобятся (пока пусто)
       Installers/         Base.Platform.Installers.asmdef
@@ -265,8 +273,10 @@ Assets/
   link.xml                защита сборок Base.* и UniTask от стриппинга
   ZonkContent/           всё своё у игры: Scripts, Configs, Localization, Art, Prefabs, Scenes (см. «Рамки работы в игре»)
 Tools/Blender/            zonk_models.py: кость и стаканы скриптом Blender
-Packages/manifest.json    UniTask (git), com.yandex.mobileads 8.4.0 (OpenUPM, тянет EDM4U). Zenject не здесь, а в Assets
-                          из Asset Store. Реестр OpenUPM ограничен scope-ами com.yandex.mobileads и com.google.external-dependency-manager
+Packages/manifest.json    все сторонние пакеты — через git с тегом версии (без реестров): UniTask 2.5.11, com.yandex.mobileads 8.4.0,
+                          адаптер AdRevenue 1.0.0, io.appmetrica.analytics 6.10.0, EDM4U 1.2.189. Git-пакеты Unity 6.3 не проверяет
+                          на подпись, поэтому нет предупреждений «Signature: Missing». Обновление — сменой тега. Zenject не здесь, а в Assets
+                          из Asset Store
 vk-hosting-config.json    выкладка Builds/VKGames на хостинг VK, ID игры
 ```
 
