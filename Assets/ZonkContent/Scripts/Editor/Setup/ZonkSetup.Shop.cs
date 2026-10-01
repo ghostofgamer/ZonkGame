@@ -13,6 +13,18 @@ namespace Zonk.Editor.Setup
     /// </summary>
     public static partial class ZonkSetup
     {
+        /// <summary>Предметы магазина из стаканов zonk_cups.py: ID предмета → префаб. Порядок — порядок во вкладке.</summary>
+        private static readonly (string Id, string Prefab)[] GeneratedCupItems =
+        {
+            ("cup_barrel", "Cup_Barrel"),
+            ("cup_clay", "Cup_Clay"),
+            ("cup_coconut", "Cup_Coconut"),
+            ("cup_stone", "Cup_Stone"),
+            ("cup_bone", "Cup_Bone"),
+            ("cup_goblet", "Cup_Goblet"),
+            ("cup_copper", "Cup_Copper"),
+        };
+
         private static void BuildShopCatalog(CurrencyConfig coins, CurrencyConfig energy, DieConfig lucky)
         {
             var envSlot = SlotAt("environment");
@@ -35,10 +47,16 @@ namespace Zonk.Editor.Setup
             Item("felt_teal", traySlot, 5, new MaterialPayload { Material = ShopMat("Felt_Teal", new Color(0.08f, 0.38f, 0.4f), 0.05f) });
             Item("felt_gold", traySlot, 6, new MaterialPayload { Material = ShopMat("Felt_Gold", new Color(0.7f, 0.52f, 0.15f), 0.3f, 0.4f) });
 
-            Item("cup_silver", cupSlot, 3, new MaterialPayload { Material = ShopMat("Cup_Silver", new Color(0.8f, 0.82f, 0.86f), 0.8f, 0.9f) });
-            Item("cup_ruby", cupSlot, 4, new MaterialPayload { Material = ShopMat("Cup_Ruby", new Color(0.6f, 0.05f, 0.1f), 0.85f, 0.1f) });
-            Item("cup_bronze", cupSlot, 5, new MaterialPayload { Material = ShopMat("Cup_Bronze", new Color(0.62f, 0.4f, 0.2f), 0.6f, 0.8f) });
-            Item("cup_jade", cupSlot, 6, new MaterialPayload { Material = ShopMat("Cup_Jade", new Color(0.3f, 0.65f, 0.45f), 0.8f, 0.1f) });
+            // Стаканы — свои модели (Tools/Blender/zonk_cups.py, префабы из BuildArt). Перекраски кожаного стакана
+            // (серебро, рубин, бронза, нефрит) заменены ими 01.10.2026: их ассеты удалены, сюда не возвращать.
+            var cupOrder = 3;
+            foreach (var (id, prefabName) in GeneratedCupItems)
+            {
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Prefabs + "/Cups/" + prefabName + ".prefab");
+                if (prefab != null)
+                    Item(id, cupSlot, cupOrder, new PrefabPayload { Prefab = prefab });
+                cupOrder++;
+            }
 
             var skinSlot = SlotAt("dice_skin");
             Item("skin_pearl", skinSlot, 6, new MeshMaterialPayload

@@ -17,7 +17,7 @@ namespace Zonk.Editor.Setup
     /// </summary>
     public static partial class ZonkSetup
     {
-        private const int ShopLayoutVersion = 3;
+        private const int ShopLayoutVersion = 4;
 
         private enum Buy
         {
@@ -73,6 +73,16 @@ namespace Zonk.Editor.Setup
             ("theme_pirate", Buy.Purchase, 0),
         };
 
+        /// <summary>
+        /// v4 (01.10.2026): вкладка «Стакан» — свои модели вместо перекрасок, 3 / 3 / 3. Базовый — кожаный.
+        /// </summary>
+        private static readonly (string id, Buy how, int value)[] ShopLayoutV4 =
+        {
+            ("cup_wood", Buy.Coins, 1200), ("cup_barrel", Buy.Coins, 2500), ("cup_clay", Buy.Coins, 3500),
+            ("cup_coconut", Buy.Ads, 5), ("cup_stone", Buy.Ads, 6), ("cup_bone", Buy.Ads, 6),
+            ("cup_gold", Buy.Purchase, 0), ("cup_goblet", Buy.Purchase, 0), ("cup_copper", Buy.Purchase, 0),
+        };
+
         /// <summary>Только награды боссов: цена за монеты или деньги снимается, подсказка остаётся.</summary>
         private static readonly string[] BossOnlyV3 = { "roll_granny", "roll_pirate" };
 
@@ -86,8 +96,37 @@ namespace Zonk.Editor.Setup
                     content[asset.Id] = asset;
             }
 
-            var firstTime = config.ShopLayoutVersion < ShopLayoutVersion;
-            foreach (var (id, how, value) in ShopLayoutV3)
+            // Таблицы по порядку версий: каждая применяется ко всем своим предметам один раз, к бесплатным — всегда.
+            var firstTime = config.ShopLayoutVersion < 3;
+            ApplyLayoutTable(ShopLayoutV3, firstTime, content, coins);
+            var firstTimeV4 = config.ShopLayoutVersion < 4;
+            ApplyLayoutTable(ShopLayoutV4, firstTimeV4, content, coins);
+
+            if (firstTime)
+            {
+                foreach (var id in BossOnlyV3)
+                {
+                    if (content.TryGetValue(id, out var item) && Pricing.PriceOf(item) is Price price)
+                        SetSinglePrice(item, price, null);
+                }
+
+                Debug.Log("[Setup] Shop layout v3 applied: one way to get each item, 2 / 2 / 2 per tab");
+            }
+
+            if (firstTimeV4)
+                Debug.Log("[Setup] Shop layout v4 applied: cup tab — own models, 3 / 3 / 3");
+
+            if (config.ShopLayoutVersion < ShopLayoutVersion)
+            {
+                config.ShopLayoutVersion = ShopLayoutVersion;
+                EditorUtility.SetDirty(config);
+            }
+        }
+
+        private static void ApplyLayoutTable((string id, Buy how, int value)[] table, bool firstTime,
+            Dictionary<string, ContentConfig> content, CurrencyConfig coins)
+        {
+            foreach (var (id, how, value) in table)
             {
                 if (!content.TryGetValue(id, out var item))
                     continue;
@@ -102,19 +141,6 @@ namespace Zonk.Editor.Setup
                     Buy.Ads => new RewardedAdPriceOption { AdsRequired = value },
                     _ => (PriceOption)new PurchasePriceOption { ProductId = id },
                 });
-            }
-
-            if (firstTime)
-            {
-                foreach (var id in BossOnlyV3)
-                {
-                    if (content.TryGetValue(id, out var item) && Pricing.PriceOf(item) is Price price)
-                        SetSinglePrice(item, price, null);
-                }
-
-                config.ShopLayoutVersion = ShopLayoutVersion;
-                EditorUtility.SetDirty(config);
-                Debug.Log("[Setup] Shop layout v3 applied: one way to get each item, 2 / 2 / 2 per tab");
             }
         }
 

@@ -10,27 +10,34 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3758024ff1cf4ad4caa14cc6c86d79b3, type: 3}
-  m_Name: cup_jade
+  m_Name: cup_stone
   m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticItemConfig
-  Id: cup_jade
-  NameKey: item.cup_jade
+  Id: cup_stone
+  NameKey: item.cup_stone
   Slot: {fileID: 11400000, guid: bb6bca31cc0ddd449a6b22ba768c8092, type: 2}
   Icon: {fileID: 0}
   Order: 6
   Payload:
-    rid: 4243792294545719638
+    rid: 1889488772338024762
   Price:
     Options:
-    - rid: 4243792294545719651
+    - rid: 1889488772338024774
   HiddenInShop: 0
   references:
     version: 2
     RefIds:
-    - rid: 4243792294545719638
-      type: {class: MaterialPayload, ns: Zonk.Configs, asm: Zonk}
+    - rid: 1889488772338024762
+      type: {class: PrefabPayload, ns: Zonk.Configs, asm: Zonk}
       data:
-        Material: {fileID: 2100000, guid: 7343777104ea3244e81f3722c666a90b, type: 2}
-    - rid: 4243792294545719651
+        Asset:
+          m_AssetGUID: 0bb85f726c04fb34896d84c1b8d4c2d9
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_SubObjectGUID: 
+          m_EditorAssetChanged: 0
+        Prefab: {fileID: 0}
+        Lighting: {fileID: 0}
+    - rid: 1889488772338024774
       type: {class: RewardedAdPriceOption, ns: Zonk.Configs, asm: Zonk}
       data:
-        AdsRequired: 5
+        AdsRequired: 6

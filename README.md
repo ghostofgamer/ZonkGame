@@ -1451,3 +1451,23 @@ analytics.SetUserProperty("chapter", 3);   // свойство игрока: с�
   не объявляет). У Toon свечение есть всегда: метки особых костей (`_EmissionColor` в `DieView`) светятся у всех скинов,
   теперь и у четырёх «грозных» (на Lit у них ключа не было). Проверка теперь смотрит, объявляет ли шейдер
   материала ключ `_EMISSION` (`ContentValidator.HasEmission`): ложных предупреждений нет, на Lit проверка как раньше.
+
+### 2026-10-01 (магазин: свои стаканы вместо перекрасок)
+
+- Вкладка «Стакан» — 7 своих моделей (`zonk_cups.py`) вместо перекрасок кожаного стакана; раскладка 3 / 3 / 3
+  (`ZonkSetup.ShopLayoutV4`, применяется один раз; v3 не тронута). Базовый — кожаный.
+  | Способ | Предметы |
+  |---|---|
+  | Монеты | деревянный 1200, бочонок `cup_barrel` 2500, глиняный `cup_clay` 3500 |
+  | Реклама | кокосовый `cup_coconut` 5, каменный `cup_stone` 6, костяной `cup_bone` 6 |
+  | Покупка | золотой `cup_gold`, кубок `cup_goblet`, медный `cup_copper` |
+- Удалены предметы `cup_silver`, `cup_ruby`, `cup_bronze`, `cup_jade` и их материалы (ссылок не было, игра не выпущена);
+  генератор их больше не создаёт. Предметы новых стаканов создаёт `BuildShopCatalog` (`GeneratedCupItems`),
+  модели грузятся по требованию (Addressables). Названия `item.cup_*` — на 7 языках в `Texts.csv`
+  (Google Таблица пока не подключена — `TextsSheet.PublishedCsvUrl` пуст, источник текстов сейчас сам CSV;
+  при подключении таблицы загрузить в неё весь `Texts.csv`).
+- Товары за деньги для консолей площадок (заменяет прежний список): постоянные — `no_ads`, `starter_pack`,
+  `dice_pack_all`, `theme_pirate`, `env_beach`, `env_ship`, `table_royal`, `table_gold`, `felt_royal`, `felt_gold`,
+  `cup_gold`, `cup_goblet`, `cup_copper`, `skin_gold`, `skin_emerald`, `lamp_crystal`, `lamp_cage`, `roll_royal`,
+  `roll_storm`, `die_sixes`, `die_lucky`, `die_sharper`; расходуемые — `coins_small`, `coins_medium`, `coins_large`.
+- Нужно: `Zonk/Setup/Build Everything`, затем `Zonk/Content/Validate` и `Zonk/Economy Report` (цены стаканов изменились).

@@ -10,27 +10,34 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3758024ff1cf4ad4caa14cc6c86d79b3, type: 3}
-  m_Name: cup_gold
+  m_Name: cup_goblet
   m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticItemConfig
-  Id: cup_gold
-  NameKey: item.cup_gold
+  Id: cup_goblet
+  NameKey: item.cup_goblet
   Slot: {fileID: 11400000, guid: bb6bca31cc0ddd449a6b22ba768c8092, type: 2}
   Icon: {fileID: 0}
-  Order: 2
+  Order: 8
   Payload:
-    rid: 4243792291812082093
+    rid: 1889488772338024764
   Price:
     Options:
-    - rid: 1889488772338024770
+    - rid: 1889488772338024771
   HiddenInShop: 0
   references:
     version: 2
     RefIds:
-    - rid: 1889488772338024770
+    - rid: 1889488772338024764
+      type: {class: PrefabPayload, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Asset:
+          m_AssetGUID: fbe8dddd84216d64592f044db7b510a9
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_SubObjectGUID: 
+          m_EditorAssetChanged: 0
+        Prefab: {fileID: 0}
+        Lighting: {fileID: 0}
+    - rid: 1889488772338024771
       type: {class: PurchasePriceOption, ns: Zonk.Configs, asm: Zonk}
       data:
-        ProductId: cup_gold
-    - rid: 4243792291812082093
-      type: {class: MaterialPayload, ns: Zonk.Configs, asm: Zonk}
-      data:
-        Material: {fileID: 2100000, guid: 66ffc07c7fdd1ee42965307ede856cb2, type: 2}
+        ProductId: cup_goblet
