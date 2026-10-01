@@ -41,7 +41,7 @@ Assets/ZonkContent/
     Tests/         Zonk.Tests.asmdef: EditMode-тесты
   Configs/<вид>/   ассеты-конфиги: подпапка на каждый вид (Dice, Cosmetics/Slots, Cosmetics/Items, Opponents, Ai, ...)
   Localization/    Texts.csv (все языки) и TextsSheet.asset (ссылка на Google Таблицу)
-  Art/             Models, Textures, Materials, Fonts, Sprites, Audio
+  Art/             Models, Textures, Materials, Shaders (Zonk/Toon), Fonts, Sprites, Audio
   Prefabs/<вид>/   одна папка префабов, внутри по видам: Dice, Cups, Table, Lamps, Environments, Accessories, UI, Characters
   Scenes/          Bootstrap (первая в сборке), Table
 Tools/Blender/     скрипты моделей (Blender в фоне), выход в ZonkContent/Art
@@ -69,7 +69,11 @@ Tools/Blender/     скрипты моделей (Blender в фоне), выхо
 - Контент — `ContentConfig` со строковым `Id` (в сохранении только ID, после выпуска не менять).
   Реестр `ContentDatabase` собирается сам, ассеты подхватываются из `ZonkContent`.
 - Общие настройки — `GameConfig`. Конфиги лежат в `ZonkContent/Configs`, **не в `Resources`**
-  (Resources целиком грузится в сборку и в память). Тяжёлое (окна UI, локации) — по требованию.
+  (Resources целиком грузится в сборку и в память). Тяжёлое — по требованию (Addressables):
+  модели предметов стола (локации, столы, стаканы, лампы) — `PrefabPayload.Asset`, грузит `CosmeticAssets` (Acquire/Release),
+  каждый предмет своим пакетом (группа `Zonk Cosmetics`). Генератор переводит прямые ссылки `PrefabPayload.Prefab` сам,
+  валидатор предупреждает о прямых. Нужное сразу (стаканы партии) держать заранее (`MatchPresenter.PreloadCupsAsync`).
+  Окна UI пока прямыми ссылками: лёгкие, а их шрифты и значки иначе копировались бы в каждый пакет.
 
 **Расширяемость.** Новое добавляется, а не переписывается.
 - Контент добавляется ассетом без кода: кость, скин, предмет, слот косметики, соперник, грозная версия босса, глава, фраза, режим.
@@ -94,6 +98,13 @@ Tools/Blender/     скрипты моделей (Blender в фоне), выхо
 Источники света — `Light` в префабах с компонентом `SceneLight`. Для телефонов и браузера: у ламп и огней теней нет
 (узор — cookie), тени только от солнца с Medium, постобработка выключена (включается в профиле с уровня High),
 1–3 источника на сцену. Новый эффект атмосферы — наследник `AtmosphereEffect`, ужимается по уровню качества.
+
+**Стиль: комикс.** Все непрозрачные объекты — шейдер `Zonk/Toon` (`Art/Shaders`): ступени света, растр точками в тенях,
+кромка, резкий блик, контур. Всё считается в материале, без постобработки. Настройки — `ToonStyleConfig`
+(`GameConfig.ToonStyle`, у локации свой — `LightingProfileConfig.ToonStyle`), выставляет `ToonStyleService` глобально.
+Материал задаёт только `_OutlineScale` и `_RimScale` (большим плоскостям 0). Генератор переводит материалы `Art` на Toon
+сам (`Zonk/Art/Materials: URP Lit` — обратно). Текстуры под стиль — ровные цветовые пятна и тёмные линии, без мелкого шума.
+Текстуры игры импортируются через `ConfigureTexture` генератора: не больше нужного размера (стаканы 1024), Crunch, мип-уровни.
 
 **Модели.** Кость: грани 1 = +Y, 6 = −Y, 2 = +Z, 5 = −Z, 3 = +X, 4 = −X, UV-атлас 3×2 (сверху 1 2 3, снизу 4 5 6),
 точки в текстуре. Стакан: дочерний `Mouth` в горле. Заглушки из примитивов живут в префабах и заменяются в конфигах предметов.
@@ -274,9 +285,9 @@ Assets/
     SampleScene.unity     остаток шаблона URP
   link.xml                защита сборок Base.* и UniTask от стриппинга
   ZonkContent/           всё своё у игры: Scripts, Configs, Localization, Art, Prefabs, Scenes (см. «Рамки работы в игре»)
-Tools/Blender/            zonk_models.py: кость и стаканы скриптом Blender
+Tools/Blender/            zonk_models.py: кость и два первых стакана; zonk_cups.py: семь стаканов разной формы (Art/Models/Cups)
 Packages/manifest.json    все сторонние пакеты — через git с тегом версии (без реестров): UniTask 2.5.11, com.yandex.mobileads 8.4.0,
-                          адаптер AdRevenue 1.0.0, io.appmetrica.analytics 6.10.0, EDM4U 1.2.189. Git-пакеты Unity 6.3 не проверяет
+                          адаптер AdRevenue 1.0.0, io.appmetrica.analytics 6.10.0, EDM4U 1.2.189 (пакеты Unity — URP, Addressables 2.8.1 — из реестра Unity). Git-пакеты Unity 6.3 не проверяет
                           на подпись, поэтому нет предупреждений «Signature: Missing». Обновление — сменой тега. Zenject не здесь, а в Assets
                           из Asset Store
 vk-hosting-config.json    выкладка Builds/VKGames на хостинг VK, ID игры

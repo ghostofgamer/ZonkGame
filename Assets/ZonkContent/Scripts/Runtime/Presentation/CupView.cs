@@ -12,7 +12,15 @@ namespace Zonk.Presentation
     {
         public const string MouthName = "Mouth";
 
+        /// <summary>
+        /// Необязательный маркер внутренности: его высота — внутреннее дно, расстояние от оси — свободный радиус
+        /// для костей. Нужен стаканам с ручкой, ножкой или толстым дном; без него место считается по габаритам.
+        /// </summary>
+        public const string InsideName = "Inside";
+
         private Transform _mouth;
+        private Transform _inside;
+        private bool _insideSearched;
 
         public Transform Mouth
         {
@@ -21,6 +29,21 @@ namespace Zonk.Presentation
                 if (_mouth == null)
                     _mouth = FindDeep(transform, MouthName) ?? transform;
                 return _mouth;
+            }
+        }
+
+        /// <summary>Маркер внутренности или null.</summary>
+        public Transform Inside
+        {
+            get
+            {
+                if (!_insideSearched)
+                {
+                    _inside = FindDeep(transform, InsideName);
+                    _insideSearched = true;
+                }
+
+                return _inside;
             }
         }
 

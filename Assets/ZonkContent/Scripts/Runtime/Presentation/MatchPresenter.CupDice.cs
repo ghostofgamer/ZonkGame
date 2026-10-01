@@ -75,6 +75,15 @@ namespace Zonk.Presentation
             var size = _table.Tray.DieSize * scale;
             var radius = Mathf.Max(bounds.extents.x, bounds.extents.z) * feel.CupInnerRadius;
             var floor = height * feel.CupFloor + size * 0.6f;
+            var inside = cup.Inside;
+            if (inside != null)
+            {
+                // Место внутри задано маркером: дно и свободный радиус (ручки и ножки не в счёт).
+                var offset = inside.position - cupTransform.position;
+                var insideFloor = Vector3.Dot(offset, up);
+                radius = (offset - up * insideFloor).magnitude;
+                floor = insideFloor + size * 0.6f;
+            }
 
             // Раскладка по слоям: по три кости в слое, по кругу, с небольшим разбросом.
             _cupDiceCount = _cupSlotCount;

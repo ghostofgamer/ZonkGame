@@ -42,9 +42,13 @@ namespace Zonk.Presentation
         private Vector3 _gripOffset;
         private float _gripHeight = 0.4f;
 
-        public MatchPresenter(TableView table, GameConfig config, IGameSettings settings, IHapticsService haptics)
+        private readonly CosmeticAssets _assets;
+
+        public MatchPresenter(TableView table, GameConfig config, IGameSettings settings, IHapticsService haptics,
+            CosmeticAssets assets)
         {
             _table = table;
+            _assets = assets;
             _config = config;
             _settings = settings;
             _haptics = haptics;
@@ -61,6 +65,7 @@ namespace Zonk.Presentation
         {
             _table.Opponent.TableImpact -= OnTableImpact;
             StopCupDice(false);
+            ReleaseCups();
             _simulator.Dispose();
         }
 
@@ -105,6 +110,7 @@ namespace Zonk.Presentation
                 ShowCups();
             }
 
+            ReleaseCups();
             _swapSeats = false;
             Dice.DisableSelection();
             Dice.ClearSelection(false);

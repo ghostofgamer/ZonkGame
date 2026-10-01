@@ -74,6 +74,8 @@ namespace Zonk.MatchFlow
             using (var surrenderCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
             {
                 var token = surrenderCts.Token;
+                // Модели стаканов — заранее: в партии они ставятся сразу (префабы грузятся по требованию).
+                await _presenter.PreloadCupsAsync(participants, ct);
                 var hud = await _ui.OpenAsync<MatchHudWindow>(ct, w => w.Setup(phrases, participants));
                 hud.Refresh(match);
 

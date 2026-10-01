@@ -184,7 +184,9 @@ namespace Zonk.UI.Windows
             }
             finally
             {
-                RestoreEquipped();
+                // Отмена приходит только при выгрузке стола: сцена уничтожается, возвращать предметы некуда.
+                if (!ct.IsCancellationRequested)
+                    RestoreEquipped();
             }
         }
 
@@ -617,21 +619,36 @@ namespace Zonk.UI.Windows
             _previewCts?.Cancel();
             _previewCts?.Dispose();
             _previewCts = CancellationTokenSource.CreateLinkedTokenSource(_ct, this.GetCancellationTokenOnDestroy());
-            _previewTask = RunPreviewAsync(_previewTask, style, _previewCts.Token).Preserve();
-            _previewTask.Forget();
+            // Конец показа — через источник: Preserve нельзя ждать, пока на нём висит Forget (две подписки — исключение).
+            var previous = _previewTask;
+            var done = new UniTaskCompletionSource();
+            _previewTask = done.Task;
+            RunPreviewAsync(previous, style, _previewCts.Token, done).Forget();
         }
 
-        private async UniTask RunPreviewAsync(UniTask previous, RollStyleConfig style, CancellationToken ct)
+        private async UniTaskVoid RunPreviewAsync(UniTask previous, RollStyleConfig style, CancellationToken ct,
+            UniTaskCompletionSource done)
         {
-            await previous.SuppressCancellationThrow();
-            if (ct.IsCancellationRequested)
-                return;
+            try
+            {
+                await previous.SuppressCancellationThrow();
+                if (ct.IsCancellationRequested)
+                    return;
 
-            await _presenter.PreviewShakeAsync(style, ct).SuppressCancellationThrow();
+                await _presenter.PreviewShakeAsync(style, ct).SuppressCancellationThrow();
+            }
+            finally
+            {
+                done.TrySetResult();
+            }
         }
 
         private void RestoreEquipped()
         {
+            // Сцена стола выгружается (выход из игры, смена сцены), пока магазин открыт: возвращать предметы некуда.
+            if (_table == null || _table.Stage == null)
+                return;
+
             foreach (var slot in _content.All<CosmeticSlotConfig>())
                 _table.Stage.Apply(slot, _loadout.GetEquipped(slot));
             ShowDiceShowcase(false);

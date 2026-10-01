@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using Zonk.Configs;
 using Zonk.MatchFlow;
 using Zonk.Utils;
 
@@ -35,6 +36,38 @@ namespace Zonk.Presentation
             }
 
             return true;
+        }
+
+        private readonly List<PrefabPayload> _heldCups = new List<PrefabPayload>();
+
+        /// <summary>
+        /// Загрузить модели стаканов игроков до партии и держать до её конца: в партии стаканы пересоздаются на местах
+        /// (смена мест в игре вдвоём) и должны ставиться сразу, без ожидания загрузки.
+        /// </summary>
+        public async UniTask PreloadCupsAsync(IReadOnlyList<MatchParticipant> participants, CancellationToken ct)
+        {
+            ReleaseCups();
+            for (var i = 0; i < participants.Count && i < 2; i++)
+            {
+                var cup = participants[i].Cup;
+                if (cup == null)
+                    continue;
+
+                var model = cup.Payload is PrefabPayload own && own.HasModel ? own
+                    : cup.Slot != null && cup.Slot.DefaultItem != null ? cup.Slot.DefaultItem.Payload as PrefabPayload : null;
+                if (model == null || _heldCups.Contains(model))
+                    continue;
+
+                if (await _assets.AcquireAsync(model, ct) != null)
+                    _heldCups.Add(model);
+            }
+        }
+
+        private void ReleaseCups()
+        {
+            foreach (var model in _heldCups)
+                _assets.Release(model);
+            _heldCups.Clear();
         }
 
         /// <summary>Стаканы и руки игроков — на их текущих местах, стаканы на столе.</summary>

@@ -109,6 +109,9 @@ namespace Zonk.Configs
         [Tooltip("Освещение локации без своего профиля")]
         public LightingProfileConfig DefaultLighting;
 
+        [Tooltip("Комиксовый стиль (шейдер Zonk/Toon): ступени света, точки в тенях, контур. Локация может заменить своим")]
+        public ToonStyleConfig ToonStyle;
+
         [Header("Стол и бросок")]
         [Tooltip("Ребро кости в метрах сцены. Модель 0.3, меньше = кости мельче относительно стакана и лотка")]
         public float DieSize = 0.24f;

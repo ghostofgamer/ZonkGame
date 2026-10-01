@@ -369,10 +369,12 @@ namespace Zonk.Editor.Setup
             TuneThrow(rollPirate, 0.6f, 0.8f, 35f, 50f, 0.25f, 0.32f, 0.1f, 0.2f, 0.09f, 0.12f, 0.3f, 0.4f);
 
             // Слот «Бросок» в магазине: мультивыбор, на каждый бросок случайный стиль из отмеченных.
-            var rollSlot = Slot("roll_style", "slot.roll_style", 6, "shop_cup", new NoSceneApplier());
-            if (!rollSlot.MultiSelect)
+            // Свой ракурс: показ стиля поднимает стакан над лотком, ракурсу стакана он уходит за верх кадра.
+            var rollSlot = Slot("roll_style", "slot.roll_style", 6, "shop_roll", new NoSceneApplier());
+            if (!rollSlot.MultiSelect || rollSlot.CameraShotId == "shop_cup")
             {
                 rollSlot.MultiSelect = true;
+                rollSlot.CameraShotId = "shop_roll";
                 EditorUtility.SetDirty(rollSlot);
             }
 
@@ -636,6 +638,9 @@ namespace Zonk.Editor.Setup
 
             // Ощущение партии: всплывающие очки, накрутка, замедление, искры, пыль, вибрация.
             BuildFeel(set.Config);
+
+            // Комиксовый стиль: ассет стиля; перевод материалов на Zonk/Toon — в конце, когда созданы все материалы.
+            BuildToonStyle(set.Config);
 
             // Грозные версии боссов: после глав и костей соперников, до портретов (портрет — от босса).
             BuildDread();

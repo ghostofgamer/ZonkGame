@@ -30,11 +30,25 @@ namespace Zonk.Table
                 _table.Stage.Apply(slot, _loadout.GetEquipped(slot));
         }
 
+        /// <summary>Надеть экипировку и дождаться, пока модели загрузятся (префабы грузятся по требованию).</summary>
+        public UniTask ApplyEquippedAsync(CancellationToken ct)
+        {
+            ApplyEquipped();
+            return _table.Stage.WhenReadyAsync(ct);
+        }
+
         /// <summary>Показать предмет поверх экипировки (локация главы на время партии).</summary>
         public void Override(CosmeticItemConfig item)
         {
             if (item != null)
                 _table.Stage.Apply(item);
+        }
+
+        /// <summary>Показать предмет поверх экипировки и дождаться его модели.</summary>
+        public UniTask OverrideAsync(CosmeticItemConfig item, CancellationToken ct)
+        {
+            Override(item);
+            return _table.Stage.WhenReadyAsync(ct);
         }
     }
 
@@ -73,14 +87,16 @@ namespace Zonk.Table
 
         public async UniTask<string> RunAsync(CancellationToken ct)
         {
-            _dresser.ApplyEquipped();
             if (_first)
             {
+                // Первый показ: экран загрузки ещё на месте — дождаться моделей стола, чтобы он ушёл уже с одетым столом.
+                await _dresser.ApplyEquippedAsync(ct);
                 _first = false;
                 _table.Camera.SnapTo(CameraShots.Menu);
             }
             else
             {
+                _dresser.ApplyEquipped();
                 _table.Camera.MoveToAsync(CameraShots.Menu, 0.8f, ct).Forget();
             }
 

@@ -47,6 +47,10 @@ namespace Zonk.Configs
         [Tooltip("С какого уровня качества включать постобработку: на слабых устройствах она дорогая")]
         public QualityTier PostProcessFrom = QualityTier.High;
 
+        [Header("Стиль")]
+        [Tooltip("Свой комиксовый стиль локации (цвета теней, точки, контур); пусто — общий GameConfig.ToonStyle")]
+        public ToonStyleConfig ToonStyle;
+
         [Header("Эффекты атмосферы")]
         [SerializeReference, SubclassSelector]
         public List<AtmosphereEffect> Effects = new List<AtmosphereEffect>();

@@ -75,6 +75,8 @@ namespace Zonk.Editor.Setup
 
             var art = BuildArt();
             var content = BuildContent(art);
+            MigratePrefabPayloads();
+            ApplyToonMaterials(content.Config);
             BuildWindows(content.Ui);
             AssetDatabase.SaveAssets();
             ContentDatabaseBuilder.Rebuild();

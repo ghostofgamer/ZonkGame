@@ -54,11 +54,14 @@ namespace Zonk.Presentation
 
         private bool _tierSubscribed;
 
+        private ToonStyleService _toon;
+
         [Inject]
-        public void Construct(GameConfig config, IQualityService quality)
+        public void Construct(GameConfig config, IQualityService quality, ToonStyleService toon)
         {
             _config = config;
             _quality = quality;
+            _toon = toon;
             // Зависимости сцены могут прийти и до, и после OnEnable: подписка в обоих местах, но один раз.
             if (isActiveAndEnabled)
                 SubscribeTier();
@@ -67,7 +70,10 @@ namespace Zonk.Presentation
         private void OnEnable()
         {
             if (_stage != null)
+            {
                 _stage.ItemApplied += OnItemApplied;
+                _stage.InstancesChanged += OnInstancesChanged;
+            }
             SubscribeTier();
         }
 
@@ -83,12 +89,22 @@ namespace Zonk.Presentation
         private void OnDisable()
         {
             if (_stage != null)
+            {
                 _stage.ItemApplied -= OnItemApplied;
+                _stage.InstancesChanged -= OnInstancesChanged;
+            }
             if (_quality != null && _tierSubscribed)
                 _quality.TierChanged -= OnTierChanged;
             _tierSubscribed = false;
             Cancel(ref _transitionCts);
             Cancel(ref _effectsCts);
+        }
+
+        /// <summary>Модели на столе догрузились или сменились: лампы и свет локации собираются заново.</summary>
+        private void OnInstancesChanged()
+        {
+            _stage.CollectLights(_lights);
+            ApplyLights();
         }
 
         private QualityTier Tier => _quality != null ? _quality.Tier : QualityTier.High;
@@ -131,6 +147,7 @@ namespace Zonk.Presentation
             var instant = _profile == null;
             _profile = profile;
             var tier = Tier;
+            _toon?.SetLocationStyle(profile.ToonStyle);
 
             RenderSettings.ambientMode = AmbientMode.Trilight;
             RenderSettings.fog = profile.Fog;

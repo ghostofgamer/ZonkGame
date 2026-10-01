@@ -68,6 +68,8 @@ namespace Zonk
             Container.Bind<TowerProgress>().AsSingle();
             Container.BindInterfacesAndSelfTo<LanguagePreference>().AsSingle();
             Container.BindInterfacesAndSelfTo<Analytics.GameAnalytics>().AsSingle();
+            Container.BindInterfacesAndSelfTo<Presentation.ToonStyleService>().AsSingle();
+            Container.BindInterfacesAndSelfTo<Presentation.CosmeticAssets>().AsSingle();
         }
 
         /// <summary>

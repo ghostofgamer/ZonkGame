@@ -14,6 +14,10 @@ namespace Zonk.Editor.Setup
         public GameObject Die;
         public GameObject CupLeather;
         public GameObject CupWood;
+
+        /// <summary>Стаканы из Tools/Blender/zonk_cups.py по имени модели (только те, что уже сгенерированы).</summary>
+        public readonly Dictionary<string, GameObject> Cups = new Dictionary<string, GameObject>();
+
         public GameObject Table;
         public GameObject Felt;
         public GameObject LampBasic;
@@ -34,6 +38,20 @@ namespace Zonk.Editor.Setup
         private const string LitShader = "Universal Render Pipeline/Lit";
         private const float DieSize = 0.3f;
         private const float CupHeight = 0.9f;
+        private const int CupTextureSize = 1024;
+        private const int TextureCrunchQuality = 50;
+
+        /// <summary>Стаканы скрипта zonk_cups.py: имя модели, гладкость и металличность материала.</summary>
+        private static readonly (string Name, float Smoothness, float Metallic)[] GeneratedCups =
+        {
+            ("Cup_Goblet", 0.7f, 0.9f),
+            ("Cup_Bone", 0.5f, 0f),
+            ("Cup_Clay", 0.65f, 0f),
+            ("Cup_Barrel", 0.3f, 0f),
+            ("Cup_Coconut", 0.15f, 0f),
+            ("Cup_Copper", 0.6f, 0.85f),
+            ("Cup_Stone", 0.1f, 0f),
+        };
 
         public static ArtSet BuildArt()
         {
@@ -94,6 +112,20 @@ namespace Zonk.Editor.Setup
             art.Die = BuildDiePrefab(art);
             art.CupLeather = BuildCupPrefab("Cup_Leather", Models + "/Cup_Leather.fbx", art["Cup_Leather"]);
             art.CupWood = BuildCupPrefab("Cup_Wood", Models + "/Cup_Wood.fbx", art["Cup_Wood"]);
+            foreach (var (name, smoothness, metallic) in GeneratedCups)
+            {
+                var path = Models + "/Cups/" + name + ".fbx";
+                if (!(AssetImporter.GetAtPath(path) is ModelImporter))
+                    continue;
+
+                ConfigureModel(path, false);
+                var texturePath = Textures + "/Cups/" + name + ".png";
+                ConfigureTexture(texturePath, CupTextureSize);
+                var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+                var material = Mat(art, name, Color.white, texture, smoothness, metallic);
+                art.Cups[name] = BuildCupPrefab(name, path, material);
+            }
+
             BuildPlaceholders(art);
 
             var errors = new List<string>();
@@ -120,6 +152,27 @@ namespace Zonk.Editor.Setup
             importer.materialImportMode = ModelImporterMaterialImportMode.None;
             importer.isReadable = readable;
             importer.importAnimation = false;
+            importer.SaveAndReimport();
+        }
+
+        /// <summary>
+        /// Текстура для телефонов и браузера: не больше maxSize, сжатая, с мип-уровнями и Crunch — файл в сборке
+        /// в несколько раз меньше (важно для загрузки в браузере), в памяти видеокарты как обычное сжатие.
+        /// </summary>
+        private static void ConfigureTexture(string path, int maxSize)
+        {
+            if (!(AssetImporter.GetAtPath(path) is TextureImporter importer))
+                return;
+
+            if (importer.maxTextureSize == maxSize && importer.crunchedCompression && importer.mipmapEnabled &&
+                importer.textureCompression == TextureImporterCompression.Compressed)
+                return;
+
+            importer.maxTextureSize = maxSize;
+            importer.textureCompression = TextureImporterCompression.Compressed;
+            importer.crunchedCompression = true;
+            importer.compressionQuality = TextureCrunchQuality;
+            importer.mipmapEnabled = true;
             importer.SaveAndReimport();
         }
 
@@ -180,7 +233,10 @@ namespace Zonk.Editor.Setup
             });
         }
 
-        /// <summary>Стакан: меш из Blender и дочерний "Mouth" на высоте горла.</summary>
+        /// <summary>
+        /// Стакан: меш из Blender и дочерний "Mouth" на высоте горла. Если в модели есть маркер "Inside"
+        /// (внутреннее дно и свободный радиус), он переносится в префаб.
+        /// </summary>
         private static GameObject BuildCupPrefab(string name, string modelPath, Material material)
         {
             return Prefab(Prefabs + "/Cups/" + name + ".prefab", () =>
@@ -199,6 +255,12 @@ namespace Zonk.Editor.Setup
                 }
 
                 Empty(CupView.MouthName, root.transform, new Vector3(0f, height, 0f));
+
+                var source = AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
+                var inside = source != null ? source.transform.Find(CupView.InsideName) : null;
+                if (inside != null)
+                    Empty(CupView.InsideName, root.transform, Vector3.Scale(inside.localPosition, model.transform.localScale));
+
                 return root;
             });
         }

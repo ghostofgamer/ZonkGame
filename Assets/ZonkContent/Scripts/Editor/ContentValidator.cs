@@ -215,19 +215,23 @@ namespace Zonk.Editor
                 case null:
                     errors.Add($"{item.name}: Payload is not set");
                     break;
-                case PrefabPayload prefab when prefab.Prefab == null:
+                case PrefabPayload prefab when Setup.ZonkSetup.EditorPrefabOf(prefab) == null:
                     errors.Add($"{item.name}: prefab is not set");
                     break;
-                case PrefabPayload prefab when item.Slot.Id == "cup" && FindDeep(prefab.Prefab.transform, CupView.MouthName) == null:
+                case PrefabPayload prefab when item.Slot.Id == "cup" &&
+                                               FindDeep(Setup.ZonkSetup.EditorPrefabOf(prefab).transform, CupView.MouthName) == null:
                     errors.Add($"{item.name}: cup prefab has no child '{CupView.MouthName}'");
+                    break;
+                case PrefabPayload prefab when prefab.Prefab != null:
+                    warnings.Add($"{item.name}: prefab is a direct reference (loads at startup with all content); " +
+                                 "run Zonk/Setup/Build Everything to move it to on-demand loading");
                     break;
                 case MeshMaterialPayload meshMaterial:
                     if (meshMaterial.Material == null)
                         errors.Add($"{item.name}: material is not set");
                     if (meshMaterial.Mesh != null && item.Slot.Applier is DiceSkinApplier)
                         ValidateDieMesh(item.name, meshMaterial.Mesh, errors);
-                    if (meshMaterial.Material != null && item.Slot.Applier is DiceSkinApplier &&
-                        !meshMaterial.Material.IsKeywordEnabled("_EMISSION"))
+                    if (meshMaterial.Material != null && item.Slot.Applier is DiceSkinApplier && !HasEmission(meshMaterial.Material))
                         warnings.Add($"{item.name}: material has no emission, special dice markers will not glow");
                     break;
                 case RollStylePayload rollStyle when rollStyle.Style == null:
@@ -497,6 +501,19 @@ namespace Zonk.Editor
 
             if (texts.Count > 0 && !texts.Contains(key))
                 errors.Add($"{owner.name}: key '{key}' is missing in localization CSV");
+        }
+
+        /// <summary>
+        /// Светится ли материал (метки особых костей задают _EmissionColor). URP Lit включает свечение ключом
+        /// _EMISSION; шейдер без такого ключа (Zonk/Toon) добавляет свечение всегда.
+        /// </summary>
+        private static bool HasEmission(Material material)
+        {
+            if (!material.HasProperty("_EmissionColor"))
+                return false;
+
+            var keyword = material.shader.keywordSpace.FindKeyword("_EMISSION");
+            return !keyword.isValid || material.IsKeywordEnabled(keyword);
         }
 
         private static Transform FindDeep(Transform root, string name)

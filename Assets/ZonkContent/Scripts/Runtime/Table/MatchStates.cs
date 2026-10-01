@@ -376,7 +376,8 @@ namespace Zonk.Table
                 stake = 0;
             }
 
-            _dresser.Override(chapter.Environment);
+            // Локация главы — до партии: стаканы и свет партии уже в ней.
+            await _dresser.OverrideAsync(chapter.Environment, ct);
 
             var me = _participants.LocalPlayer(_kit.T("campaign.you"), allowSpecial);
             var enemy = _participants.Opponent(opponent, _kit.T(opponent.NameKey));

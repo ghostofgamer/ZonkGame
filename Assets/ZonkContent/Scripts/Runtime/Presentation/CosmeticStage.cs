@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using Zonk.Configs;
 
@@ -61,6 +63,45 @@ namespace Zonk.Presentation
 
         /// <summary>Предмет надет на стол (экипировка, примерка в магазине, локация главы). Слушает LightingDirector.</summary>
         public event Action<CosmeticItemConfig> ItemApplied;
+
+        /// <summary>
+        /// Модель в каком-то якоре сменилась. Префабы грузятся по требованию, поэтому модель появляется позже ItemApplied:
+        /// всё, что ищет в моделях (свет ламп и локаций), пересобирается по этому событию.
+        /// </summary>
+        public event Action InstancesChanged;
+
+        private void OnEnable()
+        {
+            foreach (var anchor in _anchors)
+            {
+                if (anchor != null)
+                    anchor.InstanceChanged += OnInstanceChanged;
+            }
+        }
+
+        private void OnDisable()
+        {
+            foreach (var anchor in _anchors)
+            {
+                if (anchor != null)
+                    anchor.InstanceChanged -= OnInstanceChanged;
+            }
+        }
+
+        private void OnInstanceChanged(CosmeticAnchor anchor)
+        {
+            InstancesChanged?.Invoke();
+        }
+
+        /// <summary>Дождаться, пока все якоря поставят последние показанные модели (префабы загрузятся).</summary>
+        public async UniTask WhenReadyAsync(CancellationToken ct)
+        {
+            foreach (var anchor in _anchors)
+            {
+                if (anchor != null)
+                    await anchor.WhenReadyAsync().AttachExternalCancellation(ct);
+            }
+        }
 
 #if UNITY_EDITOR
         public void EditorSetup(List<CosmeticAnchor> anchors, DiceSetView dice)

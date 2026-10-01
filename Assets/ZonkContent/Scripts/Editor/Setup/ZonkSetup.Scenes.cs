@@ -153,10 +153,11 @@ namespace Zonk.Editor.Setup
         /// </summary>
         private static void PreviewInEditor(CosmeticAnchor anchor, CosmeticItemConfig item)
         {
-            if (!(item.Payload is PrefabPayload prefab) || prefab.Prefab == null)
+            var source = item.Payload is PrefabPayload prefab ? EditorPrefabOf(prefab) : null;
+            if (source == null)
                 return;
 
-            var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab.Prefab, anchor.transform);
+            var instance = (GameObject)PrefabUtility.InstantiatePrefab(source, anchor.transform);
             instance.hideFlags = HideFlags.DontSaveInEditor | HideFlags.NotEditable;
         }
 
@@ -316,7 +317,12 @@ namespace Zonk.Editor.Setup
                 Shot(shots, "shop_environment", new Vector3(6.5f, 4.5f, -9f), new Vector3(0f, 0.5f, 1.5f), 55f),
                 Shot(shots, "shop_table", new Vector3(4.2f, 2.6f, -4.6f), new Vector3(0f, -0.6f, 0f), 45f),
                 Shot(shots, "shop_tray", new Vector3(0f, 3.4f, -2.8f), new Vector3(0f, 0f, 0.1f), 45f),
-                Shot(shots, "shop_cup", new Vector3(3.3f, 1.4f, -3f), new Vector3(2.15f, 0.45f, -1.25f), 40f),
+                // Стакан — выше центра кадра и меньше: нижнюю треть экрана занимает панель магазина,
+                // сверху нужен запас на показ стиля броска (рука поднимает стакан).
+                Shot(shots, "shop_cup", new Vector3(3.85f, 1.85f, -3.85f), new Vector3(2.15f, 0.18f, -1.25f), 40f),
+                // Показ стиля броска: от места стакана до точки тряски над лотком (стакан на высоте 1–1.9) и замах к лотку.
+                // Всё — в верхних двух третях кадра, над панелью магазина.
+                Shot(shots, "shop_roll", new Vector3(2.88f, 3.44f, -6.15f), new Vector3(0.9f, 0.04f, -0.5f), 45f),
                 Shot(shots, "shop_dice", new Vector3(0f, 2.2f, -1.7f), new Vector3(0f, 0.1f, 0f), 40f),
                 Shot(shots, "shop_lamp", new Vector3(1.8f, 2.4f, -3.2f), new Vector3(0f, 3.4f, 0f), 45f),
             };
