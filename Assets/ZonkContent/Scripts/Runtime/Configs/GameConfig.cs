@@ -44,6 +44,13 @@ namespace Zonk.Configs
         [Tooltip("Уровни мастерства особых костей по возрастанию очков")]
         public List<MasteryLevel> MasteryLevels = new List<MasteryLevel>();
 
+        [Header("Режимы-испытания")]
+        [Tooltip("«Бесконечный забег»: этажи, находки, сердца, рекорд")]
+        public EndlessRunConfig EndlessRun;
+
+        [Tooltip("Башня: конечное испытание с рубежами")]
+        public TowerConfig Tower;
+
         [Header("Ставки в кампании")]
         [Tooltip("Варианты ставки монетами перед партией кампании. 0 = без ставки")]
         public int[] StakeOptions = { 0, 50, 100, 250, 500 };
@@ -59,6 +66,10 @@ namespace Zonk.Configs
 
         [Header("Обучение")]
         public TutorialConfig Tutorial;
+
+        [Header("Аналитика")]
+        [Tooltip("Что отправлять в аналитику (тестовые события и т. п.)")]
+        public AnalyticsConfig Analytics;
 
         [Header("Задания")]
         [Tooltip("Сколько заданий выдаётся на день")]

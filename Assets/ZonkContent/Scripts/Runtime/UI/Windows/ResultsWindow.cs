@@ -75,13 +75,14 @@ namespace Zonk.UI.Windows
         }
 
         /// <param name="notes">Дополнительные строки под счётом (звёзды за соперника и т.п.).</param>
+        /// <param name="againText">Подпись второй кнопки («Дальше», «Переиграть этаж»); пусто — «Ещё раз».</param>
         public void Setup(ZonkMatch match, string title, Color titleColor, IReadOnlyList<GrantedReward> rewards, bool canDouble,
-            bool canAgain, IReadOnlyList<string> notes = null)
+            bool canAgain, IReadOnlyList<string> notes = null, string againText = null)
         {
             _title.text = title;
             _title.color = titleColor;
             _menu.SetText(T("results.menu"));
-            _again.SetText(T("results.again"));
+            _again.SetText(string.IsNullOrEmpty(againText) ? T("results.again") : againText);
             _double.SetText(T("results.double"));
             _again.SetVisible(canAgain);
             _double.SetVisible(canDouble);

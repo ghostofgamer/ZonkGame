@@ -38,8 +38,11 @@ namespace Zonk.Progress
         /// <summary>Добавить звёзды; возвращает маску новых (раньше не полученных).</summary>
         int AddStars(OpponentConfig opponent, int mask);
 
-        /// <summary>Сколько звёзд собрано во всей кампании (для таблицы лидеров и наград).</summary>
+        /// <summary>Сколько звёзд собрано во всей кампании, с грозными боссами (для таблицы лидеров и наград).</summary>
         int TotalStars { get; }
+
+        /// <summary>Грозная версия босса открыта: у обычного босса собрано DreadStarsRequired звёзд.</summary>
+        bool IsDreadUnlocked(OpponentConfig dread);
     }
 
     public sealed class CampaignProgress : ICampaignProgress
@@ -76,11 +79,25 @@ namespace Zonk.Progress
             if (!IsChapterUnlocked(chapter))
                 return OpponentState.Locked;
 
+            // Грозная версия босса: открывается звёздами у обычного босса, а не порядком в главе.
+            if (chapter.DreadBosses.Contains(opponent))
+                return IsDreadUnlocked(opponent) ? OpponentState.Available : OpponentState.Locked;
+
             var index = chapter.Opponents.IndexOf(opponent);
-            if (index <= 0)
+            if (index < 0)
+                return OpponentState.Locked;
+            if (index == 0)
                 return OpponentState.Available;
 
             return IsBeaten(chapter.Opponents[index - 1]) ? OpponentState.Available : OpponentState.Locked;
+        }
+
+        public bool IsDreadUnlocked(OpponentConfig dread)
+        {
+            if (dread == null || dread.DreadOf == null)
+                return dread != null;
+
+            return CountBits(GetStarMask(dread.DreadOf)) >= dread.DreadStarsRequired;
         }
 
         public bool MarkBeaten(OpponentConfig opponent)
@@ -136,6 +153,8 @@ namespace Zonk.Progress
                 {
                     foreach (var opponent in chapter.Opponents)
                         total += CountBits(GetStarMask(opponent));
+                    foreach (var dread in chapter.DreadBosses)
+                        total += CountBits(GetStarMask(dread));
                 }
 
                 return total;

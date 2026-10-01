@@ -1,6 +1,7 @@
 using Base.Platform;
 using Base.Services.Analytics;
 using NUnit.Framework;
+using AnalyticsService = Base.Services.Analytics.Analytics;
 
 namespace Zonk.Tests
 {
@@ -34,13 +35,13 @@ namespace Zonk.Tests
         }
 
         private Recorder _recorder;
-        private Analytics _analytics;
+        private AnalyticsService _analytics;
 
         [SetUp]
         public void SetUp()
         {
             _recorder = new Recorder();
-            _analytics = new Analytics(_recorder);
+            _analytics = new AnalyticsService(_recorder);
         }
 
         [Test]

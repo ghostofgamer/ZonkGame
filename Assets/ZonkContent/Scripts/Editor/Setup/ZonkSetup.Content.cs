@@ -610,12 +610,20 @@ namespace Zonk.Editor.Setup
             }
 
             // Новые моменты обучения — и в уже созданный ассет, если их там нет.
-            foreach (var trigger in new[] { TutorialTrigger.ManualRoll })
+            foreach (var trigger in new[] { TutorialTrigger.ManualRoll, TutorialTrigger.EndlessRun, TutorialTrigger.Tower })
             {
                 if (tutorial.Find(trigger) != null)
                     continue;
                 tutorial.Steps.Add(new TutorialStep { Trigger = trigger, TextKey = "tutorial." + trigger });
                 EditorUtility.SetDirty(tutorial);
+            }
+
+            // Аналитика: что отправлять (тестовые события — до выпуска).
+            var analytics = Asset<AnalyticsConfig>(ConfigsFolder + "/Game/Analytics.asset", a => { });
+            if (set.Config.Analytics == null)
+            {
+                set.Config.Analytics = analytics;
+                EditorUtility.SetDirty(set.Config);
             }
 
             // Бросок своей рукой: трясти стакан и толкать к столу.
@@ -629,7 +637,13 @@ namespace Zonk.Editor.Setup
             // Ощущение партии: всплывающие очки, накрутка, замедление, искры, пыль, вибрация.
             BuildFeel(set.Config);
 
+            // Грозные версии боссов: после глав и костей соперников, до портретов (портрет — от босса).
+            BuildDread();
             BuildPortraits(art);
+            LinkDreadPortraits();
+
+            // Режимы-испытания: после грозных боссов (они стражи забега и вершина башни).
+            BuildModes(set.Config);
             BuildCoinSprite(set.Ui);
             BuildIconSprites(set.Ui);
             BuildStarSprites(set.Ui);
@@ -637,6 +651,9 @@ namespace Zonk.Editor.Setup
 
             // Экономика v2: уже созданным ассетам — новые цены и награды, если в них стоят прежние значения.
             RetuneEconomy(set.Config);
+
+            // Цели партий кампании v3: от 4000 у первого соперника до 10000 у боссов, звёзды — в той же доле.
+            RetuneTargets();
 
             if (set.Config.Ui == null)
             {

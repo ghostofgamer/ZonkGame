@@ -30,7 +30,8 @@ namespace Zonk.Editor.Setup
             foreach (var guid in AssetDatabase.FindAssets("t:OpponentConfig", new[] { ConfigsFolder }))
             {
                 var opponent = AssetDatabase.LoadAssetAtPath<OpponentConfig>(AssetDatabase.GUIDToAssetPath(guid));
-                if (opponent == null || opponent.Portrait != null || string.IsNullOrEmpty(opponent.Id))
+                // Грозная версия берёт портрет своего босса (LinkDreadPortraits), свой не рисуется.
+                if (opponent == null || opponent.Portrait != null || string.IsNullOrEmpty(opponent.Id) || opponent.DreadOf != null)
                     continue;
 
                 var headwear = opponent.Accessory == null ? Headwear.None

@@ -64,7 +64,10 @@ namespace Zonk
             Container.Bind<IDieMastery>().To<DieMastery>().AsSingle();
             Container.Bind<MenuAdRewards>().AsSingle();
             Container.Bind<PlayerStats>().AsSingle();
+            Container.Bind<EndlessRunProgress>().AsSingle();
+            Container.Bind<TowerProgress>().AsSingle();
             Container.BindInterfacesAndSelfTo<LanguagePreference>().AsSingle();
+            Container.BindInterfacesAndSelfTo<Analytics.GameAnalytics>().AsSingle();
         }
 
         /// <summary>

@@ -21,6 +21,8 @@ namespace Zonk.UI
                 kindKey = "reward.die";
             else if (item is CosmeticItemConfig cosmetic && cosmetic.Payload is RollStylePayload)
                 kindKey = "reward.rollStyle";
+            else if (item is CosmeticItemConfig skin && skin.Slot != null && skin.Slot.Id == Table.SlotIds.DiceSkin)
+                kindKey = "reward.diceSkin";
 
             if (kindKey == null)
                 return name;

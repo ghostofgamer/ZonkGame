@@ -20,6 +20,8 @@ MonoBehaviour:
   BodyColor: {r: 0.25, g: 0.3, b: 0.45, a: 1}
   Accessory: {fileID: 6428876330090902694, guid: 5b162329c97facd46a12a125e3424ca3, type: 3}
   IsBoss: 0
+  DreadOf: {fileID: 0}
+  DreadUnlockStars: 3
   Ai: {fileID: 11400000, guid: 9b4a3294963375b4a8ec29e18cb26386, type: 2}
   Dice:
   - {fileID: 11400000, guid: db28c967133efcc4c9ab1fab49f4f19e, type: 2}
@@ -27,7 +29,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 5d99a9cbded23d447b3705e2805736e3, type: 2}
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
-  TargetScore: 0
+  TargetScore: 8000
   StarConditions:
   - rid: 4243792294545719557
   - rid: 4243792294545719558
@@ -56,7 +58,7 @@ MonoBehaviour:
     - rid: 4243792294545719557
       type: {class: MaxTurnsStar, ns: Zonk.Configs, asm: Zonk}
       data:
-        Turns: 10
+        Turns: 13
     - rid: 4243792294545719558
       type: {class: NoSpecialDiceStar, ns: Zonk.Configs, asm: Zonk}
       data: 

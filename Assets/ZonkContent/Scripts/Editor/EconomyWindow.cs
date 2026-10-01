@@ -81,7 +81,8 @@ namespace Zonk.Editor
             var text = new StringBuilder();
             var chapters = database.All<ChapterConfig>();
             chapters.Sort((a, b) => a.Order.CompareTo(b.Order));
-            var opponents = chapters.SelectMany(c => c.Opponents).Where(o => o != null).ToList();
+            // Грозные версии боссов тоже дарят монеты и предметы за первую победу.
+            var opponents = chapters.SelectMany(c => c.Opponents.Concat(c.DreadBosses)).Where(o => o != null).ToList();
 
             // Что дарит кампания: эти предметы можно не покупать.
             var campaignItems = new HashSet<ContentConfig>();

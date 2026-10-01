@@ -99,6 +99,8 @@ namespace Zonk.Editor
                         break;
                     case OpponentConfig opponent:
                         ValidateOpponent(opponent, texts, errors, warnings, config);
+                        if (opponent.IsDread && !database.All<ChapterConfig>().Any(c => c.DreadBosses.Contains(opponent)))
+                            warnings.Add($"{opponent.name}: dread version is not in any ChapterConfig.DreadBosses — players never see it");
                         break;
                     case LeaderboardConfig board:
                         if (string.IsNullOrEmpty(board.TechnicalName))
@@ -131,6 +133,21 @@ namespace Zonk.Editor
                             CheckKey(chapter, line.TextKey, texts, errors);
                         }
 
+                        // Грозные версии: ссылаются на босса этой же главы, сами не в списке соперников.
+                        foreach (var dread in chapter.DreadBosses)
+                        {
+                            if (dread == null)
+                                errors.Add($"{chapter.name}: empty entry in DreadBosses");
+                            else if (dread.DreadOf == null)
+                                errors.Add($"{chapter.name}: {dread.name} is in DreadBosses but DreadOf is not set");
+                            else if (!chapter.Opponents.Contains(dread.DreadOf) || !dread.DreadOf.IsBoss)
+                                errors.Add($"{chapter.name}: {dread.name}.DreadOf must be a boss of this chapter");
+                            else if (chapter.Opponents.Contains(dread))
+                                errors.Add($"{chapter.name}: {dread.name} must be only in DreadBosses, not in Opponents");
+                            else if (!dread.IsBoss)
+                                warnings.Add($"{dread.name}: dread version should be marked IsBoss (quests, reactions, dice rules)");
+                        }
+
                         break;
                     case ReactionSetConfig reactions:
                         foreach (var entry in reactions.Entries)
@@ -149,6 +166,7 @@ namespace Zonk.Editor
             }
 
             ValidateGameConfig(errors);
+            ValidateModes(texts, errors, warnings);
             ValidateShopVariety(database, warnings);
             ValidateScriptFiles(errors);
             return errors;
@@ -287,8 +305,11 @@ namespace Zonk.Editor
                 CheckKey(opponent, opponent.RuleKey, texts, errors);
             if (opponent.Modifiers.Any(m => m == null))
                 errors.Add($"{opponent.name}: empty modifier");
-            if (opponent.IsBoss && opponent.Modifiers.Count > 0 && string.IsNullOrEmpty(opponent.RuleKey))
-                errors.Add($"{opponent.name}: boss has a rule but no RuleKey to show it to the player");
+            // Правила показываются игроку из самих правил: у каждого — описание и все его тексты в Texts.csv.
+            foreach (var modifier in opponent.Modifiers.Where(m => m != null))
+                CheckModifierTexts(opponent, modifier, texts, errors);
+            if (opponent.Modifiers.Any(m => m != null && string.IsNullOrEmpty(m.DescriptionKey)) && string.IsNullOrEmpty(opponent.RuleKey))
+                errors.Add($"{opponent.name}: a rule has no description (MatchModifier.DescriptionKey) and there is no RuleKey");
             if (opponent.FirstWinRewards.Concat(opponent.RepeatWinRewards).Any(r => r == null))
                 errors.Add($"{opponent.name}: empty reward");
             if (opponent.StarConditions.Any(c => c == null))
@@ -349,6 +370,60 @@ namespace Zonk.Editor
             }
         }
 
+        /// <summary>Режимы-испытания: соперники, стражи, этажи башни, правила с текстами.</summary>
+        private static void ValidateModes(HashSet<string> texts, List<string> errors, List<string> warnings)
+        {
+            var guid = AssetDatabase.FindAssets("t:" + nameof(GameConfig), new[] { ContentDatabaseBuilder.GameFolder }).FirstOrDefault();
+            var config = guid != null ? AssetDatabase.LoadAssetAtPath<GameConfig>(AssetDatabase.GUIDToAssetPath(guid)) : null;
+            if (config == null)
+                return;
+
+            var run = config.EndlessRun;
+            if (run == null)
+            {
+                warnings.Add("GameConfig: EndlessRun is not set — the mode says «not ready»");
+            }
+            else
+            {
+                if (run.Opponents.Count == 0 || run.Opponents.Any(o => o == null))
+                    errors.Add($"{run.name}: Opponents list is empty or has empty entries");
+                if (run.Guardians.Any(o => o == null))
+                    errors.Add($"{run.name}: empty guardian");
+                if (run.AiEarly == null || run.AiMid == null || run.AiLate == null)
+                    warnings.Add($"{run.name}: AI profile for a stage is not set — the opponent's own AI is used");
+                if (run.RulePool.Any(r => r == null))
+                    errors.Add($"{run.name}: empty rule in RulePool");
+                foreach (var rule in run.RulePool.Where(r => r != null))
+                    CheckModifierTexts(run, rule, texts, errors);
+                if (run.Milestones.Any(m => m == null || m.Rewards.Any(r => r == null)))
+                    errors.Add($"{run.name}: empty milestone or reward");
+            }
+
+            var tower = config.Tower;
+            if (tower == null)
+            {
+                warnings.Add("GameConfig: Tower is not set — the mode says «not ready»");
+                return;
+            }
+
+            for (var i = 0; i < tower.Floors.Count; i++)
+            {
+                var floor = tower.Floors[i];
+                if (floor == null || floor.Opponent == null)
+                {
+                    errors.Add($"{tower.name}: floor {i + 1} has no opponent");
+                    continue;
+                }
+
+                if (floor.Target <= 0)
+                    errors.Add($"{tower.name}: floor {i + 1} target must be positive");
+                if (floor.Rules.Any(r => r == null) || floor.FirstClearRewards.Any(r => r == null))
+                    errors.Add($"{tower.name}: floor {i + 1} has an empty rule or reward");
+                foreach (var rule in floor.Rules.Where(r => r != null))
+                    CheckModifierTexts(tower, rule, texts, errors);
+            }
+        }
+
         private static void ValidateGameConfig(List<string> errors)
         {
             var guid = AssetDatabase.FindAssets("t:" + nameof(GameConfig), new[] { ContentDatabaseBuilder.GameFolder }).FirstOrDefault();
@@ -395,6 +470,21 @@ namespace Zonk.Editor
             }
 
             return keys;
+        }
+
+        /// <summary>Текст правила и ключи в его значениях («@…»: название комбинации, грани) есть в Texts.csv.</summary>
+        private static void CheckModifierTexts(Object owner, Core.Modifiers.MatchModifier modifier, HashSet<string> texts,
+            List<string> errors)
+        {
+            if (string.IsNullOrEmpty(modifier.DescriptionKey))
+                return;
+
+            CheckKey(owner, modifier.DescriptionKey, texts, errors);
+            foreach (var arg in modifier.DescriptionArgs ?? System.Array.Empty<object>())
+            {
+                if (arg is string text && text.StartsWith("@"))
+                    CheckKey(owner, text.Substring(1), texts, errors);
+            }
         }
 
         private static void CheckKey(Object owner, string key, HashSet<string> texts, List<string> errors)

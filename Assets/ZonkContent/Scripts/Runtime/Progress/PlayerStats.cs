@@ -56,6 +56,8 @@ namespace Zonk.Progress
                 case LeaderboardMetric.TotalStars: return _campaign.TotalStars;
                 case LeaderboardMetric.CampaignWins: return Data.CampaignWins;
                 case LeaderboardMetric.BestTurn: return Data.BestTurn;
+                case LeaderboardMetric.EndlessRunFloor: return _saves.Get<EndlessRunSave>(SaveKeys.EndlessRun).Best;
+                case LeaderboardMetric.TowerFloor: return _saves.Get<TowerSave>(SaveKeys.Tower).Best;
                 default: return 0;
             }
         }

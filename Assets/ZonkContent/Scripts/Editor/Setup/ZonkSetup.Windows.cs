@@ -22,6 +22,7 @@ namespace Zonk.Editor.Setup
         {
             "LoadingScreen", "RulesWindow", "MainMenuWindow", "SettingsWindow", "ConfirmWindow", "StoryWindow", "ResultsWindow",
             "HotSeatSetupWindow", "CampaignWindow", "ShopWindow", "MatchHudWindow", "QuestsWindow", "LeaderboardWindow", "TutorialTipWindow", "LanguageWindow",
+            "ChallengeWindow", "PerkChoiceWindow",
         };
 
         private static UiConfig _ui;
@@ -51,6 +52,8 @@ namespace Zonk.Editor.Setup
             WindowPrefab<LeaderboardWindow>("LeaderboardWindow", popupIn, popupOut, true, BuildLeaderboard);
             WindowPrefab<TutorialTipWindow>("TutorialTipWindow", fadeIn, fadeOut, false, BuildTutorialTip);
             WindowPrefab<LanguageWindow>("LanguageWindow", popupIn, popupOut, true, BuildLanguage);
+            WindowPrefab<ChallengeWindow>("ChallengeWindow", popupIn, popupOut, true, BuildChallenge);
+            WindowPrefab<PerkChoiceWindow>("PerkChoiceWindow", popupIn, popupOut, true, BuildPerkChoice);
         }
 
         private static void WindowPrefab<T>(string name, UiTransitionConfig show, UiTransitionConfig hide, bool popup,
@@ -72,19 +75,21 @@ namespace Zonk.Editor.Setup
         private static MainMenuWindow BuildMainMenu(RectTransform root)
         {
             var panel = PanelAt(root);
-            Corner(panel, new Vector2(0f, 0.5f), new Vector2(540f, 760f), new Vector2(48f, 0f));
-            var column = Column(panel, 18, 28);
+            Corner(panel, new Vector2(0f, 0.5f), new Vector2(540f, 900f), new Vector2(48f, 0f));
+            var column = Column(panel, 14, 26);
 
             var title = Text("Title", column, _ui.BoldFont, 52, _ui.Palette.Gold);
             Height(title, 150);
             var campaign = ButtonView("Campaign", column, 34, _ui.Palette.ButtonAccent);
+            var endlessRun = ButtonView("EndlessRun", column, 32, _ui.Palette.ButtonAccent);
+            var tower = ButtonView("Tower", column, 32, _ui.Palette.Button);
             var quests = ButtonView("Quests", column, 34, _ui.Palette.Button);
             var leaderboards = ButtonView("Leaderboards", column, 34, _ui.Palette.Button);
             var hotSeat = ButtonView("HotSeat", column, 34, _ui.Palette.Button);
             var shop = ButtonView("Shop", column, 34, _ui.Palette.Button);
             var settings = ButtonView("Settings", column, 30, _ui.Palette.ButtonMuted);
-            foreach (var button in new[] { campaign, quests, leaderboards, hotSeat, shop, settings })
-                Height(button, 66);
+            foreach (var button in new[] { campaign, endlessRun, tower, quests, leaderboards, hotSeat, shop, settings })
+                Height(button, 62);
 
             // Значок «есть награда» у правого края кнопки заданий.
             var badge = Box("Badge", quests.transform, _ui.Palette.Bad);
@@ -117,7 +122,8 @@ namespace Zonk.Editor.Setup
             Corner((RectTransform)offer.transform, new Vector2(1f, 1f), new Vector2(480f, 76f), new Vector2(-24f, -248f));
 
             var window = root.gameObject.AddComponent<MainMenuWindow>();
-            window.EditorSetup(title, campaign, hotSeat, shop, settings, rules, quests, badge.gameObject, adOffers, adTemplate, offer, leaderboards);
+            window.EditorSetup(title, campaign, hotSeat, shop, settings, rules, quests, badge.gameObject, adOffers, adTemplate, offer, leaderboards,
+                tower, endlessRun);
             return window;
         }
 

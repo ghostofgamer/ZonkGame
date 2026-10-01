@@ -30,6 +30,19 @@ namespace Zonk.Configs
 
         public bool IsBoss;
 
+        [Header("Грозная версия босса")]
+        [Tooltip("Этот соперник — грозная версия босса DreadOf: тот же персонаж, свои правила, кости, цель и награды. " +
+                 "Кладётся в ChapterConfig.DreadBosses, не в Opponents. Пусто — обычный соперник")]
+        public OpponentConfig DreadOf;
+
+        [Tooltip("Грозная версия открывается, когда у босса DreadOf столько звёзд (не больше, чем у него бывает)")]
+        public int DreadUnlockStars = 3;
+
+        public bool IsDread => DreadOf != null;
+
+        /// <summary>Сколько звёзд у обычного босса нужно, чтобы открылась эта грозная версия.</summary>
+        public int DreadStarsRequired => DreadOf == null ? 0 : Math.Min(Math.Max(1, DreadUnlockStars), 1 + DreadOf.StarConditions.Count);
+
         public AiProfileConfig Ai;
 
         [Tooltip("Кости соперника по слотам. Пусто или меньше 6 = остальные обычные")]
@@ -41,8 +54,14 @@ namespace Zonk.Configs
         [Tooltip("Стакан соперника. Пусто = базовый")]
         public CosmeticItemConfig Cup;
 
-        [Tooltip("Цель партии с этим соперником. 0 = из правил режима")]
+        [Tooltip("Цель партии с этим соперником, любая (у нынешних боссов 10000, можно и 340000). 0 = из правил режима")]
         public int TargetScore;
+
+        /// <summary>Цель партии с этим соперником: своя из конфига, иначе цель режима modeTarget. Везде брать цель отсюда.</summary>
+        public int TargetFor(int modeTarget)
+        {
+            return TargetScore > 0 ? TargetScore : modeTarget;
+        }
 
         [Tooltip("Условия дополнительных звёзд (первая звезда — победа). Проверяются только при победе")]
         [SerializeReference, SubclassSelector]

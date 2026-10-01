@@ -27,6 +27,10 @@ namespace Zonk.Configs
         FinalRound,
         /// <summary>Ход игрока после первого: кости можно бросить своей рукой, потряся стакан.</summary>
         ManualRoll,
+        /// <summary>Первый вход в «Бесконечный забег».</summary>
+        EndlessRun,
+        /// <summary>Первый вход в башню.</summary>
+        Tower,
     }
 
     [Serializable]

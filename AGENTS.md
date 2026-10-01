@@ -34,8 +34,9 @@
 ```
 Assets/ZonkContent/
   Scripts/
-    Core/          Zonk.Core.asmdef: правила, ZonkMatch, ИИ, модификаторы, симулятор. Без UnityEngine: пойдёт на сервер
-    Runtime/       Zonk.asmdef: Configs, Progress, Presentation, MatchFlow, Table, UI, Boot, Utils, ZonkInstaller
+    Core/          Zonk.Core.asmdef: правила, ZonkMatch, ИИ, модификаторы, симулятор, расчёт этажей забега (Modes). Без UnityEngine: пойдёт на сервер
+    Runtime/       Zonk.asmdef: Configs, Progress, Presentation, MatchFlow, Table, UI, Boot, Utils, Analytics (все события игры), ZonkInstaller
+                   режимы: кампания, игра вдвоём, «Бесконечный забег» (EndlessRunState), башня (TowerState)
     Editor/        Zonk.Editor.asmdef: Setup (генератор), реестр и валидатор контента, окно баланса, инспекторы
     Tests/         Zonk.Tests.asmdef: EditMode-тесты
   Configs/<вид>/   ассеты-конфиги: подпапка на каждый вид (Dice, Cosmetics/Slots, Cosmetics/Items, Opponents, Ai, ...)
@@ -71,9 +72,10 @@ Tools/Blender/     скрипты моделей (Blender в фоне), выхо
   (Resources целиком грузится в сборку и в память). Тяжёлое (окна UI, локации) — по требованию.
 
 **Расширяемость.** Новое добавляется, а не переписывается.
-- Контент добавляется ассетом без кода: кость, скин, предмет, слот косметики, соперник, глава, фраза, режим.
+- Контент добавляется ассетом без кода: кость, скин, предмет, слот косметики, соперник, грозная версия босса, глава, фраза, режим.
+- Личные правила игрока (находки режима) — `PlayerSetup.Modifiers`: только очки комбинаций и штраф за Зонк.
 - Выбираемое в ассете поведение — наследник базового класса с `[SerializeReference, SubclassSelector]`:
-  `ScoringRule`, `MatchModifier`, `AiSelectionPolicy`, `AiRiskPolicy`, `Reward`, `PriceOption`, `CosmeticApplier`,
+  `ScoringRule`, `MatchModifier` (с описанием для игрока: `DescriptionKey`/`DescriptionArgs`), `AiSelectionPolicy`, `AiRiskPolicy`, `Reward`, `PriceOption`, `CosmeticApplier`,
   `CosmeticPayload`, `QuestGoal`, `QuestCondition`, `StarCondition`, `AtmosphereEffect`. Новый класс сам появляется в списке инспектора.
 - Прогресс игрока из партии (задания, мастерство) идёт событиями: `MatchRunner` и состояния режимов сообщают
   `IQuestService.Report` и `IDieMastery.AddPoints`, окна только показывают. Партии вдвоём прогресс не копят.

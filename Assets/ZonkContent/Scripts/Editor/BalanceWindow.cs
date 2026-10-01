@@ -98,13 +98,14 @@ namespace Zonk.Editor
             var reference = ReferencePlayer();
             var text = new StringBuilder("Глава / соперник | победы ИИ против среднего игрока | очки за ход | Зонк\n");
             var chapters = database.All<ChapterConfig>().OrderBy(c => c.Order).ToList();
-            var total = chapters.Sum(c => c.Opponents.Count);
+            var total = chapters.Sum(c => c.Opponents.Count + c.DreadBosses.Count);
             var done = 0;
 
             foreach (var chapter in chapters)
             {
                 text.AppendLine($"== {chapter.Id}");
-                foreach (var opponent in chapter.Opponents.Where(o => o != null && o.Ai != null))
+                // Обычные соперники, затем грозные версии боссов.
+                foreach (var opponent in chapter.Opponents.Concat(chapter.DreadBosses).Where(o => o != null && o.Ai != null))
                 {
                     EditorUtility.DisplayProgressBar("Zonk Balance", opponent.name, (float)done++ / Mathf.Max(1, total));
 
@@ -117,11 +118,11 @@ namespace Zonk.Editor
                         Players = new List<PlayerSetup> { new PlayerSetup("AI", dice), new PlayerSetup("P", PlayerSetup.StandardDice()) },
                         Modifiers = new List<Core.Modifiers.MatchModifier>(opponent.Modifiers.Where(m => m != null)),
                     };
-                    if (opponent.TargetScore > 0)
-                        settings.Rules.TargetScore = opponent.TargetScore;
+                    // Цель — из конфига соперника, иначе из правил.
+                    settings.Rules.TargetScore = opponent.TargetFor(settings.Rules.TargetScore);
 
                     var result = MatchSimulator.Run(settings, new[] { opponent.Ai.ToProfile(), reference }, matches, 5);
-                    var boss = opponent.IsBoss ? " ★" : string.Empty;
+                    var boss = opponent.IsDread ? " ★ грозный" : opponent.IsBoss ? " ★" : string.Empty;
                     text.AppendLine($"{opponent.Id + boss,-22} {result.WinRate(0):P1}  {result.AverageTurnScore(0):F0}  {result.ZonkRate(0):P1}");
                 }
             }

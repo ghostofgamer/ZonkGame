@@ -39,6 +39,8 @@ namespace Zonk.Table
             Container.Bind<OwnedContent>().AsSingle();
             Container.Bind<ShopFocus>().AsSingle();
             Container.BindInterfacesAndSelfTo<TutorialDirector>().AsSingle();
+            Container.Bind<EnergyGate>().AsSingle();
+            Container.Bind<ModeMatch>().AsSingle();
 
             Container.Bind<ITableState>().To<MenuState>().AsSingle();
             Container.Bind<ITableState>().To<SettingsState>().AsSingle();
@@ -48,6 +50,8 @@ namespace Zonk.Table
             Container.Bind<ITableState>().To<RulesState>().AsSingle();
             Container.Bind<ITableState>().To<QuestsState>().AsSingle();
             Container.Bind<ITableState>().To<LeaderboardsState>().AsSingle();
+            Container.Bind<ITableState>().To<TowerState>().AsSingle();
+            Container.Bind<ITableState>().To<EndlessRunState>().AsSingle();
 
             Container.BindInterfacesTo<TableFlow>().AsSingle();
         }

@@ -13,6 +13,12 @@ namespace Zonk.Configs
 
         /// <summary>Лучший ход: больше всего очков, забранных за один ход, в партиях против соперников.</summary>
         BestTurn,
+
+        /// <summary>«Бесконечный забег»: лучший пройденный этаж.</summary>
+        EndlessRunFloor,
+
+        /// <summary>Башня: сколько этажей пройдено.</summary>
+        TowerFloor,
     }
 
     /// <summary>

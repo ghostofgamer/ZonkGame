@@ -19,6 +19,13 @@ namespace Zonk.Core.Match
         /// <summary>Ровно ZonkMatch.DiceCount костей. Индекс кости = номер слота на столе.</summary>
         public IReadOnlyList<DieSpec> Dice { get; }
 
+        /// <summary>
+        /// Личные правила только этого игрока (находки «Бесконечного забега»): действуют поверх общих правил партии
+        /// на очки его комбинаций (ModifyComboScore) и штраф за его Зонк (ZonkPenalty). ModifyRules у личных правил
+        /// не вызывается: пороги и цель общие для всех. Пусто — как раньше.
+        /// </summary>
+        public IReadOnlyList<MatchModifier> Modifiers { get; set; } = System.Array.Empty<MatchModifier>();
+
         public static IReadOnlyList<DieSpec> StandardDice()
         {
             var dice = new DieSpec[ZonkMatch.DiceCount];

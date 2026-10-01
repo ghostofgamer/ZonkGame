@@ -60,7 +60,7 @@ namespace Zonk.Configs
 
             foreach (var chapter in context.Campaign.Chapters)
             {
-                if (chapter != null && chapter.Opponents.Contains(Opponent))
+                if (chapter != null && (chapter.Opponents.Contains(Opponent) || chapter.DreadBosses.Contains(Opponent)))
                     return context.Campaign.GetState(chapter, Opponent) == OpponentState.Beaten;
             }
 

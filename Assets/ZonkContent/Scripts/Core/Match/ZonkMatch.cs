@@ -28,6 +28,8 @@ namespace Zonk.Core.Match
         private readonly HashSet<int> _keysBuffer = new HashSet<int>();
         private readonly bool[] _inHand = new bool[DiceCount];
         private readonly List<MatchModifier> _modifiers;
+        private readonly ScoreCalculator[] _calculators;
+        private readonly IReadOnlyList<MatchModifier>[] _playerModifiers;
         private int _finalRoundStarter = -1;
 
         public ZonkMatch(MatchSettings settings)
@@ -40,7 +42,25 @@ namespace Zonk.Core.Match
             foreach (var modifier in _modifiers)
                 modifier.ModifyRules(Rules);
 
-            Calculator = new ScoreCalculator(Rules.Rules, _modifiers);
+            // Расчёт очков у каждого игрока свой: общие правила плюс его личные (находки). Без личных — общий расчёт.
+            var shared = new ScoreCalculator(Rules.Rules, _modifiers);
+            _calculators = new ScoreCalculator[settings.Players.Count];
+            _playerModifiers = new IReadOnlyList<MatchModifier>[settings.Players.Count];
+            for (var i = 0; i < settings.Players.Count; i++)
+            {
+                var own = settings.Players[i].Modifiers ?? Array.Empty<MatchModifier>();
+                _playerModifiers[i] = own;
+                if (own.Count == 0)
+                {
+                    _calculators[i] = shared;
+                    continue;
+                }
+
+                var combined = new List<MatchModifier>(_modifiers);
+                combined.AddRange(own);
+                _calculators[i] = new ScoreCalculator(Rules.Rules, combined);
+            }
+
             _random = new SplitMixRandom(settings.Seed);
 
             for (var i = 0; i < settings.Players.Count; i++)
@@ -58,7 +78,12 @@ namespace Zonk.Core.Match
         /// <summary>Правила с учётом модификаторов.</summary>
         public RuleSet Rules { get; }
 
-        public ScoreCalculator Calculator { get; }
+        /// <summary>Расчёт очков текущего игрока: общие правила и его личные.</summary>
+        public ScoreCalculator Calculator => _calculators[CurrentPlayerIndex];
+
+        /// <summary>Личные правила игрока (находки).</summary>
+        public IReadOnlyList<MatchModifier> PlayerModifiers(int player) => _playerModifiers[player];
+
         public IReadOnlyList<MatchModifier> Modifiers => _modifiers;
         public IReadOnlyList<MatchPlayer> Players => _players;
         public MatchPhase Phase { get; private set; }
@@ -330,6 +355,8 @@ namespace Zonk.Core.Match
 
             var penalty = 0;
             foreach (var modifier in _modifiers)
+                penalty += modifier.ZonkPenalty(TurnScore);
+            foreach (var modifier in _playerModifiers[CurrentPlayerIndex])
                 penalty += modifier.ZonkPenalty(TurnScore);
 
             if (Rules.ThreeZonkPenalty > 0 && player.ZonkStreak >= 3)

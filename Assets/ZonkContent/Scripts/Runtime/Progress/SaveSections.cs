@@ -20,6 +20,9 @@ namespace Zonk.Progress
         public const string AdBonus = "zonk_ad_bonus";
         public const string Stats = "zonk_stats";
         public const string Tutorial = "zonk_tutorial";
+        public const string Analytics = "zonk_analytics";
+        public const string EndlessRun = "zonk_endless_run";
+        public const string Tower = "zonk_tower";
     }
 
     [Serializable]
@@ -96,6 +99,92 @@ namespace Zonk.Progress
 
         /// <summary>Звёзды за соперников: маска, бит 0 — победа, бит N — условие N-1 (OpponentConfig.StarConditions).</summary>
         public List<StarEntry> Stars = new List<StarEntry>();
+    }
+
+    /// <summary>
+    /// «Бесконечный забег». Этажи и правила выводятся из Seed и номера этажа, поэтому хранится только состояние игрока:
+    /// этаж, сердца, кости забега и множители находок. Незаконченный забег продолжается после перезапуска игры.
+    /// </summary>
+    [Serializable]
+    public sealed class EndlessRunSave
+    {
+        public bool Active;
+
+        /// <summary>Этаж, который сейчас играется (с 1).</summary>
+        public int Floor = 1;
+
+        public int Hearts;
+        public bool ReviveUsed;
+        public long Seed;
+
+        /// <summary>Кости забега по слотам: ID особой кости или пусто — обычная.</summary>
+        public List<string> Dice = new List<string>();
+
+        /// <summary>Находки «очки комбинации»: категория и множитель.</summary>
+        public List<RunComboSave> Combos = new List<RunComboSave>();
+
+        /// <summary>Находки на выбор после победы (не выбраны — предлагаются снова после перезапуска).</summary>
+        public List<RunOfferSave> Offers = new List<RunOfferSave>();
+
+        /// <summary>Лучший пройденный этаж за всё время (рекорд).</summary>
+        public int Best;
+
+        public int Runs;
+
+        /// <summary>Рубежи, за которые награда уже выдана.</summary>
+        public List<int> Claimed = new List<int>();
+    }
+
+    [Serializable]
+    public sealed class RunComboSave
+    {
+        public string Category;
+        public float Multiplier = 1f;
+    }
+
+    public enum RunOfferKind
+    {
+        Combo = 0,
+        Die = 1,
+        Heart = 2,
+    }
+
+    [Serializable]
+    public sealed class RunOfferSave
+    {
+        public RunOfferKind Kind;
+
+        /// <summary>Категория комбинации или ID особой кости.</summary>
+        public string Value;
+    }
+
+    /// <summary>Башня: навсегда пройденный рубеж, текущая попытка, рекорд, этажи с выданной наградой.</summary>
+    [Serializable]
+    public sealed class TowerSave
+    {
+        /// <summary>Сколько этажей пройдено навсегда (рубеж): попытки начинаются с этажа Checkpoint + 1.</summary>
+        public int Checkpoint;
+
+        public bool Active;
+
+        /// <summary>Индекс этажа (с 0), который сейчас играется в попытке.</summary>
+        public int Floor;
+
+        public int Hearts;
+        public bool ReviveUsed;
+
+        /// <summary>Лучший результат: сколько этажей пройдено за всё время.</summary>
+        public int Best;
+
+        /// <summary>Индексы этажей, за первое прохождение которых награда уже выдана.</summary>
+        public List<int> Cleared = new List<int>();
+    }
+
+    /// <summary>Для аналитики: сколько раз запускали игру (первый запуск — новый игрок).</summary>
+    [Serializable]
+    public sealed class AnalyticsSave
+    {
+        public int Launches;
     }
 
     [Serializable]

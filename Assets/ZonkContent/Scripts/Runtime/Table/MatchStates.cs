@@ -52,7 +52,7 @@ namespace Zonk.Table
         public async UniTask<ResultsChoice> ShowAsync(MatchOutcome outcome, IReadOnlyList<MatchParticipant> participants,
             IReadOnlyList<Reward> rewards, string interstitialTrigger, bool canAgain, CancellationToken ct,
             IReadOnlyList<GrantedReward> alreadyGranted = null, IReadOnlyList<string> notes = null, int starMask = 0,
-            int starCount = 0)
+            int starCount = 0, string againText = null)
         {
             var match = outcome.Match;
             var winner = outcome.Winner >= 0 ? participants[outcome.Winner] : null;
@@ -84,7 +84,7 @@ namespace Zonk.Table
 
             var canDouble = HasCurrency(rewards) && localWon && _rewards.CanOffer;
             ResultsChoice choice;
-            var screen = await _ui.OpenAsync<ResultsWindow>(ct, w => w.Setup(match, title, color, granted, canDouble, canAgain, notes));
+            var screen = await _ui.OpenAsync<ResultsWindow>(ct, w => w.Setup(match, title, color, granted, canDouble, canAgain, notes, againText));
             screen.PlayCoinsGained(granted, _coinsCurrency);
             screen.ShowStars(starMask, starCount);
             try
@@ -271,8 +271,6 @@ namespace Zonk.Table
     /// </summary>
     public sealed class CampaignState : ITableState
     {
-        private const string EnergyPlacement = "energy_refill";
-
         private readonly IQuestService _quests;
         private readonly RewardGranter _granter;
         private readonly PlayerStats _stats;
@@ -291,14 +289,16 @@ namespace Zonk.Table
         private readonly StageDresser _dresser;
         private readonly IRewardService _rewards;
         private readonly IPlatformService _platform;
+        private readonly EnergyGate _energy;
         private readonly IUiService _ui;
 
         public CampaignState(UiKit kit, TableView table, ICampaignProgress progress, IWallet wallet, GameConfig config,
             ContentDatabase content, IInventory inventory, ILoadout loadout, OwnedContent owned,
             ParticipantFactory participants, MatchRunner runner, MatchAftermath aftermath, StageDresser dresser,
             IRewardService rewards, IPlatformService platform, IUiService ui, IQuestService quests, RewardGranter granter,
-            PlayerStats stats)
+            PlayerStats stats, EnergyGate energy)
         {
+            _energy = energy;
             _stats = stats;
             _granter = granter;
             _quests = quests;
@@ -346,6 +346,10 @@ namespace Zonk.Table
                 if (opponent == null)
                     return TableStateIds.Menu;
 
+                // Закрытого соперника (в том числе грозного без звёзд у босса) не начинаем, даже если кнопка сработала.
+                if (_progress.GetState(chapter, opponent) == OpponentState.Locked)
+                    continue;
+
                 if (!_progress.IsIntroSeen(chapter) && chapter.Intro.Count > 0)
                 {
                     await StoryWindow.ShowAsync(_ui, chapter.Intro, ct);
@@ -379,7 +383,7 @@ namespace Zonk.Table
             var players = new List<MatchParticipant> { me, enemy };
 
             var mode = _config.CampaignMode;
-            var rules = mode != null && mode.Rules != null ? mode.Rules.ToRuleSet(opponent.TargetScore) : Core.Rules.RuleSet.CreateClassic();
+            var rules = mode != null && mode.Rules != null ? mode.Rules.ToRuleSet(opponent.TargetFor(mode.Rules.TargetScore)) : Core.Rules.RuleSet.CreateClassic();
             var settings = new MatchSettings
             {
                 Rules = rules,
@@ -476,31 +480,10 @@ namespace Zonk.Table
             }
         }
 
-        /// <summary>Списывает энергию. Не хватает: предложить пополнение за рекламу.</summary>
-        private async UniTask<bool> PayEnergyAsync(OpponentConfig opponent, CancellationToken ct)
+        /// <summary>Списывает энергию за партию. Не хватает: предложить пополнение за рекламу (EnergyGate).</summary>
+        private UniTask<bool> PayEnergyAsync(OpponentConfig opponent, CancellationToken ct)
         {
-            var cost = CampaignWindow.EnergyCost(opponent, _config);
-            if (cost <= 0 || _config.Energy == null)
-                return true;
-
-            if (_wallet.TrySpend(_config.Energy, cost))
-                return true;
-
-            if (!_rewards.CanOffer)
-            {
-                await Toast.ShowAsync(_kit, _table.UiRoot, _kit.T("campaign.noEnergy"), UiColors.Bad, 1f, ct);
-                return false;
-            }
-
-            if (!await ConfirmWindow.AskAsync(_ui, _kit.T("campaign.energyForAd", cost), ct))
-                return false;
-
-            var result = await _rewards.RequestAsync(EnergyPlacement, ct);
-            if (!result.IsGranted())
-                return false;
-
-            _wallet.Add(_config.Energy, cost);
-            return _wallet.TrySpend(_config.Energy, cost);
+            return _energy.PayAsync(CampaignWindow.EnergyCost(opponent, _config), ct);
         }
     }
 }

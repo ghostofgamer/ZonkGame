@@ -22,6 +22,8 @@ namespace Zonk.UI.Windows
         /// <summary>Особое предложение (стартовый набор): магазин сразу на нём.</summary>
         Offer,
         Leaderboards,
+        Tower,
+        EndlessRun,
     }
 
     /// <summary>
@@ -47,6 +49,12 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _offer;
         [SerializeField] private UiButtonView _leaderboards;
 
+        [Tooltip("Башня (пусто — кнопки нет: старый префаб)")]
+        [SerializeField] private UiButtonView _tower;
+
+        [Tooltip("«Бесконечный забег» (пусто — кнопки нет: старый префаб)")]
+        [SerializeField] private UiButtonView _endlessRun;
+
         private readonly Choice<MainMenuChoice> _choice = new Choice<MainMenuChoice>();
         private IQuestService _questService;
         private MenuAdRewards _adRewards;
@@ -65,8 +73,11 @@ namespace Zonk.UI.Windows
 #if UNITY_EDITOR
         public void EditorSetup(TMP_Text title, UiButtonView campaign, UiButtonView hotSeat, UiButtonView shop,
             UiButtonView settings, UiButtonView rules, UiButtonView quests, GameObject questsBadge, RectTransform adOffers,
-            UiButtonView adOfferTemplate, UiButtonView offer, UiButtonView leaderboards)
+            UiButtonView adOfferTemplate, UiButtonView offer, UiButtonView leaderboards, UiButtonView tower = null,
+            UiButtonView endlessRun = null)
         {
+            _tower = tower;
+            _endlessRun = endlessRun;
             _leaderboards = leaderboards;
             _quests = quests;
             _questsBadge = questsBadge;
@@ -108,6 +119,10 @@ namespace Zonk.UI.Windows
                 _offer.OnClick(() => _choice.Set(MainMenuChoice.Offer));
             if (_leaderboards != null)
                 _leaderboards.OnClick(() => _choice.Set(MainMenuChoice.Leaderboards));
+            if (_tower != null)
+                _tower.OnClick(() => _choice.Set(MainMenuChoice.Tower));
+            if (_endlessRun != null)
+                _endlessRun.OnClick(() => _choice.Set(MainMenuChoice.EndlessRun));
         }
 
         protected override void OnShowing()
@@ -119,6 +134,10 @@ namespace Zonk.UI.Windows
             _settings.SetText(T("menu.settings"));
             if (_quests != null)
                 _quests.SetText(T("menu.quests"));
+            if (_tower != null)
+                _tower.SetText(T("mode.tower"));
+            if (_endlessRun != null)
+                _endlessRun.SetText(T("mode.endlessRun"));
             if (_questsBadge != null)
                 _questsBadge.SetActive(_questService != null && _questService.HasClaimable);
 

@@ -136,6 +136,28 @@ namespace Zonk.UI.Windows
                 _mastery != null ? _mastery.GetLevel : (System.Func<DieConfig, int>)null, config.MasteryLevels);
         }
 
+        /// <summary>
+        /// Правила соперника для игрока: списком из самих правил (числа — те, что действуют в партии). У правила без
+        /// описания — прежний текст RuleKey. Пусто, если правил нет.
+        /// </summary>
+        private string RulesText(OpponentConfig opponent)
+        {
+            if (RuleTexts.HasAny(opponent.Modifiers))
+            {
+                var header = opponent.Modifiers.Count > 1 ? T("campaign.rules") : T("campaign.rule");
+                return header + "\n" + RuleTexts.List(opponent.Modifiers, T, Localization != null ? Localization.Language : "ru") + "\n\n";
+            }
+
+            return string.IsNullOrEmpty(opponent.RuleKey) ? string.Empty : T("campaign.rule") + "\n" + T(opponent.RuleKey) + "\n\n";
+        }
+
+        /// <summary>Цель партии с соперником: из его конфига, иначе из правил режима кампании.</summary>
+        private int TargetOf(OpponentConfig opponent)
+        {
+            var modeTarget = _config.CampaignMode != null && _config.CampaignMode.Rules != null ? _config.CampaignMode.Rules.TargetScore : 4000;
+            return opponent.TargetFor(modeTarget);
+        }
+
         private void ShowConditions(OpponentConfig opponent, int mask)
         {
             foreach (Transform child in _conditionsList)
@@ -313,6 +335,37 @@ namespace Zonk.UI.Windows
                 button.OnClick(() => Select(captured));
             }
 
+            // Грозные версии боссов: видны всегда и выбираются даже закрытыми — игрок читает правила и видит, что его
+            // ждёт. Играть можно, когда у обычного босса собраны звёзды.
+            foreach (var dread in Chapter.DreadBosses)
+            {
+                if (dread == null)
+                    continue;
+
+                var state = _progress.GetState(Chapter, dread);
+                var captured = dread;
+                var rowColor = state == OpponentState.Beaten ? UiColors.ButtonMuted
+                    : state == OpponentState.Available ? UiColors.Bad
+                    : new Color(0.25f, 0.12f, 0.12f, 1f);
+                var rowStatus = T("campaign.dread") + (state == OpponentState.Locked ? " " + T("campaign.state.locked") : string.Empty);
+
+                if (_opponentRowPrefab != null)
+                {
+                    var row = Instantiate(_opponentRowPrefab, _opponentList);
+                    row.gameObject.SetActive(true);
+                    row.Setup(T(dread.NameKey), rowStatus, dread.Portrait, _progress.GetStarMask(dread), StarsText.MaxStars(dread),
+                        _config.Ui, rowColor, true, () => Select(captured));
+                    continue;
+                }
+
+                var button = _opponentTemplate.Spawn(_opponentList);
+                var stars = StarsText.Render(_progress.GetStarMask(dread), StarsText.MaxStars(dread));
+                button.SetText(T(dread.NameKey) + "  " + rowStatus + "  " + stars);
+                button.SetColor(rowColor);
+                button.Interactable = true;
+                button.OnClick(() => Select(captured));
+            }
+
             Select(firstAvailable);
         }
 
@@ -335,12 +388,20 @@ namespace Zonk.UI.Windows
                 _portrait.gameObject.SetActive(opponent.Portrait != null);
             }
 
+            var state = _progress.GetState(Chapter, opponent);
             var text = $"<b>{T(opponent.NameKey)}</b>\n{T(opponent.TitleKey)}\n\n";
-            if (!string.IsNullOrEmpty(opponent.RuleKey))
-                text += T("campaign.rule") + "\n" + T(opponent.RuleKey) + "\n\n";
 
-            var target = opponent.TargetScore > 0 ? opponent.TargetScore
-                : _config.CampaignMode != null && _config.CampaignMode.Rules != null ? _config.CampaignMode.Rules.TargetScore : 4000;
+            // Закрытая грозная версия: что нужно, чтобы открыть, — первой строкой.
+            if (opponent.IsDread && state == OpponentState.Locked)
+            {
+                var color = ColorUtility.ToHtmlStringRGB(UiColors.Bad);
+                text += "<color=#" + color + ">" + T("campaign.dreadLocked", opponent.DreadStarsRequired, T(opponent.DreadOf.NameKey)) +
+                        "</color>\n\n";
+            }
+
+            text += RulesText(opponent);
+
+            var target = TargetOf(opponent);
             text += T("campaign.target", target);
 
             // Звёзды: что нужно для каждой; полученные — золотые.
@@ -351,7 +412,7 @@ namespace Zonk.UI.Windows
                 text += "\n" + StarLine(mask, i + 1, StarsText.Condition(opponent.StarConditions[i], T));
 
             // Награда за победу: первая — полная, повторная — меньше (из конфига соперника), плюс монеты за новые звёзды.
-            var beaten = _progress.GetState(Chapter, opponent) == OpponentState.Beaten;
+            var beaten = state == OpponentState.Beaten;
             var rewards = RewardsText(beaten ? opponent.RepeatWinRewards : opponent.FirstWinRewards);
             if (rewards.Length > 0)
                 text += "\n\n" + T(beaten ? "campaign.rewardRepeat" : "campaign.rewardFirst", rewards);
@@ -366,7 +427,7 @@ namespace Zonk.UI.Windows
 
             var cost = EnergyCost(opponent, _config);
             _play.SetText(cost > 0 ? T("campaign.playCost", cost) : T("campaign.play"));
-            _play.Interactable = true;
+            _play.Interactable = state != OpponentState.Locked;
         }
     }
 }

@@ -117,6 +117,8 @@ namespace Zonk.Table
                 case MainMenuChoice.Quests: return TableStateIds.Quests;
                 case MainMenuChoice.Offer: return TableStateIds.Shop;
                 case MainMenuChoice.Leaderboards: return TableStateIds.Leaderboards;
+                case MainMenuChoice.Tower: return TableStateIds.Tower;
+                case MainMenuChoice.EndlessRun: return TableStateIds.EndlessRun;
                 default: return TableStateIds.Settings;
             }
         }

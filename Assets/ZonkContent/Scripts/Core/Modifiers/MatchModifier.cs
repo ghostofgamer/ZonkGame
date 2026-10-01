@@ -5,7 +5,7 @@ namespace Zonk.Core.Modifiers
 {
     /// <summary>
     /// Особое правило партии, обычно от босса. Действует на обоих игроков одинаково: босс не жульничает,
-    /// а меняет условия. Игрок видит правило до начала партии (DescriptionKey в конфиге соперника).
+    /// а меняет условия. Игрок видит правило до начала партии: текст строится из самого правила (DescriptionKey).
     ///
     /// Новое правило = новый наследник с нужными переопределениями. Хуки пустые по умолчанию,
     /// поэтому добавление нового хука не ломает старые правила.
@@ -29,6 +29,16 @@ namespace Zonk.Core.Modifiers
         {
             return 0;
         }
+
+        /// <summary>
+        /// Как правило видит игрок: ключ текста (Texts.csv), {0}, {1}… — значения DescriptionArgs. Строка в значениях,
+        /// начинающаяся с «@», — тоже ключ текста (название комбинации, грани). Текст строится из чисел правила,
+        /// поэтому всегда совпадает с тем, что действует в партии. null — правило без описания.
+        /// </summary>
+        public virtual string DescriptionKey => null;
+
+        /// <summary>Значения для текста правила. Вызывается редко (окна), может выделять память.</summary>
+        public virtual object[] DescriptionArgs => Array.Empty<object>();
     }
 
     /// <summary>Очки комбинаций выбранной категории умножаются. «Близнецы»: тройки вдвое дороже.</summary>
@@ -42,6 +52,9 @@ namespace Zonk.Core.Modifiers
         {
             return combo.Category == Category ? (int)Math.Round(score * Multiplier) : score;
         }
+
+        public override string DescriptionKey => "rule.comboMultiplier";
+        public override object[] DescriptionArgs => new object[] { Multiplier, "@rule.cat." + Category };
     }
 
     /// <summary>Своя цель партии. «Картограф»: до 6000.</summary>
@@ -54,6 +67,9 @@ namespace Zonk.Core.Modifiers
         {
             rules.TargetScore = TargetScore;
         }
+
+        public override string DescriptionKey => "rule.target";
+        public override object[] DescriptionArgs => new object[] { TargetScore };
     }
 
     /// <summary>Порог входа: первые очки записываются только от этой суммы за ход.</summary>
@@ -66,6 +82,9 @@ namespace Zonk.Core.Modifiers
         {
             rules.EntryScore = EntryScore;
         }
+
+        public override string DescriptionKey => "rule.entry";
+        public override object[] DescriptionArgs => new object[] { EntryScore };
     }
 
     /// <summary>Каждый Зонк стоит очков из общего счёта.</summary>
@@ -78,6 +97,9 @@ namespace Zonk.Core.Modifiers
         {
             return Penalty;
         }
+
+        public override string DescriptionKey => "rule.zonkPenalty";
+        public override object[] DescriptionArgs => new object[] { Penalty };
     }
 
     /// <summary>Штраф за три Зонка подряд.</summary>
@@ -90,6 +112,9 @@ namespace Zonk.Core.Modifiers
         {
             rules.ThreeZonkPenalty = Penalty;
         }
+
+        public override string DescriptionKey => "rule.threeZonks";
+        public override object[] DescriptionArgs => new object[] { Penalty };
     }
 
     /// <summary>
@@ -109,6 +134,12 @@ namespace Zonk.Core.Modifiers
 
             return (int)Math.Round(score * Multiplier);
         }
+
+        public override string DescriptionKey => Multiplier <= 0f ? "rule.singleFaceZero" : "rule.singleFace";
+
+        public override object[] DescriptionArgs => Multiplier <= 0f
+            ? new object[] { "@rule.face." + Face }
+            : new object[] { Multiplier, "@rule.face." + Face };
     }
 
     /// <summary>Забирать очки можно только от MinBankScore за ход: «мелочь не считается».</summary>
@@ -121,5 +152,8 @@ namespace Zonk.Core.Modifiers
         {
             rules.MinBankScore = Math.Max(rules.MinBankScore, MinBankScore);
         }
+
+        public override string DescriptionKey => "rule.minBank";
+        public override object[] DescriptionArgs => new object[] { MinBankScore };
     }
 }
