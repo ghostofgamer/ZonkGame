@@ -64,6 +64,9 @@ namespace Zonk.Progress
             if (item == null)
                 return false;
 
+            if (DebugCheats.UnlockAll)
+                return true;
+
             if (IsOwnedDirectly(item))
                 return true;
 

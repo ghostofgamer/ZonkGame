@@ -81,6 +81,8 @@ namespace Zonk.Editor.Setup
                 DecorAnchor(),
             };
 
+            anchors.AddRange(DecorSpotAnchors());
+
             var tray = BuildTray(out var feltAnchor);
             anchors.Add(feltAnchor);
 
@@ -176,6 +178,37 @@ namespace Zonk.Editor.Setup
             var anchor = Anchor("Decor", null, new Vector3(-2.25f, 0f, -1.3f), DecorSlotId);
             anchor.transform.rotation = Quaternion.Euler(0f, 25f, 0f);
             return anchor;
+        }
+
+        /// <summary>
+        /// Места безделушек на столе (верх столешницы — y = 0, стол 5.6 × 4): 0 — передний левый угол (основное), 1 — задний
+        /// правый угол у соперника, 2 и 3 — середины левого и правого края рядом с лотком (лоток |x| ≤ 1.7). Вне пути
+        /// стаканов к лотку (стаканы в (2.15, −1.25) и (−2.15, 1.25)), отложенных костей (z = ±1.45 у центра) и руки (z = −2.3).
+        /// </summary>
+        private static readonly Vector3[] DecorSpots =
+        {
+            new Vector3(-2.25f, 0f, -1.3f),
+            new Vector3(2.25f, 0f, 1.3f),
+            new Vector3(-2.45f, 0f, 0.15f),
+            new Vector3(2.45f, 0f, 0.15f),
+        };
+
+        private static readonly Vector3 DecorShotOffset = new Vector3(1.65f, 1.65f, -2.6f);
+        private static readonly Vector3 DecorLookUp = new Vector3(0f, 0.25f, 0f);
+
+        /// <summary>Якоря дополнительных мест (1..3): открываются талантом, пустое место ничего не показывает.</summary>
+        private static CosmeticAnchor[] DecorSpotAnchors()
+        {
+            var result = new CosmeticAnchor[DecorSpots.Length - 1];
+            for (var spot = 1; spot < DecorSpots.Length; spot++)
+            {
+                var anchor = Anchor("Decor" + (spot + 1), null, DecorSpots[spot], DecorSlotId);
+                anchor.EditorSetup(DecorSlotId, spot);
+                anchor.transform.rotation = Quaternion.Euler(0f, 25f, 0f);
+                result[spot - 1] = anchor;
+            }
+
+            return result;
         }
 
         private static CosmeticAnchor Anchor(string name, Transform parent, Vector3 position, string slotId)
@@ -343,6 +376,10 @@ namespace Zonk.Editor.Setup
                 Shot(shots, "shop_dice", new Vector3(0f, 2.2f, -1.7f), new Vector3(0f, 0.1f, 0f), 40f),
                 Shot(shots, "shop_lamp", new Vector3(1.8f, 2.4f, -3.2f), new Vector3(0f, 3.4f, 0f), 45f),
                 Shot(shots, "shop_decor", new Vector3(-0.6f, 1.9f, -3.9f), new Vector3(-2.25f, 0.25f, -1.3f), 40f),
+                // Дополнительные места безделушек: тот же сдвиг камеры от вещи, что у основного места.
+                Shot(shots, "shop_decor_2", DecorSpots[1] + DecorShotOffset, DecorSpots[1] + DecorLookUp, 40f),
+                Shot(shots, "shop_decor_3", DecorSpots[2] + DecorShotOffset, DecorSpots[2] + DecorLookUp, 40f),
+                Shot(shots, "shop_decor_4", DecorSpots[3] + DecorShotOffset, DecorSpots[3] + DecorLookUp, 40f),
             };
 
             var rig = root.AddComponent<CameraRig>();

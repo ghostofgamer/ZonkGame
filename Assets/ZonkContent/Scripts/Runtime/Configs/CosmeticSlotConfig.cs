@@ -36,5 +36,8 @@ namespace Zonk.Configs
 
         [Tooltip("Предмет этого слота задаёт освещение сцены (локации): профиль из PrefabPayload.Lighting")]
         public bool DrivesLighting;
+
+        [Tooltip("Дополнительные места слота на столе (безделушки): открываются талантом DecorSpotsExtra. Места — якоря с индексом 1..N; одна вещь — одно место")]
+        [Min(0)] public int ExtraSpots;
     }
 }

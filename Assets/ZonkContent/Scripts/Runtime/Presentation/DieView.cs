@@ -22,6 +22,8 @@ namespace Zonk.Presentation
 
         private Mesh _baseMesh;
         private Material _baseMaterial;
+        private Mesh _skinMesh;
+        private Material _skinMaterial;
         private MaterialPropertyBlock _block;
         private Color _markerColor = Color.clear;
         private float _glow = 1f;
@@ -82,18 +84,33 @@ namespace Zonk.Presentation
                     break;
             }
 
+            _skinMesh = _meshFilter.sharedMesh;
+            _skinMaterial = _renderer.sharedMaterial;
             ApplyBlock();
         }
 
-        /// <summary>Свой вид особой кости поверх скина. mesh пустой = текущий меш.</summary>
+        /// <summary>
+        /// Свой вид особой кости поверх скина: модель (пусто — модель скина) и материал. Модель особой кости важнее
+        /// модели скина — кость узнаётся по силуэту; материал вида или мастерства — поверх.
+        /// </summary>
         public void SetLook(Mesh mesh, Material material)
         {
             if (material == null)
                 return;
 
-            if (mesh != null)
-                _meshFilter.sharedMesh = mesh;
+            _meshFilter.sharedMesh = mesh != null ? mesh : _skinMesh != null ? _skinMesh : _baseMesh;
             _renderer.sharedMaterial = material;
+            ApplyBlock();
+        }
+
+        /// <summary>Снять вид особой кости: вернуть модель и материал скина.</summary>
+        public void ClearLook()
+        {
+            if (_meshFilter == null || _renderer == null)
+                return;
+
+            _meshFilter.sharedMesh = _skinMesh != null ? _skinMesh : _baseMesh;
+            _renderer.sharedMaterial = _skinMaterial != null ? _skinMaterial : _baseMaterial;
             ApplyBlock();
         }
 

@@ -302,32 +302,38 @@ namespace Zonk.Editor.Setup
             });
         }
 
+        /// <summary>Пятно с прутьями решётки: плавные пороги — Smooth01 (Mathf.SmoothStep до 02.10.2026 давал серую кашу).</summary>
+        private static Texture2D PaintCageCookie()
+        {
+            const int size = 256;
+            var pixels = new Color[size * size];
+            for (var y = 0; y < size; y++)
+            for (var x = 0; x < size; x++)
+            {
+                var u = x / (float)size - 0.5f;
+                var v = y / (float)size - 0.5f;
+                var radius = Mathf.Sqrt(u * u + v * v) * 2f;
+                var spot = 1f - Smooth01(0.7f, 1f, radius);
+
+                // Прутья идут лучами от центра (как у решётки лампы) плюс одно кольцо.
+                var angle = Mathf.Atan2(v, u);
+                var bars = Mathf.Abs(Mathf.Sin(angle * 4f));
+                var bar = Smooth01(0.06f, 0.12f, bars);
+                var ring = Smooth01(0.02f, 0.04f, Mathf.Abs(radius - 0.55f));
+                var value = spot * Mathf.Lerp(0.15f, 1f, bar * ring);
+                pixels[y * size + x] = new Color(value, value, value, value);
+            }
+
+            return TextureFrom(size, size, pixels);
+        }
+
         /// <summary>Узор решётки для прожектора: светлое пятно с тёмными прутьями, края мягкие.</summary>
         private static Texture2D CageCookie()
         {
             var path = Textures + "/Cookie_Cage.png";
             if (!File.Exists(path))
             {
-                const int size = 256;
-                var pixels = new Color[size * size];
-                for (var y = 0; y < size; y++)
-                for (var x = 0; x < size; x++)
-                {
-                    var u = x / (float)size - 0.5f;
-                    var v = y / (float)size - 0.5f;
-                    var radius = Mathf.Sqrt(u * u + v * v) * 2f;
-                    var spot = 1f - Mathf.SmoothStep(0.7f, 1f, radius);
-
-                    // Прутья идут лучами от центра (как у решётки лампы) плюс одно кольцо.
-                    var angle = Mathf.Atan2(v, u);
-                    var bars = Mathf.Abs(Mathf.Sin(angle * 4f));
-                    var bar = Mathf.SmoothStep(0.06f, 0.12f, bars);
-                    var ring = Mathf.SmoothStep(0.02f, 0.04f, Mathf.Abs(radius - 0.55f));
-                    var value = spot * Mathf.Lerp(0.15f, 1f, bar * ring);
-                    pixels[y * size + x] = new Color(value, value, value, value);
-                }
-
-                SavePng(path, TextureFrom(size, size, pixels));
+                SavePng(path, PaintCageCookie());
                 if (AssetImporter.GetAtPath(path) is TextureImporter importer)
                 {
                     importer.textureType = TextureImporterType.Cookie;

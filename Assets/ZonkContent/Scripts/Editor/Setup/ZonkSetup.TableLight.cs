@@ -24,6 +24,18 @@ namespace Zonk.Editor.Setup
 
         private static void TuneTableLights()
         {
+            // Узор лампы-клетки рисовался с Mathf.SmoothStep (серая каша): перерисовать один раз на месте — .meta и ссылки прежние.
+            const string cookieMarker = "Library/Zonk_CageCookie_v2";
+            var cookiePath = Textures + "/Cookie_Cage.png";
+            if (!System.IO.File.Exists(cookieMarker) && System.IO.File.Exists(cookiePath))
+            {
+                var cookie = PaintCageCookie();
+                System.IO.File.WriteAllBytes(cookiePath, cookie.EncodeToPNG());
+                Object.DestroyImmediate(cookie);
+                AssetDatabase.ImportAsset(cookiePath);
+                System.IO.File.WriteAllText(cookieMarker, "redrawn");
+            }
+
             foreach (var (name, power, angle) in TableLights)
             {
                 var profile = AssetDatabase.LoadAssetAtPath<LightingProfileConfig>(ConfigsFolder + "/Lighting/" + name + ".asset");

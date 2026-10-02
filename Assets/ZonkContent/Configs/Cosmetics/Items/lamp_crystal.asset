@@ -17,8 +17,9 @@ MonoBehaviour:
   Slot: {fileID: 11400000, guid: 58c84ab6b52919946bba62d21bc3ba77, type: 2}
   Icon: {fileID: 0}
   Order: 3
+  Rarity: 0
   Payload:
-    rid: 4243792294545719527
+    rid: 1889488799493521517
   Price:
     Options:
     - rid: 4243792294545719696
@@ -26,10 +27,17 @@ MonoBehaviour:
   references:
     version: 2
     RefIds:
-    - rid: 4243792294545719527
-      type: {class: MaterialPayload, ns: Zonk.Configs, asm: Zonk}
+    - rid: 1889488799493521517
+      type: {class: PrefabPayload, ns: Zonk.Configs, asm: Zonk}
       data:
-        Material: {fileID: 2100000, guid: 6b71f9866cda55e4ebd55f6ec0e0e86e, type: 2}
+        Asset:
+          m_AssetGUID: 5034dea6bc174b940911714357180ec8
+          m_SubObjectName: 
+          m_SubObjectType: 
+          m_SubObjectGUID: 
+          m_EditorAssetChanged: 0
+        Prefab: {fileID: 0}
+        Lighting: {fileID: 0}
     - rid: 4243792294545719696
       type: {class: PurchasePriceOption, ns: Zonk.Configs, asm: Zonk}
       data:

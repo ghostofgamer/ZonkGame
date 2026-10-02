@@ -63,6 +63,9 @@ namespace Zonk.Progress
 
         public bool IsChapterUnlocked(ChapterConfig chapter)
         {
+            if (DebugCheats.UnlockAll)
+                return _chapters.Contains(chapter);
+
             var index = _chapters.IndexOf(chapter);
             if (index <= 0)
                 return index == 0;
@@ -75,6 +78,8 @@ namespace Zonk.Progress
         {
             if (IsBeaten(opponent))
                 return OpponentState.Beaten;
+            if (DebugCheats.UnlockAll)
+                return OpponentState.Available;
 
             if (!IsChapterUnlocked(chapter))
                 return OpponentState.Locked;
@@ -94,6 +99,9 @@ namespace Zonk.Progress
 
         public bool IsDreadUnlocked(OpponentConfig dread)
         {
+            if (DebugCheats.UnlockAll)
+                return dread != null;
+
             if (dread == null || dread.DreadOf == null)
                 return dread != null;
 

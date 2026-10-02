@@ -79,8 +79,10 @@ namespace Zonk.Presentation
                 _dice[i].SetGlow(level > 0 && levels != null && level <= levels.Count && levels[level - 1] != null
                     ? levels[level - 1].Glow
                     : 1f);
-                if (config != null)
+                if (config != null && LookFor(config, level) != null)
                     _dice[i].SetLook(config.LookMesh, LookFor(config, level));
+                else
+                    _dice[i].ClearLook();
             }
         }
 

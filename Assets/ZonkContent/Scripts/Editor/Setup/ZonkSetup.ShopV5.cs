@@ -104,13 +104,49 @@ namespace Zonk.Editor.Setup
             BuildShopModels();
             BuildPatternFelts();
             ApplyShopLayoutV5(config);
+
+            // Волна 2 (02.10.2026, по отзыву пользователя): каждая часть — свой файл генератора и своя таблица цен.
+            BuildDiceV2(config);
+            BuildTablesV2(config);
+            BuildLampsFeltV2(config);
+            BuildDecorSpots(config);
+            if (config.ShopLayoutVersion < 6)
+            {
+                config.ShopLayoutVersion = 6;
+                EditorUtility.SetDirty(config);
+            }
+        }
+
+        // Части волны 2 — реализуются в своих файлах (ZonkSetup.DiceV2, TablesV2, LampsFeltV2, DecorSpots).
+        static partial void BuildDiceV2(GameConfig config);
+        static partial void BuildTablesV2(GameConfig config);
+        static partial void BuildLampsFeltV2(GameConfig config);
+        static partial void BuildDecorSpots(GameConfig config);
+
+        /// <summary>
+        /// Цены волны 2: таблица применяется один раз (ShopLayoutVersion < 6) ко всем своим вещам, к бесплатным — всегда.
+        /// Вызывать из своей части волны 2 после создания вещей.
+        /// </summary>
+        private static void ApplyShopLayoutV6((string id, Get how, int value)[] table, GameConfig config)
+        {
+            ApplyLayoutV5Table(table, config, config.ShopLayoutVersion < 6);
         }
 
         private static void ApplyShopLayoutV5(GameConfig config)
         {
+            ApplyLayoutV5Table(ShopLayoutV5, config, config.ShopLayoutVersion < 5);
+            if (config.ShopLayoutVersion < 5)
+            {
+                config.ShopLayoutVersion = 5;
+                EditorUtility.SetDirty(config);
+                Debug.Log("[Setup] Shop layout v5 applied: 3 coins / 3 ads / 3 money / 3 play per tab");
+            }
+        }
+
+        private static void ApplyLayoutV5Table((string id, Get how, int value)[] table, GameConfig config, bool firstTime)
+        {
             var content = ContentById<ContentConfig>();
-            var firstTime = config.ShopLayoutVersion < 5;
-            foreach (var (id, how, value) in ShopLayoutV5)
+            foreach (var (id, how, value) in table)
             {
                 if (!content.TryGetValue(id, out var item) || !(Pricing.PriceOf(item) is Price price))
                     continue;
@@ -147,13 +183,6 @@ namespace Zonk.Editor.Setup
                 }
 
                 EditorUtility.SetDirty(item);
-            }
-
-            if (config.ShopLayoutVersion < 5)
-            {
-                config.ShopLayoutVersion = 5;
-                EditorUtility.SetDirty(config);
-                Debug.Log("[Setup] Shop layout v5 applied: 3 coins / 3 ads / 3 money / 3 play per tab");
             }
         }
 

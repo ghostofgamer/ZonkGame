@@ -198,6 +198,9 @@ namespace Zonk.Editor
                 errors.Add($"{die.name}: needs 6 non-negative weights");
             if (die.IsSpecial)
                 CheckKey(die, die.DescriptionKey, texts, errors);
+            // Своя модель особой кости: те же грани и атлас, что у обычной (текстуры видов и мастерства — по атласу).
+            if (die.LookMesh != null)
+                ValidateDieMesh(die.name, die.LookMesh, errors);
             ValidatePrice(die, die.Price, errors);
         }
 

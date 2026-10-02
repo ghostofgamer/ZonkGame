@@ -23,6 +23,24 @@ namespace Zonk.Progress
         /// <summary>Надеть предмет. В слоте с мультивыбором — добавить к отмеченным.</summary>
         void Equip(CosmeticItemConfig item);
 
+        /// <summary>Всего мест слота (1 + CosmeticSlotConfig.ExtraSpots).</summary>
+        int MaxSpots(CosmeticSlotConfig slot);
+
+        /// <summary>Открытых мест у игрока: 1 + открытые талантом DecorSpotsExtra, не больше MaxSpots.</summary>
+        int SpotCount(CosmeticSlotConfig slot);
+
+        /// <summary>Предмет на месте spot (0 — основное, как GetEquipped). На доп. месте пусто — null.</summary>
+        CosmeticItemConfig GetEquippedAt(CosmeticSlotConfig slot, int spot);
+
+        /// <summary>Поставить предмет на место spot; с других мест он убирается (одна вещь — одно место).</summary>
+        void EquipAt(CosmeticItemConfig item, int spot);
+
+        /// <summary>Убрать предмет с места (основное место — пустое, без базового предмета).</summary>
+        void ClearAt(CosmeticSlotConfig slot, int spot);
+
+        /// <summary>На каком месте стоит предмет; -1 — нигде.</summary>
+        int SpotOf(CosmeticItemConfig item);
+
         /// <summary>Шесть костей игрока (для кампании). Неизвестные ID заменяются обычной костью.</summary>
         IReadOnlyList<DieConfig> GetDice();
 
@@ -78,6 +96,10 @@ namespace Zonk.Progress
                 if (entry.SlotId != slot.Id)
                     continue;
 
+                // Явно пустое основное место (вещь переставили на другое место): без базового предмета.
+                if (string.IsNullOrEmpty(entry.ItemId) && slot.ExtraSpots > 0)
+                    return null;
+
                 var item = _content.Get<CosmeticItemConfig>(entry.ItemId);
                 if (item != null && item.Slot == slot && _inventory.IsOwned(item))
                     return item;
@@ -112,8 +134,119 @@ namespace Zonk.Progress
             if (!found)
                 data.Equipped.Add(new EquippedEntry { SlotId = item.Slot.Id, ItemId = item.Id });
 
+            RemoveFromExtraSpots(item, -1);
             _saves.RequestSave();
             Changed?.Invoke();
+        }
+
+        private const char SpotSeparator = '#';
+
+        /// <summary>Ключ места в сохранении: основное — ID слота (как раньше), дополнительные — «decor#1», «decor#2»…</summary>
+        private static string SpotKey(CosmeticSlotConfig slot, int spot) => spot <= 0 ? slot.Id : slot.Id + SpotSeparator + spot;
+
+        public int MaxSpots(CosmeticSlotConfig slot) => slot == null ? 1 : 1 + Math.Max(0, slot.ExtraSpots);
+
+        public int SpotCount(CosmeticSlotConfig slot)
+        {
+            if (slot == null || slot.ExtraSpots <= 0)
+                return 1;
+
+            var extra = _talents != null ? (int)_talents.Value(TalentEffect.DecorSpotsExtra) : 0;
+            return Math.Min(MaxSpots(slot), 1 + Math.Max(0, extra));
+        }
+
+        public CosmeticItemConfig GetEquippedAt(CosmeticSlotConfig slot, int spot)
+        {
+            if (slot == null)
+                return null;
+            if (spot <= 0)
+                return GetEquipped(slot);
+
+            var entry = FindEntry(SpotKey(slot, spot));
+            if (entry == null || string.IsNullOrEmpty(entry.ItemId))
+                return null;
+
+            var item = _content.Get<CosmeticItemConfig>(entry.ItemId);
+            return item != null && item.Slot == slot && _inventory.IsOwned(item) ? item : null;
+        }
+
+        public void EquipAt(CosmeticItemConfig item, int spot)
+        {
+            if (item == null || item.Slot == null || !_inventory.IsOwned(item))
+                return;
+            if (spot <= 0 || item.Slot.MultiSelect || spot >= MaxSpots(item.Slot))
+            {
+                Equip(item);
+                return;
+            }
+
+            var slot = item.Slot;
+            // Одна вещь — одно место: с основного и других мест она уходит.
+            if (GetEquipped(slot) == item)
+                SetEntry(SpotKey(slot, 0), string.Empty);
+            RemoveFromExtraSpots(item, spot);
+            SetEntry(SpotKey(slot, spot), item.Id);
+            _saves.RequestSave();
+            Changed?.Invoke();
+        }
+
+        public void ClearAt(CosmeticSlotConfig slot, int spot)
+        {
+            if (slot == null || slot.MultiSelect)
+                return;
+
+            SetEntry(SpotKey(slot, spot), string.Empty);
+            _saves.RequestSave();
+            Changed?.Invoke();
+        }
+
+        public int SpotOf(CosmeticItemConfig item)
+        {
+            if (item == null || item.Slot == null)
+                return -1;
+
+            var count = MaxSpots(item.Slot);
+            for (var spot = 0; spot < count; spot++)
+            {
+                if (GetEquippedAt(item.Slot, spot) == item)
+                    return spot;
+            }
+
+            return -1;
+        }
+
+        /// <summary>Убрать вещь со всех дополнительных мест, кроме keep.</summary>
+        private void RemoveFromExtraSpots(CosmeticItemConfig item, int keep)
+        {
+            var count = MaxSpots(item.Slot);
+            for (var spot = 1; spot < count; spot++)
+            {
+                if (spot == keep)
+                    continue;
+                var entry = FindEntry(SpotKey(item.Slot, spot));
+                if (entry != null && entry.ItemId == item.Id)
+                    entry.ItemId = string.Empty;
+            }
+        }
+
+        private EquippedEntry FindEntry(string key)
+        {
+            foreach (var entry in Data.Equipped)
+            {
+                if (entry.SlotId == key)
+                    return entry;
+            }
+
+            return null;
+        }
+
+        private void SetEntry(string key, string itemId)
+        {
+            var entry = FindEntry(key);
+            if (entry == null)
+                Data.Equipped.Add(new EquippedEntry { SlotId = key, ItemId = itemId });
+            else
+                entry.ItemId = itemId;
         }
 
         public IReadOnlyList<CosmeticItemConfig> GetEquippedSet(CosmeticSlotConfig slot)

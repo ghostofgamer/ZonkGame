@@ -18,6 +18,9 @@ namespace Zonk.Presentation
     {
         [SerializeField] private string _slotId;
 
+        [Tooltip("Место слота: 0 — основное, 1.. — дополнительные (безделушки, CosmeticSlotConfig.ExtraSpots)")]
+        [SerializeField] private int _spot;
+
         private CosmeticAssets _assets;
         private GameObject _instance;
         private PrefabPayload _instancePayload;
@@ -26,15 +29,17 @@ namespace Zonk.Presentation
         private UniTask _ready = UniTask.CompletedTask;
 
         public string SlotId => _slotId;
+        public int Spot => _spot;
         public GameObject Instance => _instance;
 
         /// <summary>Модель в якоре сменилась (поставлена, заменена или убрана).</summary>
         public event Action<CosmeticAnchor> InstanceChanged;
 
 #if UNITY_EDITOR
-        public void EditorSetup(string slotId)
+        public void EditorSetup(string slotId, int spot = 0)
         {
             _slotId = slotId;
+            _spot = spot;
         }
 #endif
 

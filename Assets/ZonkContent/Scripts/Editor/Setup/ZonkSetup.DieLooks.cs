@@ -15,6 +15,15 @@ namespace Zonk.Editor.Setup
         private const string DieLooksFolder = Textures + "/DiceLooks";
         private const int DieLookTextureSize = 512;
 
+        /// <summary>
+        /// Перерисовать уже нарисованные виды особых костей и мастерства один раз после исправления маски точек (02.10.2026):
+        /// метка в Library (на другой машине перерисуется ещё раз — результат тот же). Файлы перезаписываются на месте,
+        /// ссылки материалов не теряются.
+        /// </summary>
+        private const string DieLooksRedrawMarker = "Library/Zonk_DieLooks_v2";
+
+        private static bool RedrawDieLooks => !File.Exists(DieLooksRedrawMarker);
+
         /// <summary>Узор тела: (u, v в пикселях атласа, шум) → цвет тела.</summary>
         private delegate Color BodyPattern(float x, float y, Func<float, float, float, float> noise);
 
@@ -68,7 +77,7 @@ namespace Zonk.Editor.Setup
                         var body = Color.Lerp(new Color(0.78f, 0.74f, 0.66f), new Color(0.92f, 0.89f, 0.8f), n(x, y, 12f));
                         var scratch = Mathf.Abs(Mathf.Sin((x * 0.9f + y * 0.35f) * 0.21f + n(x, y, 6f) * 9f));
                         var scratch2 = Mathf.Abs(Mathf.Sin((x * -0.4f + y * 0.95f) * 0.17f + n(y, x, 7f) * 7f));
-                        var mark = Mathf.Max(Mathf.SmoothStep(0.985f, 1f, scratch), Mathf.SmoothStep(0.99f, 1f, scratch2));
+                        var mark = Mathf.Max(Smooth01(0.985f, 1f, scratch), Smooth01(0.99f, 1f, scratch2));
                         return Color.Lerp(body, new Color(0.45f, 0.4f, 0.35f), mark * 0.8f);
                     },
                 },
@@ -100,7 +109,7 @@ namespace Zonk.Editor.Setup
                     {
                         var body = Color.Lerp(new Color(0.82f, 0.76f, 0.58f), new Color(0.95f, 0.9f, 0.76f), n(x, y, 15f));
                         var crack = Mathf.Abs(n(x, y, 9f) - 0.5f);
-                        return Color.Lerp(new Color(0.4f, 0.32f, 0.2f), body, Mathf.SmoothStep(0.005f, 0.03f, crack));
+                        return Color.Lerp(new Color(0.4f, 0.32f, 0.2f), body, Smooth01(0.005f, 0.03f, crack));
                     },
                 },
                 new DieLook
@@ -110,7 +119,7 @@ namespace Zonk.Editor.Setup
                     Body = (x, y, n) =>
                     {
                         var metal = Color.Lerp(new Color(0.55f, 0.36f, 0.18f), new Color(0.75f, 0.52f, 0.28f), n(x, y, 25f));
-                        var rust = Mathf.SmoothStep(0.55f, 0.75f, n(x, y, 10f));
+                        var rust = Smooth01(0.55f, 0.75f, n(x, y, 10f));
                         return Color.Lerp(metal, new Color(0.45f, 0.2f, 0.1f), rust * 0.8f);
                     },
                 },
@@ -127,7 +136,7 @@ namespace Zonk.Editor.Setup
             foreach (var look in looks)
             {
                 var texturePath = DieLooksFolder + "/Die_" + look.Name + ".png";
-                if (!File.Exists(texturePath))
+                if (!File.Exists(texturePath) || RedrawDieLooks)
                 {
                     if (atlas == null)
                     {
@@ -169,7 +178,7 @@ namespace Zonk.Editor.Setup
 
             EnsureFolder(DieLooksFolder + "/Mastery");
             var texturePath = DieLooksFolder + "/Mastery/Die_" + lookName + "_M" + level + ".png";
-            if (!File.Exists(texturePath))
+            if (!File.Exists(texturePath) || RedrawDieLooks)
             {
                 var atlas = new Texture2D(2, 2);
                 atlas.LoadImage(File.ReadAllBytes(Textures + "/Die_Classic.png"));
@@ -215,7 +224,7 @@ namespace Zonk.Editor.Setup
                 var x = ox * step;
                 var y = oy * step;
                 var luminance = source[y * sourceWidth + x].grayscale;
-                var pip = 1f - Mathf.SmoothStep(0.3f, 0.6f, luminance);
+                var pip = 1f - Smooth01(0.3f, 0.6f, luminance);
                 var color = Color.Lerp(look.Body(x, y, Noise), pipColor, pip);
 
                 if (border.HasValue)
@@ -223,7 +232,7 @@ namespace Zonk.Editor.Setup
                     var lx = x % cellWidth;
                     var ly = y % cellHeight;
                     var edge = Mathf.Min(Mathf.Min(lx, cellWidth - lx), Mathf.Min(ly, cellHeight - ly));
-                    var amount = 1f - Mathf.SmoothStep(borderWidth * 0.7f, borderWidth, edge);
+                    var amount = 1f - Smooth01(borderWidth * 0.7f, borderWidth, edge);
                     var shine = 0.85f + 0.3f * Noise(x, y, 6f);
                     color = Color.Lerp(color, border.Value * shine, amount);
                 }
@@ -233,6 +242,16 @@ namespace Zonk.Editor.Setup
             }
 
             return TextureFrom(width, height, result);
+        }
+
+        /// <summary>
+        /// Плавный порог 0..1 (как smoothstep в шейдерах). Mathf.SmoothStep — другое: смешивает свои два числа, поэтому
+        /// до 02.10.2026 маска точек была 0.4..0.7 везде и цвет точек подмешивался ко всему телу кости.
+        /// </summary>
+        private static float Smooth01(float edge0, float edge1, float x)
+        {
+            var t = Mathf.Clamp01((x - edge0) / (edge1 - edge0));
+            return t * t * (3f - 2f * t);
         }
 
         /// <summary>Плавный шум 0..1 по решётке с хешем: одинаковый при каждом запуске генератора.</summary>

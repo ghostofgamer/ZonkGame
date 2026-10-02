@@ -49,6 +49,7 @@ namespace Zonk.UI.Windows
         private readonly Dictionary<ContentConfig, ShopCardView> _cards = new Dictionary<ContentConfig, ShopCardView>();
         private bool _diceTab;
         private CosmeticSlotConfig _slot;
+        private int _spot;
         private CancellationToken _ct;
         private CancellationTokenSource _previewCts;
         private UniTask _previewTask = UniTask.CompletedTask;
@@ -190,7 +191,10 @@ namespace Zonk.UI.Windows
 
         private void SelectSlot(CosmeticSlotConfig slot)
         {
-            OpenTab(slot, false, false, slot != null ? T(slot.NameKey) : T("shop.themes"), slot != null ? slot.CameraShotId : CameraShots.Menu);
+            // Другая вкладка — снова основное место; та же (смена места, покупка) — место сохраняется.
+            if (slot != _slot)
+                _spot = 0;
+            OpenTab(slot, false, false, slot != null ? T(slot.NameKey) : T("shop.themes"), slot != null ? SpotShot(slot, _spot) : CameraShots.Menu);
             ShowDiceShowcase(slot != null && slot.Applier is DiceSkinApplier);
 
             IReadOnlyList<ContentConfig> entries = _themes;
@@ -205,14 +209,18 @@ namespace Zonk.UI.Windows
             {
                 var captured = entry;
                 var owned = _inventory.IsOwned(entry);
-                var equipped = entry is CosmeticItemConfig cosmetic && _loadout.IsEquipped(cosmetic);
+                var spots = HasSpots(slot);
+                var placedAt = spots && entry is CosmeticItemConfig placed ? _loadout.SpotOf(placed) : -1;
+                var equipped = spots ? placedAt >= 0 : entry is CosmeticItemConfig cosmetic && _loadout.IsEquipped(cosmetic);
                 var equippedKey = slot != null && slot.MultiSelect ? "shop.selected" : "shop.equipped";
-                AddCard(entry, T(entry.NameKey), IconOf(entry), owned ? null : PriceSummary(entry),
-                    T(equipped ? equippedKey : owned ? "shop.owned" : "shop.forSale"),
+                var state = spots && equipped ? T("shop.onSpot", placedAt + 1)
+                    : T(equipped ? equippedKey : owned ? "shop.owned" : "shop.forSale");
+                AddCard(entry, T(entry.NameKey), IconOf(entry), owned ? null : PriceSummary(entry), state,
                     equipped ? UiColors.ButtonAccent : owned ? UiColors.Button : UiColors.ButtonMuted, () => SelectItem(captured));
             }
 
-            SelectItem(slot != null ? (ContentConfig)_loadout.GetEquipped(slot) : entries.Count > 0 ? entries[0] : null);
+            var onSpot = slot != null ? (ContentConfig)_loadout.GetEquippedAt(slot, _spot) : null;
+            SelectItem(onSpot != null ? onSpot : entries.Count > 0 ? entries[0] : null);
         }
 
         /// <summary>Вкладка особых костей: камера на лоток, в нём шесть костей в виде выбранной.</summary>
@@ -364,6 +372,9 @@ namespace Zonk.UI.Windows
                 return;
             _current = item;
 
+            if (item is CosmeticItemConfig spotted && HasSpots(spotted.Slot))
+                AddSpotButtons(spotted);
+
             if (item is CoinPackConfig pack)
             {
                 DetailText(T("shop.coinPack", pack.Amount, pack.Currency != null ? T(pack.Currency.NameKey) : string.Empty), UiColors.Text);
@@ -407,6 +418,32 @@ namespace Zonk.UI.Windows
                         });
                     toggle.Interactable = !(selected && _loadout.GetEquippedSet(multi.Slot).Count <= 1);
                     DetailText(T("shop.multiHint"), UiColors.TextMuted);
+                }
+                else if (item is CosmeticItemConfig onSpots && HasSpots(onSpots.Slot))
+                {
+                    // Места: поставить на выбранное место или убрать с него; стоит на другом — подсказка.
+                    var placedAt = _loadout.SpotOf(onSpots);
+                    if (placedAt == _spot)
+                    {
+                        DetailButton(T("shop.removeFromSpot"), UiColors.ButtonMuted, () =>
+                        {
+                            _loadout.ClearAt(onSpots.Slot, _spot);
+                            _table.Sound.Play(Sfx.Click);
+                            SelectSlot(_slot);
+                            SelectItem(onSpots);
+                        });
+                    }
+                    else
+                    {
+                        DetailButton(T("shop.putOnSpot", _spot + 1), UiColors.ButtonAccent, () =>
+                        {
+                            _loadout.EquipAt(onSpots, _spot);
+                            _table.Sound.Play(Sfx.Click);
+                            SelectSlot(_slot);
+                        });
+                        if (placedAt >= 0)
+                            DetailText(T("shop.onSpotNow", placedAt + 1), UiColors.TextMuted);
+                    }
                 }
                 else if (item is CosmeticItemConfig cosmetic)
                 {
@@ -554,7 +591,12 @@ namespace Zonk.UI.Windows
                 case AcquireResult.Acquired:
                     _table.Sound.Play(Sfx.Coin);
                     if (item is CosmeticItemConfig cosmetic)
-                        _loadout.Equip(cosmetic);
+                    {
+                        if (HasSpots(cosmetic.Slot))
+                            _loadout.EquipAt(cosmetic, _spot);
+                        else
+                            _loadout.Equip(cosmetic);
+                    }
                     ShowToast(T("shop.acquired"), UiColors.Good, 0.8f);
                     break;
                 case AcquireResult.NotEnoughCurrency:
@@ -570,6 +612,54 @@ namespace Zonk.UI.Windows
                 SelectItem(item);
         }
 
+        /// <summary>У слота несколько мест на столе (безделушки): выбор места, вещь ставится на выбранное.</summary>
+        private bool HasSpots(CosmeticSlotConfig slot)
+        {
+            return slot != null && !slot.MultiSelect && _loadout.MaxSpots(slot) > 1;
+        }
+
+        /// <summary>Ракурс места: основное — ракурс слота, дополнительные — «shop_decor_2», «shop_decor_3»…</summary>
+        private static string SpotShot(CosmeticSlotConfig slot, int spot)
+        {
+            return spot <= 0 ? slot.CameraShotId : slot.CameraShotId + "_" + (spot + 1);
+        }
+
+        /// <summary>Кнопки мест: выбранное — ярче, закрытые — с названием таланта, который их открывает.</summary>
+        private void AddSpotButtons(CosmeticItemConfig item)
+        {
+            var slot = item.Slot;
+            var open = _loadout.SpotCount(slot);
+            var max = _loadout.MaxSpots(slot);
+            string talent = null;
+            for (var spot = 0; spot < max; spot++)
+            {
+                var index = spot;
+                var unlocked = spot < open;
+                if (!unlocked && talent == null)
+                    talent = SpotTalentName();
+
+                var text = unlocked ? T("shop.spot", spot + 1) : T("shop.spotLocked", spot + 1, talent);
+                var button = DetailButton(text, spot == _spot ? UiColors.ButtonAccent : UiColors.ButtonMuted, () =>
+                {
+                    _spot = index;
+                    SelectSlot(_slot);
+                    SelectItem(item);
+                });
+                button.Interactable = unlocked && spot != _spot;
+            }
+        }
+
+        private string SpotTalentName()
+        {
+            foreach (var talent in _content.All<TalentConfig>())
+            {
+                if (talent.Effect == TalentEffect.DecorSpotsExtra)
+                    return T(talent.NameKey);
+            }
+
+            return string.Empty;
+        }
+
         private void ShowToast(string text, Color color, float duration)
         {
             Toast.ShowAsync(_kit, (RectTransform)transform, text, color, duration, this.GetCancellationTokenOnDestroy()).Forget();
@@ -583,7 +673,10 @@ namespace Zonk.UI.Windows
                     PreviewRollStyle(rollStyle.Style);
                     break;
                 case CosmeticItemConfig cosmetic:
-                    _table.Stage.Apply(cosmetic);
+                    if (HasSpots(cosmetic.Slot))
+                        _table.Stage.ShowAtSpot(cosmetic.Slot, _spot, cosmetic);
+                    else
+                        _table.Stage.Apply(cosmetic);
                     break;
                 case DieConfig die:
                     ShowDiceShowcase(true, die);
@@ -636,6 +729,7 @@ namespace Zonk.UI.Windows
 
             foreach (var slot in _content.All<CosmeticSlotConfig>())
                 _table.Stage.Apply(slot, _loadout.GetEquipped(slot));
+            _table.Stage.ApplySpots();
             ShowDiceShowcase(false);
         }
 

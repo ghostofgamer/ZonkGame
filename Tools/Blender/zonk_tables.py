@@ -1,15 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-Столы для игры «Зонк»: восемь разных, с одной посадкой — заменяют Table_Oak без правки сцены.
+Столы для игры «Зонк»: четырнадцать разных, с одной посадкой — заменяют Table_Oak без правки сцены.
 
-    Table_Tavern    трактирный: скруглённый, доски с гвоздями и следами кружек, тумба-пьедестал на крестовине
-    Table_Gambling  игорный восьмиугольник: тёмное дерево, светлая кайма с мастями, кожаный бортик с пуговицами
-    Table_Barrel    доски на бочке: щели, гвозди, разные концы досок, бочка с обручами, поперечины
-    Table_Stone     каменная плита на валунах: сколы по краю, трещины, руны по кайме, мох
-    Table_Deck      палубный: доски с просмолёнными швами на грузовых ящиках, канат по краю, железные уголки
+    Table_Tavern    трактирный: скруглённый, доски с гвоздями и следами кружек, четыре крепкие ножки с проножками
+    Table_Gambling  игорный восьмиугольник: тёмное дерево, кайма с мастями, кожаный бортик, толстые точёные ножки
+    Table_Barrel    доски на двух бочках: ровные концы, поперечины-брусья, обручи
+    Table_Stone     каменная плита на двух каменных стойках с основанием: сколы, трещины, руны, мох
+    Table_Deck      палубный: доски на грузовых ящиках (рамка из досок, железные стяжки), канат с узлами по краю
     Table_Royal     королевский: красное дерево, золотая кайма и розетки, фартук с фестонами, гнутые ножки
-    Table_Stump     пень: годичные кольца, трещины от сердцевины, кора, корни до пола
+    Table_Stump     пень: толстый спил бревна с годичными кольцами на узком пеньке с корнями
     Table_Pirate    капитанский: морская карта на столешнице, роза ветров, штурвал спереди, латунные уголки
+    Table_Dark      тёмный: тяжёлый дуб в морилке, кованые уголки, обвязка ножек, массивные проножки
+    Table_Marble    мраморный: плита с прожилками и золотым кантом на четырёх колоннах, подиум
+    Table_Walnut    ореховый: резные балясины, фартук с полукружиями, светлая инкрустация по краю
+    Table_Birch     берёзовый: светлые доски на «лыжах», разведённые ножки-брёвнышки в бересте
+    Table_Gold      золотой: чёрный лак с золотым узором, позолоченные балясины, медальоны на фартуке
+    Table_Alchemy   алхимический: тёмное дерево в пятнах реактивов, нижняя полка с колбами и книгами
 
 Посадка (из генератора ZonkSetup.Placeholders/Scenes, единицы — метры Unity):
     верх столешницы y = 0 (точка опоры префаба в центре верха), пол y = -1.6;
@@ -325,6 +331,50 @@ def turned_leg(x, y, top_z, profile_r=0.13, segs=10):
     return lathe([(r * profile_r, FLOOR + z * h) for r, z in prof], (x, y), segs)
 
 
+def tapered_post(x, y, z0, z1, w0, w1, d0=None, d1=None):
+    """Брус от z0 (низ, сечение w0 × d0) до z1 (верх, w1 × d1), грани по осям X/Y; торцы закрыты."""
+    d0 = w0 if d0 is None else d0
+    d1 = w1 if d1 is None else d1
+
+    def make(bm):
+        lo = [bm.verts.new((x + sx * w0 / 2, y + sy * d0 / 2, z0)) for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        hi = [bm.verts.new((x + sx * w1 / 2, y + sy * d1 / 2, z1)) for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
+        bridge(bm, lo, hi)
+        bm.faces.new(list(reversed(lo)))
+        bm.faces.new(hi)
+    return make
+
+
+def rail(p0, p1, w, h):
+    """Горизонтальный брус между двумя точками (проножка, царга): ширина w, высота h."""
+    p0, p1 = Vector(p0), Vector(p1)
+    d = p1 - p0
+    return box((p0 + p1) / 2, Vector((d.length, w, h)), math.atan2(d.y, d.x))
+
+
+def column(x, y, z0, z1, r, segs=12, flutes=True):
+    """Колонна: база, ствол с каннелюрами (чередование радиуса по кругу), капитель."""
+    def make(bm):
+        h = z1 - z0
+        prof = [(1.45, 0.0), (1.45, 0.05), (1.2, 0.08), (1.12, 0.11), (1.0, 0.14),
+                (0.92, 0.86), (1.05, 0.89), (1.25, 0.93), (1.45, 0.95), (1.45, 1.0)]
+        rings = []
+        for k, (pr, pz) in enumerate(prof):
+            ring_verts = []
+            for s in range(segs):
+                a = 2 * math.pi * s / segs
+                rr = pr * r
+                if flutes and 3 <= k <= 5 and s % 2 == 1:
+                    rr *= 0.9
+                ring_verts.append(bm.verts.new((x + rr * math.cos(a), y + rr * math.sin(a), z0 + pz * h)))
+            rings.append(ring_verts)
+        for r0, r1 in zip(rings, rings[1:]):
+            bridge(bm, r0, r1)
+        bm.faces.new(list(reversed(rings[0])))
+        bm.faces.new(rings[-1])
+    return make
+
+
 # ---------------------------------------------------------------------------
 # Рисование атласа
 # ---------------------------------------------------------------------------
@@ -459,21 +509,22 @@ class Table:
 def make_tavern():
     t = Table("Table_Tavern")
     b = Builder(t.name)
-    out = rounded_rect(HX, HY, 0.95, 5)
-    b.part(slab(out, -0.18, TOP, 0.035), EDGE, top=True, bottom_tile=DARK)
-    # пьедестал и крестовина
-    b.part(lathe([(0.62, -1.42), (0.52, -1.3), (0.42, -1.1), (0.36, -0.9), (0.4, -0.62), (0.34, -0.5), (0.42, -0.38), (0.56, -0.28), (0.7, -0.18)], segs=16), LEG)
-    for a in (0.0, math.pi / 2):
-        for s in (-1, 1):
-            d = Vector((math.cos(a), math.sin(a), 0.0)) * s
-            b.part(tube([d * 0.35 + Vector((0, 0, -1.36)), d * 1.2 + Vector((0, 0, -1.42)), d * 1.75 + Vector((0, 0, -1.47))],
-                        [0.2, 0.16, 0.13], 8), LEG)
-            b.part(dome(d * 1.8 + Vector((0, 0, FLOOR + 0.07)), Vector((0, 0, 1)), 0.17, 0.07, 8), DARK)
-    # подпорки под столешницей
-    for a in (0.0, math.pi / 2):
-        d = Vector((math.cos(a), math.sin(a), 0))
-        span = 2.2 if a == 0.0 else 1.5
-        b.part(box(Vector((0, 0, -0.24)), Vector((abs(d.x) * span * 2 + 0.16, abs(d.y) * span * 2 + 0.16, 0.12))), LEG)
+    out = rounded_rect(HX, HY, 0.45, 4)
+    b.part(slab(out, -0.2, TOP, 0.04), EDGE, top=True, bottom_tile=DARK)
+    # царга: доски под столешницей по периметру
+    lx, ly = HX - 0.5, HY - 0.42
+    for p0, p1 in (((-lx, -ly), (lx, -ly)), ((-lx, ly), (lx, ly)), ((-lx, -ly), (-lx, ly)), ((lx, -ly), (lx, ly))):
+        b.part(rail((p0[0], p0[1], -0.34), (p1[0], p1[1], -0.34), 0.12, 0.28), EDGE)
+    # четыре крепкие ножки, чуть сужаются книзу
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            b.part(tapered_post(sx * lx, sy * ly, FLOOR, -0.2, 0.26, 0.34), LEG, bottom_tile=DARK)
+    # проножки: по длинным сторонам и поперечина посередине — на них ставят ноги
+    for sy in (-1, 1):
+        b.part(rail((-lx, sy * ly, -1.25), (lx, sy * ly, -1.25), 0.14, 0.16), LEG)
+    b.part(rail((0.0, -ly, -1.25), (0.0, ly, -1.25), 0.14, 0.16), LEG)
+    for sx in (-1, 1):
+        b.part(rail((sx * lx, -ly, -1.25), (sx * lx, ly, -1.25), 0.14, 0.16), LEG)
     mesh = b.finish()
 
     def paint(a):
@@ -518,11 +569,16 @@ def make_gambling():
         for k in range(steps):
             q = (k + 0.5) / steps
             b.part(dome((x0 + (x1 - x0) * q, y0 + (y1 - y0) * q, TOP + 0.09), (0, 0, 1), 0.035, 0.02, 5), GOLD)
-    # фартук и ножки
-    b.part(slab(offset(out, 0.25), -0.48, -0.22, 0.0, 0.0), EDGE)
-    for x in (-2.15, 2.15):
-        for y in (-1.45, 1.45):
-            b.part(turned_leg(x, y, -0.48, 0.14, 10), LEG)
+    # фартук и ножки: толстые точёные, со стопками-проножками крест-накрест
+    b.part(slab(offset(out, 0.25), -0.52, -0.22, 0.0, 0.0), EDGE)
+    for x in (-2.1, 2.1):
+        for y in (-1.4, 1.4):
+            b.part(turned_leg(x, y, -0.52, 0.22, 12), LEG)
+    for sy in (-1, 1):
+        b.part(rail((-2.1, sy * 1.4, -1.18), (2.1, sy * 1.4, -1.18), 0.1, 0.1), LEG)
+    b.part(rail((-2.1, 0.0, -1.18), (2.1, 0.0, -1.18), 0.12, 0.12), LEG)
+    for sx in (-1, 1):
+        b.part(rail((sx * 2.1, -1.4, -1.18), (sx * 2.1, 1.4, -1.18), 0.1, 0.1), LEG)
     mesh = b.finish()
 
     def paint(a):
@@ -570,23 +626,25 @@ def make_barrel():
     for k in range(count):
         y0 = -HY + k * width
         y1 = -HY + (k + 1) * width
-        ext0 = HX + rng.uniform(-0.12, 0.15)
-        ext1 = HX + rng.uniform(-0.12, 0.15)
+        # концы досок почти ровные: разница в пару сантиметров, без «рваного» края
+        ext0 = HX + rng.uniform(-0.04, 0.04)
+        ext1 = HX + rng.uniform(-0.04, 0.04)
         outline = [(-ext0, y0), (ext1, y0), (ext1, y1), (-ext0, y1)]
-        b.part(slab(outline, -0.16 + rng.uniform(-0.01, 0.0), TOP, 0.0), EDGE, top=True, bottom_tile=DARK)
-    # поперечины под досками
-    for x in (-2.2, -0.9, 0.9, 2.2):
-        b.part(box(Vector((x, 0, -0.23)), Vector((0.22, 2 * HY - 0.1, 0.14))), LEG)
-    # бочка
-    staves = 14
-    prof = []
-    for z in np.linspace(FLOOR, -0.3, 9):
-        tt = (z - FLOOR) / (-0.3 - FLOOR)
-        prof.append((1.3 + 0.2 * math.sin(math.pi * tt), float(z)))
-    b.part(lathe(prof, segs=32), ACC1)
-    for zz in (-1.35, -0.55):
-        r = 1.3 + 0.2 * math.sin(math.pi * (zz - FLOOR) / (-0.3 - FLOOR)) + 0.025
-        b.part(lathe([(r, zz - 0.07), (r, zz + 0.07)], segs=32), METAL)
+        b.part(slab(outline, -0.15, TOP, 0.0), EDGE, top=True, bottom_tile=DARK)
+    # две поперечины-бруса под досками, лежат на бочках
+    for x in (-1.75, 1.75):
+        b.part(box(Vector((x, 0, -0.23)), Vector((0.3, 2 * HY - 0.06, 0.16))), LEG)
+    # две бочки стоймя: стол стоит на них
+    top_z = -0.31
+    for x in (-1.75, 1.75):
+        prof = []
+        for z in np.linspace(FLOOR, top_z, 7):
+            tt = (z - FLOOR) / (top_z - FLOOR)
+            prof.append((0.72 + 0.12 * math.sin(math.pi * tt), float(z)))
+        b.part(lathe(prof, (x, 0.0), 20), ACC1, bottom_tile=DARK)
+        for zz in (FLOOR + 0.18, -1.05, top_z - 0.18):
+            r = 0.72 + 0.12 * math.sin(math.pi * (zz - FLOOR) / (top_z - FLOOR)) + 0.02
+            b.part(lathe([(r, zz - 0.055), (r, zz + 0.055)], (x, 0.0), 20), METAL)
     mesh = b.finish()
 
     def paint(a):
@@ -620,10 +678,14 @@ def make_stone():
     for x, y in base:
         k = 1.0 + rng.uniform(-0.025, 0.012)
         chipped.append((x * k, y * k))
-    b.part(slab(chipped, -0.34, TOP, 0.06), EDGE, top=True, bottom_tile=DARK)
-    for x in (-1.75, 1.75):
-        b.part(blob((x, 0.0, -0.98), (0.7, 1.15, 0.68), int(abs(x) * 10) + 3, 2), ACC3)
-    b.part(blob((0.0, 0.25, -1.45), (0.55, 0.45, 0.2), 9, 1), ACC3)
+    b.part(slab(chipped, -0.3, TOP, 0.06), EDGE, top=True, bottom_tile=DARK)
+    # две каменные стойки во всю ширину, чуть сужаются кверху, с плитой-основанием: видны из меню
+    for x in (-1.85, 1.85):
+        b.part(tapered_post(x, 0.0, FLOOR + 0.18, -0.3, 0.9, 0.72, 3.5, 3.2), ACC3, bottom_tile=DARK)
+        b.part(tapered_post(x, 0.0, FLOOR, FLOOR + 0.18, 1.15, 1.08, 3.75, 3.65), ACC3, bottom_tile=DARK)
+    # пара камней у подножия — для живости
+    b.part(blob((-2.75, 1.3, FLOOR + 0.12), (0.26, 0.2, 0.16), 9, 1), ACC3)
+    b.part(blob((2.6, -1.45, FLOOR + 0.1), (0.2, 0.16, 0.13), 4, 1), ACC3)
     mesh = b.finish()
 
     def paint(a):
@@ -697,20 +759,18 @@ def make_deck():
     b = Builder(t.name)
     out = [(-HX, -HY), (HX, -HY), (HX, HY), (-HX, HY)]
     b.part(slab(out, -0.2, TOP, 0.02), EDGE, top=True, bottom_tile=DARK)
-    # канат по краю: на боковой грани, чуть ниже верха
-    path = []
-    rope_out = offset(out, -0.07)
-    for i in range(len(rope_out) + 1):
-        x, y = rope_out[i % len(rope_out)]
-        path.append((x, y, -0.1))
-    dense = []
-    for (x0, y0, z0), (x1, y1, z1) in zip(path, path[1:]):
-        steps = int(math.hypot(x1 - x0, y1 - y0) / 0.35) + 1
-        for k in range(steps):
-            q = k / steps
-            dense.append((x0 + (x1 - x0) * q, y0 + (y1 - y0) * q, -0.1 + 0.025 * math.sin(k * 1.7)))
+    # канат по краю: ровно по боковой грани (скруглённые углы), чуть ниже верха
+    rope_out = rounded_rect(HX + 0.055, HY + 0.055, 0.12, 3)
+    dense = [(x, y, -0.1) for x, y in rope_out]
     dense.append(dense[0])
-    b.part(tube(dense, [0.06] * len(dense), 6), ACC1)
+    b.part(tube(dense, [0.055] * len(dense), 6), ACC1)
+    # на углах — узлы и свисающие концы каната
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            cx, cy = sx * (HX + 0.05), sy * (HY + 0.05)
+            b.part(blob((cx, cy, -0.12), (0.08, 0.08, 0.08), 3 + sx + 2 * sy, 1, zmin=-0.3, zmax=0.0), ACC1)
+            b.part(tube([(cx, cy, -0.14), (cx + sx * 0.03, cy + sy * 0.03, -0.38), (cx + sx * 0.02, cy + sy * 0.05, -0.55)],
+                        [0.04, 0.035, 0.03], 5), ACC1)
     # железные уголки с заклёпками
     for sx in (-1, 1):
         for sy in (-1, 1):
@@ -718,11 +778,18 @@ def make_deck():
             b.part(box(Vector((cx, cy, TOP + 0.004)), Vector((0.36, 0.36, 0.012))), METAL)
             for dx, dy in ((0.1, 0.1), (-0.1, 0.1), (0.1, -0.1)):
                 b.part(dome((cx + dx * sx, cy + dy * sy, TOP + 0.01), (0, 0, 1), 0.025, 0.015, 5), METAL)
-    # два ящика вместо ножек
+    # два грузовых ящика вместо ножек: рамка из досок по рёбрам и железные стяжки
+    ch = -0.2 - FLOOR
+    cz = (FLOOR - 0.2) / 2
     for x in (-1.75, 1.75):
-        b.part(box(Vector((x, 0, (FLOOR - 0.2) / 2)), Vector((1.6, 3.2, -0.2 - FLOOR))), ACC2)
+        b.part(box(Vector((x, 0, cz)), Vector((1.6, 3.2, ch))), ACC2)
         for y in (-1.62, 1.62):
-            b.part(box(Vector((x, y, (FLOOR - 0.2) / 2)), Vector((1.5, 0.05, 0.12)), 0.0), LEG)
+            for z in (FLOOR + 0.07, -0.27):
+                b.part(box(Vector((x, y, z)), Vector((1.66, 0.06, 0.14))), LEG)
+            for dx in (-0.76, 0.76):
+                b.part(box(Vector((x + dx, y, cz)), Vector((0.14, 0.06, ch))), LEG)
+        for dy in (-0.9, 0.9):
+            b.part(box(Vector((x, dy, cz)), Vector((1.64, 0.08, ch))), METAL)
     mesh = b.finish()
 
     def paint(a):
@@ -730,7 +797,7 @@ def make_deck():
         img = planks_top(a, light, dark, col(0.07, 0.06, 0.05), 9, True, 4, True, 2.3)
         a.set_top(img)
         a.set_tile(EDGE, wood_tile(a, light * 0.9, dark, False, 3))
-        a.set_tile(LEG, flat_tile(a, col(0.32, 0.30, 0.30), 0.06))
+        a.set_tile(LEG, wood_tile(a, col(0.46, 0.33, 0.19), col(0.30, 0.20, 0.11), False, 3, False))
         u, v = a.tile_coords()
         rope = flat_tile(a, col(0.78, 0.64, 0.40), 0.05)
         stripes = 0.5 + 0.5 * np.sin(2 * np.pi * (u * 10 + v * 6))
@@ -842,27 +909,38 @@ def make_stump():
     n = 40
     top = superellipse(STUMP_A, STUMP_B, STUMP_P, n, stump_wobble)
 
+    # толстый спил бревна сверху (кольца — столешница, кора — бок) ...
+    slice_bottom = -0.3
+
+    def log_slice(bm):
+        rows = [ring(bm, [(x * k, y * k) for x, y in top], z)
+                for z, k in ((slice_bottom, 0.97), (slice_bottom + 0.05, 1.0), (TOP - 0.03, 1.0), (TOP, 0.985))]
+        for r0, r1 in zip(rows, rows[1:]):
+            bridge(bm, r0, r1)
+        bm.faces.new(rows[-1])
+        bm.faces.new(list(reversed(rows[0])))
+    b.part(log_slice, ACC1, top=True, bottom_tile=DARK)
+
+    # ... на пне заметно уже стола: не глыба, а стол на пеньке
+    trunk = superellipse(1.55, 1.05, 2.6, 28, stump_wobble)
+
     def stump(bm):
         rows = []
-        levels = [(TOP, 1.0), (TOP - 0.04, 1.01), (-0.55, 1.01), (-1.1, 1.05), (-1.45, 1.09), (FLOOR, 1.13)]
-        for z, k in levels:
-            rows.append(ring(bm, [(x * k, y * k) for x, y in top], z))
+        for z, k in ((slice_bottom, 0.92), (-0.7, 0.9), (-1.15, 0.95), (-1.45, 1.06), (FLOOR, 1.16)):
+            rows.append(ring(bm, [(x * k, y * k) for x, y in trunk], z))
         for r0, r1 in zip(rows, rows[1:]):
             bridge(bm, r1, r0)
-        bm.faces.new(rows[0])
         bm.faces.new(list(reversed(rows[-1])))
-    faces = b.part(stump, ACC1, top=True, bottom_tile=DARK)
-    # корни
+    b.part(stump, ACC1, bottom_tile=DARK)
+    # корни у пенька
     rng = np.random.default_rng(8)
-    for k in range(7):
-        tt = 2 * math.pi * k / 7 + rng.uniform(-0.2, 0.2)
-        c, s = math.cos(tt), math.sin(tt)
-        x = STUMP_A * math.copysign(abs(c) ** 0.5, c) * 1.1
-        y = STUMP_B * math.copysign(abs(s) ** 0.5, s) * 1.1
-        d = Vector((x, y, 0)).normalized()
-        start = Vector((x, y, -1.1))
-        b.part(tube([start, start + d * 0.4 + Vector((0, 0, -0.3)), start + d * 0.85 + Vector((0, 0, -0.43))],
-                    [0.3, 0.2, 0.07], 7), ACC1)
+    for k in range(5):
+        tt = 2 * math.pi * k / 5 + 0.3 + rng.uniform(-0.2, 0.2)
+        d = Vector((1.55 * math.cos(tt), 1.05 * math.sin(tt), 0.0))
+        start = Vector((d.x * 0.95, d.y * 0.95, -1.25))
+        d.normalize()
+        b.part(tube([start, start + d * 0.3 + Vector((0, 0, -0.2)), start + d * 0.6 + Vector((0, 0, -0.32))],
+                    [0.2, 0.13, 0.05], 6), ACC1)
     mesh = b.finish()
 
     def paint(a):
@@ -973,7 +1051,300 @@ def make_pirate():
     return t
 
 
-TABLES = [make_tavern, make_gambling, make_barrel, make_stone, make_deck, make_royal, make_stump, make_pirate]
+# ---------------------------------------------------------------------------
+# 9. Тёмный: тяжёлый дуб в тёмной морилке, кованые уголки и стяжки
+# ---------------------------------------------------------------------------
+
+def make_dark():
+    t = Table("Table_Dark")
+    b = Builder(t.name)
+    out = chamfer_rect(HX, HY, 0.12)
+    b.part(slab(out, -0.26, TOP, 0.03), EDGE, top=True, bottom_tile=DARK)
+    lx, ly = HX - 0.42, HY - 0.36
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            b.part(tapered_post(sx * lx, sy * ly, FLOOR, -0.26, 0.42, 0.42), LEG, bottom_tile=DARK)
+            # кованый уголок, загнутый на кромку: пластина сверху и на двух боках
+            cx, cy = sx * (HX - 0.2), sy * (HY - 0.2)
+            b.part(box(Vector((cx, cy, TOP + 0.005)), Vector((0.4, 0.4, 0.014))), METAL)
+            b.part(box(Vector((sx * (HX + 0.006), cy, -0.13)), Vector((0.014, 0.4, 0.26))), METAL)
+            b.part(box(Vector((cx, sy * (HY + 0.006), -0.13)), Vector((0.4, 0.014, 0.26))), METAL)
+            for dx, dy in ((0.12, 0.12), (-0.08, 0.12), (0.12, -0.08)):
+                b.part(dome((cx + dx * sx, cy + dy * sy, TOP + 0.012), (0, 0, 1), 0.03, 0.018, 5), METAL)
+            # железная обвязка ножки у пола и под царгой
+            for z in (FLOOR + 0.2, -0.55):
+                b.part(tapered_post(sx * lx, sy * ly, z - 0.05, z + 0.05, 0.46, 0.46), METAL)
+    # царга и массивная проножка
+    for sy in (-1, 1):
+        b.part(rail((-lx, sy * ly, -0.42), (lx, sy * ly, -0.42), 0.18, 0.32), EDGE)
+    for sx in (-1, 1):
+        b.part(rail((sx * lx, -ly, -0.42), (sx * lx, ly, -0.42), 0.18, 0.32), EDGE)
+    b.part(rail((-lx, 0.0, -1.2), (lx, 0.0, -1.2), 0.22, 0.2), LEG)
+    for sx in (-1, 1):
+        b.part(rail((sx * lx, -ly, -1.2), (sx * lx, ly, -1.2), 0.18, 0.18), LEG)
+    mesh = b.finish()
+
+    def paint(a):
+        light, dark = col(0.34, 0.22, 0.14), col(0.17, 0.10, 0.06)
+        img = planks_top(a, light, dark, col(0.06, 0.035, 0.02), 4, True, 13, False, 9.0)
+        img = lerp(img, dark * 0.7, (1 - ss(0.0, 0.1, dist_to_rect(a.X, a.Y, HX, HY))) * 0.5)
+        a.set_top(img)
+        a.set_tile(EDGE, wood_tile(a, light, dark, False, 3))
+        a.set_tile(LEG, wood_tile(a, light * 1.05, dark, True, 4))
+        a.set_tile(METAL, metal_tile(a, col(0.22, 0.21, 0.22), 0.25))
+        a.set_tile(DARK, flat_tile(a, dark * 0.6))
+
+    t.mesh, t.paint = mesh, paint
+    t.smoothness = 0.3
+    return t
+
+
+# ---------------------------------------------------------------------------
+# 10. Мраморный: плита с прожилками и золотой кантом на четырёх колоннах
+# ---------------------------------------------------------------------------
+
+def make_marble():
+    t = Table("Table_Marble")
+    b = Builder(t.name)
+    out = rounded_rect(HX, HY, 0.2, 3)
+    b.part(slab(out, -0.22, TOP, 0.05), EDGE, top=True, bottom_tile=DARK)
+    # фриз под плитой и колонны
+    b.part(slab(offset(out, 0.3), -0.42, -0.22, 0.0, 0.0), EDGE)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            b.part(column(sx * (HX - 0.65), sy * (HY - 0.55), FLOOR + 0.16, -0.42, 0.2, 12), LEG)
+    # общее основание — низкий подиум
+    b.part(slab(rounded_rect(HX - 0.25, HY - 0.2, 0.15, 2), FLOOR, FLOOR + 0.16, 0.03), ACC3, bottom_tile=DARK)
+    mesh = b.finish()
+
+    def paint(a):
+        X, Y = a.X, a.Y
+        white, grey = col(0.92, 0.91, 0.88), col(0.70, 0.70, 0.70)
+        img = lerp(white, grey, np.clip(0.12 + 0.06 * a.noise(60.0), 0, 1))
+        # прожилки: тонкие изломанные линии по «шуму расстояния»
+        warp = a.noise(25.0, 60.0)
+        for f, w in ((1.3, 0.02), (2.1, 0.012), (3.4, 0.008)):
+            vein = np.abs(np.sin(f * (X * 0.8 + Y * 1.4) + 2.5 * warp))
+            img = lerp(img, col(0.45, 0.45, 0.48), (1 - ss(w * 0.5, w, vein)) * 0.75)
+        d = dist_to_rect(X, Y, HX, HY)
+        img = lerp(img, col(0.85, 0.66, 0.28), 1 - ss(0.006, 0.012, np.abs(d - 0.12)))
+        a.set_top(img)
+        # ровный цвет: мелкий шум на почти белом комикс-обработка превращает в пятна
+        a.set_tile(EDGE, flat_tile(a, white * 0.95, 0.0))
+        u, v = a.tile_coords()
+        a.set_tile(LEG, lerp(flat_tile(a, white * 0.93, 0.0), col(0.62, 0.62, 0.64), (1 - ss(0.0, 0.04, np.abs(((u * 6) % 1.0) - 0.5) - 0.42)) * 0.7))
+        a.set_tile(ACC3, flat_tile(a, grey * 1.05, 0.0))
+        a.set_tile(DARK, flat_tile(a, grey * 0.7))
+
+    t.mesh, t.paint = mesh, paint
+    t.smoothness = 0.7
+    return t
+
+
+# ---------------------------------------------------------------------------
+# 11. Ореховый резной: тёплый орех, резные ножки-балясины, фартук с полукружиями
+# ---------------------------------------------------------------------------
+
+def make_walnut():
+    t = Table("Table_Walnut")
+    b = Builder(t.name)
+    out = rounded_rect(HX, HY, 0.32, 4)
+    b.part(slab(out, -0.16, TOP, 0.03), EDGE, top=True, bottom_tile=DARK)
+    # фартук с вырезанными полукружиями: по каждой стороне — доска, нижний край волной
+    apron = offset(out, 0.16)
+
+    def apron_make(bm):
+        dense = []
+        n = len(apron)
+        for i in range(n):
+            x0, y0 = apron[i]
+            x1, y1 = apron[(i + 1) % n]
+            steps = max(1, int(math.hypot(x1 - x0, y1 - y0) / 0.2))
+            for k in range(steps):
+                q = k / steps
+                dense.append((x0 + (x1 - x0) * q, y0 + (y1 - y0) * q))
+        inner = offset(dense, 0.05)
+        wave = [-0.44 + 0.1 * abs(math.cos(i * math.pi / 4)) for i in range(len(dense))]
+        ot = ring(bm, dense, -0.16)
+        ob = [bm.verts.new((x, y, wave[i])) for i, (x, y) in enumerate(dense)]
+        ib = [bm.verts.new((x, y, wave[i])) for i, (x, y) in enumerate(inner)]
+        it = ring(bm, inner, -0.16)
+        bridge(bm, ob, ot)
+        bridge(bm, it, ib)
+        bridge(bm, ot, it)
+        bridge(bm, ib, ob)
+    b.part(apron_make, EDGE)
+    # резные балясины: вздутая «груша» и кольца
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * (HX - 0.45), sy * (HY - 0.4)
+            prof = [(0.17, FLOOR), (0.2, FLOOR + 0.06), (0.12, FLOOR + 0.16), (0.14, -1.25), (0.24, -1.05), (0.27, -0.85),
+                    (0.2, -0.65), (0.12, -0.55), (0.18, -0.48), (0.13, -0.4), (0.19, -0.16)]
+            b.part(lathe(prof, (x, y), 12), LEG)
+    mesh = b.finish()
+
+    def paint(a):
+        X, Y = a.X, a.Y
+        light, dark = col(0.52, 0.33, 0.19), col(0.30, 0.17, 0.09)
+        warp = a.noise(70.0, 260.0)
+        grain = 0.5 + 0.5 * np.sin(2 * np.pi * (Y * 4.0 + 0.5 * warp))
+        img = lerp(light, dark, np.clip(0.3 + 0.45 * grain ** 3, 0, 1))
+        # «шпон в ёлочку» в центре и светлая полоса-инкрустация по краю
+        d = dist_to_rect(X, Y, HX, HY)
+        img = lerp(img, col(0.72, 0.52, 0.30), (ss(0.14, 0.15, d) * (1 - ss(0.2, 0.21, d))) * 0.85)
+        img = lerp(img, dark * 0.8, (1 - ss(0.0, 0.08, d)) * 0.4)
+        a.set_top(img)
+        a.set_tile(EDGE, wood_tile(a, light, dark, False, 3, False))
+        a.set_tile(LEG, wood_tile(a, light * 1.05, dark, True, 3, False))
+        a.set_tile(DARK, flat_tile(a, dark * 0.6))
+
+    t.mesh, t.paint = mesh, paint
+    t.smoothness = 0.45
+    return t
+
+
+# ---------------------------------------------------------------------------
+# 12. Берёзовый: светлый деревенский, ножки-брёвнышки в бересте, разведены в стороны
+# ---------------------------------------------------------------------------
+
+def make_birch():
+    t = Table("Table_Birch")
+    b = Builder(t.name)
+    out = rounded_rect(HX, HY, 0.6, 4)
+    b.part(slab(out, -0.14, TOP, 0.03), EDGE, top=True, bottom_tile=DARK)
+    # две поперечные «лыжи» под столешницей, в них вставлены ножки
+    for x in (-1.9, 1.9):
+        b.part(box(Vector((x, 0.0, -0.22)), Vector((0.36, 2 * HY - 0.3, 0.16))), EDGE)
+    # ножки-брёвнышки, разведены наружу
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            top = Vector((sx * 1.9, sy * 1.35, -0.28))
+            foot = Vector((sx * 2.35, sy * 1.75, FLOOR + 0.062))
+            mid = top.lerp(foot, 0.5)
+            b.part(tube([foot, mid, top], [0.15, 0.14, 0.13], 8), ACC1, bottom_tile=DARK)
+    mesh = b.finish()
+
+    def paint(a):
+        light, dark = col(0.90, 0.80, 0.62), col(0.76, 0.63, 0.44)
+        img = planks_top(a, light, dark, col(0.48, 0.36, 0.22), 5, True, 17, False, 9.0)
+        a.set_top(img)
+        a.set_tile(EDGE, wood_tile(a, light * 0.95, dark, False, 3, False))
+        # береста: белая с чёрными чечевичками
+        u, v = a.tile_coords()
+        bark = flat_tile(a, col(0.93, 0.92, 0.88), 0.03, 20.0)
+        nn = TEX // 4
+        spots = zm.periodic_noise(a.rng, nn, nn, 10.0, scale_v=40.0)
+        bark = lerp(bark, col(0.16, 0.15, 0.14), ss(0.68, 0.72, spots) * ss(0.8, 0.9, np.abs(np.sin(v * 23.0))) * 0.85)
+        a.set_tile(ACC1, bark)
+        a.set_tile(DARK, flat_tile(a, col(0.55, 0.45, 0.3)))
+
+    t.mesh, t.paint = mesh, paint
+    t.smoothness = 0.3
+    return t
+
+
+# ---------------------------------------------------------------------------
+# 13. Золотой: чёрный лак, золотой узор по краю, позолоченные ножки-балясины и лапы
+# ---------------------------------------------------------------------------
+
+def make_gold():
+    t = Table("Table_Gold")
+    b = Builder(t.name)
+    out = chamfer_rect(HX, HY, 0.35)
+    b.part(slab(out, -0.16, TOP, 0.03), EDGE, top=True, bottom_tile=DARK)
+    b.part(frame(offset(out, -0.02), 0.07, -0.26, -0.14), GOLD)
+    b.part(slab(offset(out, 0.2), -0.42, -0.16, 0.0, 0.0), EDGE)
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            x, y = sx * (HX - 0.55), sy * (HY - 0.45)
+            b.part(turned_leg(x, y, -0.42, 0.2, 12), GOLD)
+            b.part(blob((x, y, FLOOR + 0.08), (0.22, 0.22, 0.09), 6 + sx + 2 * sy, 1), GOLD)
+    # медальоны на фартуке спереди и сзади
+    for sy in (-1, 1):
+        b.part(dome((0.0, sy * (HY - 0.2 + 0.01), -0.29), (0, sy, 0), 0.16, 0.05, 10), GOLD)
+    mesh = b.finish()
+
+    def paint(a):
+        X, Y = a.X, a.Y
+        lacquer = col(0.10, 0.09, 0.10)
+        img = lerp(lacquer, col(0.18, 0.16, 0.17), np.clip(0.3 + 0.1 * a.noise(80.0), 0, 1))
+        gold = col(1.0, 0.8, 0.3)
+        d = np.minimum(dist_to_rect(X, Y, HX, HY), (HX + HY - 0.35 - np.abs(X) - np.abs(Y)) / 1.414)
+        img = lerp(img, gold, 1 - ss(0.006, 0.014, np.abs(d - 0.07)))
+        img = lerp(img, gold, 1 - ss(0.003, 0.007, np.abs(d - 0.16)))
+        # меандр-волна между линиями
+        s = np.where(np.abs(X) / HX > np.abs(Y) / HY, Y, X)
+        wave_d = np.abs(d - 0.115 - 0.025 * np.sin(s * 10.0))
+        img = lerp(img, gold, 1 - ss(0.004, 0.009, wave_d))
+        a.set_top(img)
+        a.set_tile(EDGE, flat_tile(a, lacquer, 0.08))
+        a.set_tile(GOLD, metal_tile(a, gold, 0.35))
+        a.set_tile(DARK, flat_tile(a, lacquer))
+
+    t.mesh, t.paint = mesh, paint
+    t.smoothness = 0.65
+    return t
+
+
+# ---------------------------------------------------------------------------
+# 14. Алхимический: тёмное дерево в пятнах, нижняя полка с колбами и книгами
+# ---------------------------------------------------------------------------
+
+def make_alchemy():
+    t = Table("Table_Alchemy")
+    b = Builder(t.name)
+    out = rounded_rect(HX, HY, 0.18, 3)
+    b.part(slab(out, -0.18, TOP, 0.025), EDGE, top=True, bottom_tile=DARK)
+    lx, ly = HX - 0.35, HY - 0.3
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            b.part(tapered_post(sx * lx, sy * ly, FLOOR, -0.18, 0.24, 0.24), LEG, bottom_tile=DARK)
+    # нижняя полка
+    shelf_z = -1.25
+    b.part(slab(rounded_rect(lx + 0.05, ly + 0.05, 0.1, 2), shelf_z - 0.07, shelf_z, 0.0, 0.0), EDGE, bottom_tile=DARK)
+    # колбы: круглая с горлышком, высокая, пузатая
+    rng = np.random.default_rng(44)
+    flasks = ((-1.6, 0.6, 0.26), (-1.1, -0.5, 0.2), (0.9, 0.7, 0.3), (1.5, -0.4, 0.22), (0.2, 0.9, 0.18))
+    for k, (x, y, r) in enumerate(flasks):
+        prof = [(r * 0.55, shelf_z), (r, shelf_z + r * 0.5), (r * 0.95, shelf_z + r * 1.2), (r * 0.35, shelf_z + r * 1.7),
+                (r * 0.28, shelf_z + r * 2.6), (r * 0.36, shelf_z + r * 2.75)]
+        b.part(lathe(prof, (x, y), 10), ACC1 if k % 2 == 0 else ACC2)
+    # стопка книг
+    for k in range(3):
+        b.part(box(Vector((-0.2 + 0.03 * k, -0.6, shelf_z + 0.07 + 0.13 * k)), Vector((0.6, 0.42, 0.12)), 0.15 * k), ACC3)
+    mesh = b.finish()
+
+    def paint(a):
+        X, Y = a.X, a.Y
+        light, dark = col(0.40, 0.28, 0.18), col(0.22, 0.14, 0.08)
+        img = planks_top(a, light, dark, col(0.08, 0.05, 0.03), 5, True, 23, False, 9.0)
+        # пятна от реактивов и прожжённые круги у краёв
+        rng = np.random.default_rng(7)
+        for color in (col(0.2, 0.45, 0.25), col(0.42, 0.22, 0.5), col(0.12, 0.08, 0.05)):
+            for _ in range(2):
+                cx = rng.choice([-1, 1]) * rng.uniform(2.6, 2.75)
+                cy = rng.uniform(-1.8, 1.8)
+                dd = np.hypot(X - cx, Y - cy) - rng.uniform(0.08, 0.14) * (1 + 0.3 * a.noise(15.0))
+                img = lerp(img, color, (1 - ss(-0.01, 0.01, dd)) * 0.6)
+        a.set_top(img)
+        a.set_tile(EDGE, wood_tile(a, light, dark, False, 3))
+        a.set_tile(LEG, wood_tile(a, light, dark, True, 3))
+        glass_g = flat_tile(a, col(0.35, 0.75, 0.45), 0.05)
+        glass_p = flat_tile(a, col(0.62, 0.35, 0.78), 0.05)
+        u, v = a.tile_coords()
+        a.set_tile(ACC1, lerp(glass_g, col(0.85, 1.0, 0.9), ss(0.75, 0.95, v) * 0.6))
+        a.set_tile(ACC2, lerp(glass_p, col(0.95, 0.85, 1.0), ss(0.75, 0.95, v) * 0.6))
+        books = flat_tile(a, col(0.55, 0.12, 0.1), 0.05)
+        a.set_tile(ACC3, lerp(books, col(0.9, 0.85, 0.7), 1 - ss(0.0, 0.08, np.minimum(v, 1 - v))))
+        a.set_tile(DARK, flat_tile(a, dark * 0.6))
+
+    t.mesh, t.paint = mesh, paint
+    t.smoothness = 0.3
+    return t
+
+
+TABLES = [make_tavern, make_gambling, make_barrel, make_stone, make_deck, make_royal, make_stump, make_pirate,
+          make_dark, make_marble, make_walnut, make_birch, make_gold, make_alchemy]
 
 
 # ---------------------------------------------------------------------------

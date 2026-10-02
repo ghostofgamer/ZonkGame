@@ -62,9 +62,10 @@ MAX_TRIS = 2000
 CELLS = {
     "iron": (0, 0), "brass": (1, 0), "wax": (2, 0), "bone": (3, 0),
     "skull": (0, 1), "chain": (1, 1), "copper": (2, 1), "dark": (3, 1),
-    "flame": (0, 3), "glass": (1, 3), "orb": (2, 3),
+    "enamel": (0, 2), "fabric": (1, 2), "paper": (2, 2), "emerald": (3, 2),
+    "flame": (0, 3), "glass": (1, 3), "orb": (2, 3), "crystal": (3, 3),
 }
-GLOW = {"flame", "glass", "orb"}
+GLOW = {"flame", "glass", "orb", "paper", "emerald", "crystal"}
 
 
 def cell_uv(paint, u, v):
@@ -391,6 +392,202 @@ def make_orb():
 
 LAMPS = [make_candle, make_oil, make_lantern6, make_skull, make_chandelier, make_orb]
 
+
+# ---------------------------------------------------------------------------
+# Лампы, волна 2 (02.10.2026): вместо перекрасок абажура и заглушек из примитивов — свои модели
+# ---------------------------------------------------------------------------
+
+def bulb(b, z, radius=0.085):
+    """Лампочка: стеклянный шар (светится) и латунный цоколь над ним."""
+    sphere = [(0.0, z - radius)] + [(radius * math.sin(math.pi * k / 6), z - radius * math.cos(math.pi * k / 6)) for k in range(1, 6)]
+    sphere += [(radius * 0.45, z + radius * 0.95), (0.0, z + radius * 1.0)]
+    b.lathe(sphere, "glass", seg=10)
+    b.lathe([(0.0, z + radius * 0.9), (radius * 0.42, z + radius * 0.9), (radius * 0.45, z + radius * 1.7), (0.0, z + radius * 1.75)],
+            "brass", seg=8)
+
+
+def make_shade():
+    """Эмалевый абажур-конус (снаружи тёмно-зелёный, изнутри кремовый), лампочка, шнур. Базовая лампа."""
+    b = Builder()
+    # Замкнутый профиль: снаружи сверху вниз до края, изнутри обратно вверх — одна оболочка с толщиной.
+    shell = [(0.0, 0.27), (0.08, 0.27), (0.12, 0.21), (0.34, -0.04), (0.52, -0.19), (0.56, -0.23),
+             (0.54, -0.245), (0.50, -0.215), (0.32, -0.065), (0.10, 0.17), (0.0, 0.19)]
+    b.lathe(shell, "enamel", seg=22)
+    bulb(b, -0.1)
+    b.lathe([(0.0, 0.26), (0.05, 0.26), (0.05, 0.33), (0.0, 0.35)], "brass", seg=10)
+    b.tube([Vector((0, 0, 0.34)), Vector((0, 0, CEILING))], [0.011, 0.011], "dark", sides=5)
+    return "Lamp_Shade", b, Vector((0, 0, -0.14)), (0.4, 0.1)
+
+
+def make_storm():
+    """Штормовой фонарь: бачок, стеклянная колба (светится), проволочная защита, колпак, ручка-дужка."""
+    b = Builder()
+    tank = [(0.0, -0.44), (0.16, -0.44), (0.19, -0.40), (0.19, -0.33), (0.14, -0.30), (0.0, -0.30)]
+    b.lathe(tank, "copper", seg=14)
+    globe = [(0.0, -0.30), (0.09, -0.30), (0.15, -0.22), (0.17, -0.12), (0.15, -0.02), (0.09, 0.07), (0.0, 0.08)]
+    b.lathe(globe, "glass", seg=14)
+    for k in range(4):
+        a = 2 * math.pi * k / 4 + math.pi / 4
+        path = [Vector((0.15 * math.cos(a), 0.15 * math.sin(a), -0.31)),
+                Vector((0.2 * math.cos(a), 0.2 * math.sin(a), -0.12)),
+                Vector((0.13 * math.cos(a), 0.13 * math.sin(a), 0.08))]
+        b.tube(path, [0.009] * 3, "iron", sides=4)
+    b.torus((0, 0, -0.12), 0.195, 0.008, "iron", seg=16, sides=4)
+    cap = [(0.0, 0.06), (0.17, 0.06), (0.19, 0.09), (0.12, 0.15), (0.06, 0.2), (0.07, 0.25), (0.0, 0.26)]
+    b.lathe(cap, "iron", seg=12)
+    b.torus((0, 0, 0.12), 0.21, 0.012, "iron", seg=18, sides=4, z_axis=False)
+    b.chain(Vector((0, 0, 0.33)), Vector((0, 0, CEILING)), full=0.6)
+    return "Lamp_Storm", b, Vector((0, 0, -0.14)), (0.5, 0.2)
+
+
+def make_brass():
+    """Латунный купол на заклёпках, лампочка снизу, цепь."""
+    b = Builder()
+    dome = [(0.0, 0.2), (0.07, 0.2), (0.16, 0.16), (0.3, 0.05), (0.4, -0.08), (0.43, -0.15), (0.41, -0.165),
+            (0.38, -0.1), (0.28, 0.02), (0.14, 0.12), (0.0, 0.15)]
+    b.lathe(dome, "brass", seg=20)
+    b.torus((0, 0, -0.155), 0.425, 0.016, "brass", seg=20, sides=5)
+    for k in range(12):
+        a = 2 * math.pi * k / 12
+        c = (0.36 * math.cos(a), 0.36 * math.sin(a), -0.06)
+        b.lathe([(0.0, -0.012), (0.018, -0.006), (0.0, 0.012)], "dark", seg=5, center=c)
+    bulb(b, -0.14, 0.08)
+    b.lathe([(0.0, 0.19), (0.04, 0.19), (0.04, 0.27), (0.0, 0.29)], "brass", seg=8)
+    b.chain(Vector((0, 0, 0.29)), Vector((0, 0, CEILING)), full=0.6)
+    return "Lamp_Brass", b, Vector((0, 0, -0.2)), (0.7, 0.1)
+
+
+def make_crystal():
+    """Латунное кольцо с хрустальными подвесками (светятся), пять свечей, три цепи."""
+    b = Builder()
+    ring_z = -0.12
+    b.torus((0, 0, ring_z), 0.42, 0.018, "brass", seg=20, sides=4)
+    b.torus((0, 0, ring_z + 0.1), 0.2, 0.014, "brass", seg=14, sides=4)
+    b.lathe([(0.0, ring_z - 0.06), (0.05, ring_z - 0.03), (0.04, ring_z + 0.2), (0.0, ring_z + 0.24)], "brass", seg=8)
+    for k in range(4):
+        a = 2 * math.pi * k / 4 + math.pi / 4
+        c = Vector((0.42 * math.cos(a), 0.42 * math.sin(a), ring_z))
+        b.tube([Vector((0, 0, ring_z + 0.1)), c], [0.01, 0.01], "brass", sides=4)
+        b.lathe([(0.0, -0.01), (0.04, -0.01), (0.05, 0.02), (0.0, 0.02)], "brass", seg=6, center=(c.x, c.y, ring_z))
+        candle(b, (c.x, c.y, ring_z + 0.02), 0.026, 0.12, drips=2, seed=40 + k, flame_h=0.08, seg=6, light=True)
+
+    def drop(center, size):
+        x, y, z = center
+        b.tube([Vector((x, y, z)), Vector((x, y, z - size * 0.6))], [0.004, 0.004], "brass", sides=3, caps=False)
+        b.lathe([(0.0, -size * 0.6), (size * 0.32, -size * 1.0), (0.0, -size * 1.9)], "crystal", seg=4, center=(x, y, z))
+
+    for k in range(10):
+        a = 2 * math.pi * (k + 0.5) / 10
+        drop((0.42 * math.cos(a), 0.42 * math.sin(a), ring_z - 0.015), 0.07 + 0.02 * (k % 2))
+    for k in range(5):
+        a = 2 * math.pi * k / 5
+        drop((0.2 * math.cos(a), 0.2 * math.sin(a), ring_z + 0.085), 0.06)
+    hook = Vector((0, 0, 0.42))
+    for k in range(3):
+        a = 2 * math.pi * k / 3 + math.pi / 5
+        b.chain(Vector((0.42 * math.cos(a), 0.42 * math.sin(a), ring_z + 0.02)), hook, link=0.08, thick=0.008, full=0.3)
+    b.chain(Vector((0, 0, 0.44)), Vector((0, 0, CEILING)), full=0.3)
+    return "Lamp_Crystal", b, Vector((0, 0, ring_z + 0.05)), (0.3, 0.1)
+
+
+def make_paper():
+    """Красный бумажный фонарь (светится изнутри), чёрные крышки, кисть снизу, шнур."""
+    b = Builder()
+    body = [(0.0, -0.33)] + [(0.27 * math.sin(math.pi * k / 10), -0.07 - 0.26 * math.cos(math.pi * k / 10)) for k in range(1, 10)]
+    body += [(0.0, 0.19)]
+    b.lathe(body, "paper", seg=18)
+    b.lathe([(0.0, -0.36), (0.1, -0.36), (0.12, -0.32), (0.08, -0.3), (0.0, -0.3)], "dark", seg=12)
+    b.lathe([(0.0, 0.16), (0.08, 0.16), (0.12, 0.18), (0.1, 0.22), (0.0, 0.22)], "dark", seg=12)
+    b.tube([Vector((0, 0, -0.36)), Vector((0, 0, -0.45))], [0.008, 0.008], "fabric", sides=4)
+    b.lathe([(0.0, -0.44), (0.025, -0.46), (0.042, -0.56), (0.0, -0.58)], "fabric", seg=8)
+    b.tube([Vector((0, 0, 0.22)), Vector((0, 0, CEILING))], [0.009, 0.009], "dark", sides=4)
+    return "Lamp_Paper", b, Vector((0, 0, -0.08)), (0.2, 0.1)
+
+
+def make_emerald():
+    """Восьмигранный кованый фонарь с изумрудными стёклами (светятся): тёмное железо против яркого стекла."""
+    b = Builder()
+    b.lathe([(0.0, -0.40), (0.26, -0.40), (0.27, -0.36), (0.24, -0.33), (0.0, -0.33)], "iron", seg=8)
+    b.lathe([(0.0, -0.33), (0.2, -0.33), (0.2, 0.08), (0.0, 0.08)], "emerald", seg=8)
+    for k in range(8):
+        a = 2 * math.pi * k / 8 + math.pi / 8
+        b.tube([Vector((0.215 * math.cos(a), 0.215 * math.sin(a), -0.34)), Vector((0.215 * math.cos(a), 0.215 * math.sin(a), 0.09))],
+               [0.016, 0.016], "iron", sides=4)
+    for z in (-0.33, 0.08):
+        b.torus((0, 0, z), 0.22, 0.014, "iron", seg=8, sides=4)
+    roof = [(0.0, 0.08), (0.3, 0.08), (0.31, 0.11), (0.14, 0.25), (0.04, 0.33), (0.0, 0.35)]
+    b.lathe(roof, "iron", seg=8)
+    b.lathe([(0.0, 0.34), (0.035, 0.36), (0.02, 0.42), (0.0, 0.44)], "brass", seg=6)
+    b.torus((0, 0, 0.48), 0.04, 0.011, "iron", seg=10, sides=4, z_axis=False)
+    b.chain(Vector((0, 0, 0.52)), Vector((0, 0, CEILING)), full=0.6)
+    return "Lamp_Emerald", b, Vector((0, 0, -0.12)), (0.7, 0.2)
+
+
+def make_fringe():
+    """Тканевый абажур-барабан с золотой тесьмой и бахромой, лампочка внутри."""
+    b = Builder()
+    shell = [(0.0, 0.06), (0.30, 0.06), (0.42, -0.24), (0.40, -0.245), (0.285, 0.045), (0.0, 0.045)]
+    b.lathe(shell, "fabric", seg=24)
+    b.torus((0, 0, 0.06), 0.3, 0.014, "brass", seg=20, sides=4)
+    b.torus((0, 0, -0.245), 0.42, 0.016, "brass", seg=24, sides=4)
+    for k in range(28):
+        a = 2 * math.pi * k / 28
+        top = Vector((0.42 * math.cos(a), 0.42 * math.sin(a), -0.255))
+        b.tube([top, top + Vector((0, 0, -0.07 - 0.02 * (k % 2)))], [0.008, 0.005], "brass", sides=3)
+    bulb(b, -0.13, 0.075)
+    b.tube([Vector((0, 0, 0.05)), Vector((0, 0, CEILING))], [0.01, 0.01], "dark", sides=5)
+    for k in range(3):
+        a = 2 * math.pi * k / 3
+        b.tube([Vector((0, 0, -0.02)), Vector((0.3 * math.cos(a), 0.3 * math.sin(a), 0.05))], [0.006, 0.006], "brass", sides=3)
+    return "Lamp_Fringe", b, Vector((0, 0, -0.15)), (0.3, 0.1)
+
+
+def make_ship():
+    """Корабельный фонарь: медное основание и колпак, стекло (светится) за рёбрами-защитой, ручка."""
+    b = Builder()
+    b.lathe([(0.0, -0.42), (0.17, -0.42), (0.2, -0.38), (0.19, -0.3), (0.16, -0.28), (0.0, -0.28)], "copper", seg=14)
+    b.lathe([(0.0, -0.28), (0.15, -0.28), (0.155, -0.1), (0.15, 0.06), (0.0, 0.06)], "glass", seg=14)
+    for k in range(6):
+        a = 2 * math.pi * k / 6
+        b.tube([Vector((0.165 * math.cos(a), 0.165 * math.sin(a), -0.29)), Vector((0.165 * math.cos(a), 0.165 * math.sin(a), 0.07))],
+               [0.012, 0.012], "copper", sides=4)
+    for z in (-0.18, -0.04):
+        b.torus((0, 0, z), 0.17, 0.011, "copper", seg=14, sides=4)
+    top = [(0.0, 0.06), (0.19, 0.06), (0.2, 0.09), (0.13, 0.15), (0.08, 0.2), (0.1, 0.22), (0.1, 0.27), (0.0, 0.29)]
+    b.lathe(top, "copper", seg=14)
+    b.torus((0, 0, 0.36), 0.1, 0.015, "brass", seg=14, sides=5, z_axis=False)
+    b.chain(Vector((0, 0, 0.46)), Vector((0, 0, CEILING)), full=0.5)
+    return "Lamp_Ship", b, Vector((0, 0, -0.11)), (0.8, 0.2)
+
+
+def make_fireflies():
+    """Кованая клетка-купол, внутри порхают светлячки (светятся)."""
+    b = Builder()
+    b.lathe([(0.0, -0.40), (0.26, -0.40), (0.28, -0.37), (0.25, -0.35), (0.0, -0.35)], "iron", seg=14)
+    b.torus((0, 0, -0.35), 0.25, 0.012, "iron", seg=16, sides=4)
+    b.torus((0, 0, -0.08), 0.25, 0.01, "iron", seg=16, sides=4)
+    for k in range(10):
+        a = 2 * math.pi * k / 10
+        path = [Vector((0.25 * math.cos(a), 0.25 * math.sin(a), -0.35)), Vector((0.25 * math.cos(a), 0.25 * math.sin(a), -0.02))]
+        for s in range(1, 5):
+            t = s / 4
+            ang = t * math.pi / 2
+            path.append(Vector((0.25 * math.cos(ang) * math.cos(a), 0.25 * math.cos(ang) * math.sin(a), -0.02 + 0.25 * math.sin(ang))))
+        b.tube(path, [0.008] * len(path), "iron", sides=3, caps=False)
+    b.torus((0, 0, 0.27), 0.04, 0.011, "iron", seg=10, sides=4, z_axis=False)
+    rng = np.random.default_rng(77)
+    for k in range(11):
+        r = float(rng.uniform(0.03, 0.18))
+        a = float(rng.uniform(0, 2 * math.pi))
+        z = float(rng.uniform(-0.3, 0.08))
+        s = float(rng.uniform(0.016, 0.026))
+        b.lathe([(0.0, -s), (s, 0.0), (0.0, s)], "flame", seg=6, center=(r * math.cos(a), r * math.sin(a), z))
+    b.chain(Vector((0, 0, 0.31)), Vector((0, 0, CEILING)), full=0.6)
+    return "Lamp_Fireflies", b, Vector((0, 0, -0.12)), (0.2, 0.3)
+
+
+LAMPS_V2 = [make_shade, make_storm, make_brass, make_crystal, make_paper, make_emerald, make_fringe, make_ship, make_fireflies]
+
 # Как светит каждая лампа (для генератора; в Unity — Light у LightPoint): цвет, яркость, дальность.
 LIGHT_SETTINGS = {
     "Lamp_Candle": ((1.0, 0.68, 0.38), 3.2, 8.0),
@@ -399,6 +596,15 @@ LIGHT_SETTINGS = {
     "Lamp_Skull": ((1.0, 0.6, 0.32), 3.0, 8.0),
     "Lamp_Chandelier": ((1.0, 0.72, 0.42), 3.8, 10.0),
     "Lamp_Orb": ((0.6, 0.65, 1.0), 3.2, 8.0),
+    "Lamp_Shade": ((1.0, 0.86, 0.66), 3.4, 9.0),
+    "Lamp_Storm": ((1.0, 0.72, 0.42), 3.2, 8.0),
+    "Lamp_Brass": ((1.0, 0.8, 0.55), 3.6, 9.0),
+    "Lamp_Crystal": ((0.85, 0.92, 1.0), 3.6, 9.0),
+    "Lamp_Paper": ((1.0, 0.5, 0.32), 3.0, 8.0),
+    "Lamp_Emerald": ((0.55, 1.0, 0.62), 3.2, 8.0),
+    "Lamp_Fringe": ((1.0, 0.7, 0.5), 3.2, 8.0),
+    "Lamp_Ship": ((1.0, 0.74, 0.44), 3.4, 9.0),
+    "Lamp_Fireflies": ((0.85, 1.0, 0.5), 2.8, 7.0),
 }
 
 
@@ -466,6 +672,42 @@ def paint_cells(seed, tint):
     put("glass", lerp(col(1.0, 0.85, 0.55), col(0.95, 0.6, 0.25), np.clip(0.5 + 0.3 * n2, 0, 1)))
     swirl = np.sin((u * 6 + v * 3 + 0.4 * n1) * np.pi)
     put("orb", lerp(col(0.35, 0.3, 0.95), col(0.75, 0.6, 1.0), zm.smoothstep(-0.3, 0.9, swirl)))
+
+    # Эмаль абажура: v по профилю (0 — макушка снаружи, ~0.5 — край, дальше — изнутри вверх).
+    # Снаружи тёмно-зелёная эмаль с бликом, у края — тёмная кромка, изнутри — светлая кремовая.
+    outside = lerp(col(0.10, 0.32, 0.22), col(0.22, 0.55, 0.38), zm.smoothstep(0.1, 0.45, v))
+    outside = lerp(outside, col(0.55, 0.8, 0.62), zm.smoothstep(0.92, 1.0, np.abs(np.sin(u * np.pi * 2))) * 0.35)
+    inside = lerp(col(0.98, 0.95, 0.86), col(0.85, 0.8, 0.68), np.clip((v - 0.52) * 1.5, 0, 1))
+    enamel = np.where((v < 0.5)[..., None], outside, inside)
+    enamel = lerp(enamel, col(0.06, 0.08, 0.07), (np.abs(v - 0.5) < 0.025).astype(np.float32))
+    put("enamel", enamel)
+
+    # Ткань абажура: бордовая, складки полосами, золотая тесьма по краям.
+    pleats = 0.5 + 0.5 * np.sin(u * np.pi * 24)
+    fabric = lerp(col(0.42, 0.08, 0.12), col(0.62, 0.14, 0.18), pleats * 0.7)
+    trim = ((v < 0.1) | (v > 0.9)).astype(np.float32)
+    fabric = lerp(fabric, col(0.95, 0.72, 0.28), trim)
+    fabric = lerp(fabric, col(0.35, 0.22, 0.06), ((np.abs(v - 0.1) < 0.012) | (np.abs(v - 0.9) < 0.012)).astype(np.float32))
+    put("fabric", fabric)
+
+    # Бумажный фонарь (светится): красный, тёмные рёбра каркаса, золотая полоса с узором посередине.
+    paper = lerp(col(1.0, 0.42, 0.22), col(0.9, 0.22, 0.12), np.clip(np.abs(v - 0.5) * 2, 0, 1))
+    ribs = zm.smoothstep(0.9, 0.97, np.abs(np.sin(v * np.pi * 9)))
+    paper = lerp(paper, col(0.35, 0.06, 0.03), ribs * 0.8)
+    band = (np.abs(v - 0.5) < 0.09).astype(np.float32)
+    paper = lerp(paper, col(1.0, 0.82, 0.35), band)
+    waves = (np.abs(np.sin(u * np.pi * 16) * 0.05 - (v - 0.5)) < 0.012) & (band > 0)
+    paper = lerp(paper, col(0.75, 0.2, 0.08), waves.astype(np.float32))
+    put("paper", paper)
+
+    # Изумрудное стекло (светится): яркая середина, тёмные свинцовые переплёты ромбами — читается на любом фоне.
+    glow_c = lerp(col(0.55, 1.0, 0.65), col(0.08, 0.55, 0.28), np.clip(np.abs(v - 0.5) * 1.6 + np.abs(np.sin(u * np.pi * 4)) * 0.3, 0, 1))
+    lead = (np.abs(np.sin((u * 4 + v * 3) * np.pi)) < 0.08) | (np.abs(np.sin((u * 4 - v * 3) * np.pi)) < 0.08)
+    put("emerald", lerp(glow_c, col(0.04, 0.12, 0.07), lead.astype(np.float32)))
+
+    # Хрусталь (светится): холодный бело-голубой с гранями-бликами.
+    facets = np.abs(np.sin(u * np.pi * 8)) * np.abs(np.cos(v * np.pi * 5))
+    put("crystal", lerp(col(0.62, 0.82, 1.0), col(1.0, 1.0, 1.0), zm.smoothstep(0.3, 0.9, facets)))
 
     return np.clip(zc.comic_flatten(img), 0, 1)
 
@@ -566,11 +808,14 @@ def render(out_dir, objs):
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     render_dir = argv[argv.index("--render") + 1] if "--render" in argv else None
+    only = set(argv[argv.index("--only") + 1].split(",")) if "--only" in argv else None
     zm.reset_scene()
     os.makedirs(MODELS_DIR, exist_ok=True)
     objs, all_ok = [], True
     print("Лампы:")
-    for make in LAMPS:
+    for make in LAMPS + LAMPS_V2:
+        if only is not None and make.__name__ not in only and ("Lamp_" + make.__name__[5:].capitalize()) not in only:
+            continue
         obj = build(make)
         all_ok &= check(obj)
         zm.export_fbx(obj, os.path.join(MODELS_DIR, obj.name + ".fbx"), with_children=True)

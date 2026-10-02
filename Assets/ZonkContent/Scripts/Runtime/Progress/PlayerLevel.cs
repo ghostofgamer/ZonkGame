@@ -64,6 +64,9 @@ namespace Zonk.Progress
         /// <summary>Начислить опыт за партию. Награды за новые уровни выдаются сразу, сообщения — TakeLevelUps.</summary>
         XpGain AddMatch(bool won, bool surrendered, int score, bool vsBoss);
 
+        /// <summary>Начислить опыт напрямую (проверка в редакторе, будущие награды опытом). Награды уровней — как обычно.</summary>
+        void AddXp(long xp);
+
         List<PlayerLevelUp> TakeLevelUps();
 
         int UnlockLevel(GameFeature feature);
@@ -119,6 +122,18 @@ namespace Zonk.Progress
                 intoLevel = toNext;
         }
 
+        public void AddXp(long xp)
+        {
+            if (_config == null || xp <= 0)
+                return;
+
+            var data = Data;
+            data.Xp += xp;
+            GrantNewLevels(data);
+            _saves.RequestSave();
+            Changed?.Invoke();
+        }
+
         public XpGain AddMatch(bool won, bool surrendered, int score, bool vsBoss)
         {
             var data = Data;
@@ -161,6 +176,9 @@ namespace Zonk.Progress
 
         public bool IsUnlocked(GameFeature feature)
         {
+            if (DebugCheats.UnlockAll)
+                return true;
+
             return Level >= UnlockLevel(feature);
         }
 

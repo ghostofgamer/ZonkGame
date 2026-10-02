@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using Zenject;
 using Zonk.Configs;
+using Zonk.Progress;
 
 namespace Zonk.Presentation
 {
@@ -63,6 +65,97 @@ namespace Zonk.Presentation
 
         public DiceSetView Dice => _dice;
 
+        // Дополнительные места слотов (безделушки): что стоит на каждом, решает экипировка игрока; открыто — по таланту.
+        private ILoadout _loadout;
+        private ITalents _talents;
+        private ContentDatabase _content;
+        private bool _spotsSubscribed;
+
+        [Inject]
+        public void Construct([InjectOptional] ILoadout loadout, [InjectOptional] ITalents talents, [InjectOptional] ContentDatabase content)
+        {
+            _loadout = loadout;
+            _talents = talents;
+            _content = content;
+            if (isActiveAndEnabled)
+                SubscribeSpots();
+        }
+
+        private void Start()
+        {
+            // После внедрения зависимостей во все якоря сцены (им нужны CosmeticAssets для загрузки моделей).
+            ApplySpots();
+        }
+
+        private void SubscribeSpots()
+        {
+            if (_spotsSubscribed || _loadout == null)
+                return;
+
+            _loadout.Changed += ApplySpots;
+            if (_talents != null)
+                _talents.Changed += ApplySpots;
+            _spotsSubscribed = true;
+        }
+
+        private void UnsubscribeSpots()
+        {
+            if (!_spotsSubscribed)
+                return;
+
+            _loadout.Changed -= ApplySpots;
+            if (_talents != null)
+                _talents.Changed -= ApplySpots;
+            _spotsSubscribed = false;
+        }
+
+        /// <summary>Расставить вещи по дополнительным местам (якоря с Spot > 0); закрытые места — пустые.</summary>
+        public void ApplySpots()
+        {
+            if (_loadout == null || _content == null)
+                return;
+
+            foreach (var anchor in _anchors)
+            {
+                if (anchor == null || anchor.Spot <= 0)
+                    continue;
+
+                var slot = _content.Get<CosmeticSlotConfig>(anchor.SlotId);
+                var item = slot != null && anchor.Spot < _loadout.SpotCount(slot) ? _loadout.GetEquippedAt(slot, anchor.Spot) : null;
+                anchor.Show(item, null);
+            }
+        }
+
+        /// <summary>Примерка на месте spot (магазин). Основное место — как Apply.</summary>
+        public void ShowAtSpot(CosmeticSlotConfig slot, int spot, CosmeticItemConfig item)
+        {
+            if (slot == null)
+                return;
+            if (spot <= 0)
+            {
+                Apply(slot, item);
+                return;
+            }
+
+            foreach (var anchor in _anchors)
+            {
+                if (anchor != null && anchor.SlotId == slot.Id && anchor.Spot == spot)
+                    anchor.Show(item, null);
+            }
+        }
+
+        /// <summary>Якорь места (ракурс магазина смотрит на него); нет — null.</summary>
+        public Transform SpotAnchor(string slotId, int spot)
+        {
+            foreach (var anchor in _anchors)
+            {
+                if (anchor != null && anchor.SlotId == slotId && anchor.Spot == spot)
+                    return anchor.transform;
+            }
+
+            return null;
+        }
+
         /// <summary>Предмет надет на стол (экипировка, примерка в магазине, локация главы). Слушает LightingDirector.</summary>
         public event Action<CosmeticItemConfig> ItemApplied;
 
@@ -79,6 +172,7 @@ namespace Zonk.Presentation
                 if (anchor != null)
                     anchor.InstanceChanged += OnInstanceChanged;
             }
+            SubscribeSpots();
         }
 
         private void OnDisable()
@@ -88,6 +182,7 @@ namespace Zonk.Presentation
                 if (anchor != null)
                     anchor.InstanceChanged -= OnInstanceChanged;
             }
+            UnsubscribeSpots();
         }
 
         private void OnInstanceChanged(CosmeticAnchor anchor)
@@ -113,12 +208,12 @@ namespace Zonk.Presentation
         }
 #endif
 
-        /// <summary>Поставить предмет во все якоря слота slotId.</summary>
+        /// <summary>Поставить предмет во все якоря слота slotId (основное место; дополнительные — ApplySpots).</summary>
         public void ShowInAnchors(string slotId, CosmeticItemConfig item, CosmeticItemConfig slotDefault)
         {
             foreach (var anchor in _anchors)
             {
-                if (anchor != null && anchor.SlotId == slotId)
+                if (anchor != null && anchor.SlotId == slotId && anchor.Spot == 0)
                     anchor.Show(item, slotDefault);
             }
         }
@@ -138,6 +233,13 @@ namespace Zonk.Presentation
         {
             if (slot == null)
                 return;
+
+            // Слот с местами: основное место может быть пустым (вещь переставили) — без базового предмета.
+            if (item == null && slot.ExtraSpots > 0)
+            {
+                ShowInAnchors(slot.Id, null, null);
+                return;
+            }
 
             item = item != null ? item : slot.DefaultItem;
             var applier = slot.Applier ?? DefaultApplier;
