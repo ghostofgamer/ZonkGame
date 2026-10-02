@@ -190,7 +190,7 @@ namespace Zonk.Table
         /// <summary>Обычная кость первой, дальше особые по имени ассета.</summary>
         public List<DieConfig> Dice(bool allowSpecial = true)
         {
-            var result = _content.All<DieConfig>().FindAll(d => _inventory.IsOwned(d) && (allowSpecial || !d.IsSpecial));
+            var result = _content.All<DieConfig>().FindAll(d => !d.RunOnly && _inventory.IsOwned(d) && (allowSpecial || !d.IsSpecial));
             result.Sort((a, b) =>
             {
                 if (a == _config.StandardDie) return -1;

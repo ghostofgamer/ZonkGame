@@ -51,6 +51,7 @@ namespace Zonk
 
             BindMonetization();
 
+            Container.Bind<ITalents>().To<Talents>().AsSingle();
             Container.Bind<IWallet>().To<Wallet>().AsSingle();
             Container.Bind<IInventory>().To<Inventory>().AsSingle();
             Container.Bind<ILoadout>().To<Loadout>().AsSingle();

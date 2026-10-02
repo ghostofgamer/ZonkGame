@@ -241,15 +241,184 @@ namespace Zonk.Tests
             var run = NewRun();
             run.StartNew(null, 9);
             for (var i = 0; i < _run.StartHearts - 1; i++)
-                Assert.Greater(run.OnLoss(), 0);
+                Assert.AreEqual(RunLoss.HeartLost, run.OnLoss());
 
             Assert.IsFalse(run.CanRevive, "hearts left — no revive yet");
-            Assert.AreEqual(0, run.OnLoss());
+            Assert.AreEqual(RunLoss.Out, run.OnLoss());
             Assert.IsTrue(run.CanRevive);
             run.Revive();
             Assert.AreEqual(1, run.Hearts);
-            Assert.AreEqual(0, run.OnLoss());
-            Assert.IsFalse(run.CanRevive, "revive only once per run");
+            Assert.AreEqual(RunLoss.Out, run.OnLoss());
+            Assert.IsFalse(run.CanRevive, "second revive only from the deep floor");
+        }
+
+        // ---------- Забег 2.0 ----------
+
+        private RunPerkEntry Entry(string id, RunPerk perk, Rarity rarity = Rarity.Common, int max = 99)
+        {
+            var entry = new RunPerkEntry { Id = id, Perk = perk, Rarity = rarity, Weight = 10, MaxStacks = max };
+            _run.Perks.Add(entry);
+            return entry;
+        }
+
+        private void Offer(string id, string value = null)
+        {
+            _saves.Get<EndlessRunSave>(SaveKeys.EndlessRun).Offers.Add(new RunOfferSave { PerkId = id, Value = value });
+        }
+
+        [Test]
+        public void ShieldTakesTheHitAndSecondWindSavesOnce()
+        {
+            Entry("shield", new ShieldPerk());
+            Entry("second_wind", new SecondWindPerk(), Rarity.Legendary, 1);
+            var run = NewRun();
+            run.StartNew(null, 2);
+
+            Offer("shield");
+            run.Choose(0);
+            Assert.AreEqual(1, run.Shields);
+            var hearts = run.Hearts;
+            Assert.AreEqual(RunLoss.Shielded, run.OnLoss());
+            Assert.AreEqual(hearts, run.Hearts, "shield keeps the heart");
+            Assert.AreEqual(0, run.Shields);
+
+            Offer("second_wind");
+            run.Choose(0);
+            while (run.Hearts > 1)
+                run.OnLoss();
+            Assert.AreEqual(RunLoss.SecondWind, run.OnLoss());
+            Assert.AreEqual(1, run.Hearts);
+            Assert.AreEqual(RunLoss.Out, run.OnLoss(), "second wind works once");
+        }
+
+        [Test]
+        public void StacksMakePerksStrongerOnTheFloor()
+        {
+            Entry("head_start", new HeadStartPerk { Points = 150 }, max: 3);
+            Entry("insurance", new InsurancePerk { PercentPerStack = 15 }, Rarity.Rare, 3);
+            Entry("relief", new ReliefPerk { PercentPerStack = 10 }, Rarity.Rare, 3);
+            var run = NewRun();
+            run.StartNew(null, 2);
+            var plain = run.BuildFloor();
+
+            for (var i = 0; i < 2; i++)
+            {
+                Offer("head_start");
+                run.Choose(0);
+                Offer("insurance");
+                run.Choose(0);
+            }
+
+            Offer("relief");
+            run.Choose(0);
+            var floor = run.BuildFloor();
+            Assert.AreEqual(300, floor.PlayerStartScore, "two stacks of head start");
+            Assert.IsTrue(floor.PlayerModifiers.Exists(m => m is ZonkInsuranceModifier z && z.KeepPercent == 30));
+            Assert.Less(floor.Target, plain.Target, "relief lowers the target");
+        }
+
+        [Test]
+        public void ZonkSavesAreSpentFromThePoolAndCharmIsFree()
+        {
+            Entry("zonk_save", new ZonkSavePerk { Charges = 2 }, Rarity.Rare);
+            Entry("lucky_charm", new LuckyCharmPerk(), Rarity.Legendary, 1);
+            var run = NewRun();
+            run.StartNew(null, 2);
+            Offer("zonk_save");
+            run.Choose(0);
+            Offer("lucky_charm");
+            run.Choose(0);
+
+            var floor = run.BuildFloor();
+            Assert.AreEqual(3, floor.PlayerZonkSaves, "pool of two plus one free");
+            run.OnMatchPlayed(floor, 1);
+            Assert.AreEqual(1, run.ZonkSaves, "two used: the free one first, then one from the pool");
+        }
+
+        [Test]
+        public void LoadedDieUpgradesInTheSameSlot()
+        {
+            var oneFive = Die("loaded15", true);
+            var five = Die("loaded5", true);
+            var one = Die("loaded1", true);
+            _database.EditorSetItems(new List<ContentConfig> { _lucky, _sixes, _config.StandardDie, _regular, _guardian, oneFive, five, one });
+            Entry("loaded", new LoadedDiePerk { Steps = new List<DieConfig> { oneFive, five, one } }, Rarity.Rare, 3);
+            var run = NewRun();
+            run.StartNew(new[] { _lucky, null, null, null, null, null }, 2);
+
+            Offer("loaded");
+            run.Choose(0);
+            Assert.AreEqual(oneFive, run.BuildFloor().PlayerDice[1]);
+            Offer("loaded");
+            run.Choose(0);
+            Assert.AreEqual(five, run.BuildFloor().PlayerDice[1], "second stack replaces the die in the same slot");
+            Offer("loaded");
+            run.Choose(0);
+            Assert.AreEqual(one, run.BuildFloor().PlayerDice[1]);
+            Assert.AreEqual(_lucky, run.BuildFloor().PlayerDice[0]);
+        }
+
+        [Test]
+        public void EliteFloorIsHarderAndGivesRarePerk()
+        {
+            Entry("heart", new HeartPerk());
+            Entry("shield", new ShieldPerk(), Rarity.Rare);
+            var run = NewRun();
+            run.StartNew(null, 2);
+            run.OnWin();
+            Assert.IsTrue(run.NeedsPath);
+            run.ChoosePath(RunPath.Normal);
+            var normal = run.BuildFloor();
+            run.ChoosePath(RunPath.Elite);
+            var elite = run.BuildFloor();
+            Assert.IsTrue(elite.IsElite);
+            Assert.Greater(elite.EnemyPower, normal.EnemyPower);
+            Assert.Greater(elite.Target, normal.Target);
+
+            var win = run.OnWin();
+            Assert.IsTrue(win.Elite);
+            Assert.AreEqual("shield", run.Offers[0].PerkId, "elite win always offers a rare perk first");
+        }
+
+        [Test]
+        public void ShopSellsPerksForTokens()
+        {
+            Entry("shield", new ShieldPerk(), Rarity.Rare);
+            Entry("purse", new TokenPursePerk { Tokens = 5 });
+            var run = NewRun();
+            run.StartNew(null, 2);
+            var save = _saves.Get<EndlessRunSave>(SaveKeys.EndlessRun);
+            save.Tokens = 6;
+            save.Floor = 4;
+            run.ChoosePath(RunPath.Shop);
+            Assert.IsTrue(run.IsShopOpen);
+            var index = save.Offers.FindIndex(o => o.PerkId == "shield");
+            Assert.GreaterOrEqual(index, 0);
+            Assert.IsTrue(run.Buy(index));
+            Assert.AreEqual(0, run.Tokens);
+            Assert.AreEqual(1, run.Shields);
+            run.LeaveShop();
+            Assert.IsFalse(run.IsShopOpen);
+            Assert.AreEqual(RunPath.Normal, run.CurrentPath);
+        }
+
+        [Test]
+        public void ExtraPickForAdKeepsTheRestOfTheOffers()
+        {
+            Entry("a", new ShieldPerk());
+            Entry("b", new TokenPursePerk());
+            Entry("c", new HeadStartPerk(), max: 3);
+            var run = NewRun();
+            run.StartNew(null, 2);
+            run.OnWin();
+            Assert.AreEqual(3, run.Offers.Count);
+            Assert.IsTrue(run.CanTakeExtra);
+            run.GrantExtraPick();
+            run.Choose(0);
+            Assert.AreEqual(2, run.Offers.Count, "after the ad one more of the rest");
+            Assert.IsFalse(run.CanTakeExtra);
+            run.Choose(0);
+            Assert.AreEqual(0, run.Offers.Count);
         }
 
         [Test]

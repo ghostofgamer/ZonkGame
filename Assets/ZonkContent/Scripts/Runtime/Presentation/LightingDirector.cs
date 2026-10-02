@@ -27,6 +27,9 @@ namespace Zonk.Presentation
         [SerializeField] private CosmeticStage _stage;
         [SerializeField] private SoundPlayer _sound;
 
+        [Tooltip("Прожектор над столом (профиль локации: TableLight). Пусто — без пятна")]
+        [SerializeField] private Light _tableLight;
+
         private readonly List<SceneLight> _lights = new List<SceneLight>();
         private GameConfig _config;
         private IQualityService _quality;
@@ -42,8 +45,9 @@ namespace Zonk.Presentation
         private Color _ambientGround;
 
 #if UNITY_EDITOR
-        public void EditorSetup(Light sun, Camera camera, Volume volume, CosmeticStage stage, SoundPlayer sound)
+        public void EditorSetup(Light sun, Camera camera, Volume volume, CosmeticStage stage, SoundPlayer sound, Light tableLight = null)
         {
+            _tableLight = tableLight;
             _sun = sun;
             _camera = camera;
             _volume = volume;
@@ -176,8 +180,28 @@ namespace Zonk.Presentation
             }
         }
 
+        /// <summary>Пятно света на стол по профилю: в тёмных локациях стол освещён из темноты. Без теней — дёшево.</summary>
+        private void ApplyTableLight()
+        {
+            if (_tableLight == null)
+                return;
+
+            var power = _profile != null ? _profile.TableLight : 0f;
+            var on = power > 0.001f;
+            if (_tableLight.enabled != on)
+                _tableLight.enabled = on;
+            if (!on)
+                return;
+
+            _tableLight.intensity = power;
+            _tableLight.color = _profile.TableLightColor;
+            _tableLight.spotAngle = _profile.TableLightAngle;
+            _tableLight.innerSpotAngle = _profile.TableLightAngle * 0.6f;
+        }
+
         private void ApplyLights()
         {
+            ApplyTableLight();
             var multiplier = _profile != null ? _profile.LampIntensity : 1f;
             var tier = Tier;
             foreach (var sceneLight in _lights)

@@ -26,6 +26,15 @@ namespace Zonk.Core.Match
         /// </summary>
         public IReadOnlyList<MatchModifier> Modifiers { get; set; } = System.Array.Empty<MatchModifier>();
 
+        /// <summary>Фора: очки на счету с начала партии (находка забега). Порог входа при этом остаётся.</summary>
+        public int StartScore { get; set; }
+
+        /// <summary>
+        /// Заряды «спасения от Зонка» на партию (находка забега): Зонк не заканчивает ход — сгорает заряд, очки хода
+        /// остаются, те же кости бросаются снова. Бросок решает ГСЧ партии, как обычно.
+        /// </summary>
+        public int ZonkSaves { get; set; }
+
         public static IReadOnlyList<DieSpec> StandardDice()
         {
             var dice = new DieSpec[ZonkMatch.DiceCount];

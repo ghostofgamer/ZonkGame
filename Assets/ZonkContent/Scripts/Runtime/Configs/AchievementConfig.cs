@@ -28,6 +28,9 @@ namespace Zonk.Configs
 
         [Min(1)] public long Target = 1;
 
+        [Tooltip("Очков талантов за открытие (трудные достижения: редкие 1, легендарные 2–3)")]
+        [Min(0)] public int TalentPoints;
+
         [SerializeReference, SubclassSelector]
         public List<Reward> Rewards = new List<Reward>();
     }

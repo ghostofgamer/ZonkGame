@@ -13,6 +13,7 @@ namespace Zonk.Editor.Setup
     public static partial class ZonkSetup
     {
         private const string DieLooksFolder = Textures + "/DiceLooks";
+        private const int DieLookTextureSize = 512;
 
         /// <summary>Узор тела: (u, v в пикселях атласа, шум) → цвет тела.</summary>
         private delegate Color BodyPattern(float x, float y, Func<float, float, float, float> noise);
@@ -137,6 +138,8 @@ namespace Zonk.Editor.Setup
                     SavePng(texturePath, Paint(atlas, look));
                 }
 
+                // Кость на экране маленькая: 512 и Crunch, иначе виды костей — несколько мегабайт стартовой загрузки браузера.
+                ConfigureTexture(texturePath, DieLookTextureSize);
                 var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
                 materials[look.Name] = Mat(null, "DieLook_" + look.Name, Color.white, texture, look.Smoothness, look.Metallic,
                     Color.black);
@@ -179,6 +182,7 @@ namespace Zonk.Editor.Setup
                 SavePng(texturePath, painted);
             }
 
+            ConfigureTexture(texturePath, DieLookTextureSize);
             var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
             return Mat(null, "DieLook_" + lookName + "_M" + level, Color.white, texture,
                 Mathf.Min(1f, look.Smoothness + 0.05f * level), look.Metallic, Color.black);

@@ -43,6 +43,70 @@ namespace Zonk.Tests
         }
 
         [Test]
+        public void ZonkSaveKeepsTheTurnUntilChargesRunOut()
+        {
+            // 2, 2, 3, 3, 4, 6 — ни одной комбинации: каждый бросок — Зонк.
+            var settings = TwoPlayers(ForcedDice(2, 2, 3, 3, 4, 6), PlayerSetup.StandardDice());
+            settings.Players[0].ZonkSaves = 2;
+            var match = new ZonkMatch(settings);
+
+            for (var charge = 1; charge >= 0; charge--)
+            {
+                var saved = match.Roll();
+                Assert.IsTrue(saved.ZonkSaved);
+                Assert.IsFalse(saved.IsZonk);
+                Assert.IsNull(saved.TurnEnd);
+                Assert.AreEqual(MatchPhase.AwaitingRoll, match.Phase);
+                Assert.AreEqual(charge, match.Players[0].ZonkSavesLeft);
+                Assert.AreEqual(0, match.CurrentPlayerIndex, "the turn goes on");
+            }
+
+            var zonk = match.Roll();
+            Assert.IsTrue(zonk.IsZonk);
+            Assert.AreEqual(1, match.CurrentPlayerIndex, "no charges — the turn ends");
+        }
+
+        [Test]
+        public void InsuranceKeepsPartOfTheLostTurn()
+        {
+            // Первый бросок: единица (100), дальше без комбинаций.
+            var settings = TwoPlayers(ForcedDice(1, 2, 2, 3, 3, 4), PlayerSetup.StandardDice());
+            settings.Players[0].Modifiers = new MatchModifier[] { new ZonkInsuranceModifier { KeepPercent = 50 } };
+            settings.Players[0].StartScore = 200;
+            var match = new ZonkMatch(settings);
+            Assert.AreEqual(200, match.Players[0].Score, "head start");
+
+            match.Roll();
+            match.Keep(new[] { 0 });
+            var zonk = match.Roll();
+            Assert.IsTrue(zonk.IsZonk);
+            Assert.AreEqual(50, zonk.TurnEnd.Saved);
+            Assert.AreEqual(250, match.Players[0].Score);
+        }
+
+        [Test]
+        public void HotHandAndBigTurnAddToTheTurn()
+        {
+            // Стрит: горячие кости одной комбинацией.
+            var settings = TwoPlayers(ForcedDice(1, 2, 3, 4, 5, 6), PlayerSetup.StandardDice());
+            settings.Players[0].Modifiers = new MatchModifier[]
+            {
+                new HotDiceBonusModifier { BonusPercent = 50 },
+                new BigTurnBonusModifier { Threshold = 1000, BonusPercent = 20 },
+            };
+            var match = new ZonkMatch(settings);
+            match.Roll();
+            var keep = match.Keep(new[] { 0, 1, 2, 3, 4, 5 });
+            Assert.IsTrue(keep.HotDice);
+            Assert.AreEqual(keep.Score.Score / 2, keep.Bonus);
+            Assert.AreEqual(keep.Score.Score + keep.Bonus, match.TurnScore);
+
+            var end = match.Bank();
+            Assert.AreEqual(keep.TurnScore / 5, end.Bonus, "big turn: +20%");
+            Assert.AreEqual(keep.TurnScore + end.Bonus, end.Banked);
+        }
+
+        [Test]
         public void OpponentStartsRuleGivesFirstTurnToLastPlayer()
         {
             foreach (var proposed in new[] { 0, 1 })

@@ -719,6 +719,21 @@ namespace Zonk.Presentation
             }
         }
 
+        /// <summary>Подсказка лучшего хода: советуемые кости — цветом подсказки поверх подсветки полезных.</summary>
+        public void HintDice(IReadOnlyList<int> slots)
+        {
+            if (slots == null)
+                return;
+
+            var tint = Feel.HintTint;
+            for (var i = 0; i < slots.Count; i++)
+            {
+                var slot = slots[i];
+                if (slot >= 0 && slot < Dice.Dice.Count)
+                    Dice[slot].SetTint(tint);
+            }
+        }
+
         private void OnTableImpact()
         {
             _table.Sound.Play(Sfx.Thud);

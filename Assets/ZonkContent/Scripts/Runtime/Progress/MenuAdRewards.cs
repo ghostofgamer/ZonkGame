@@ -70,7 +70,7 @@ namespace Zonk.Progress
             if (offer == null || offer.Currency == null || offer.Amount <= 0)
                 return false;
 
-            return !(offer.HideWhenFull && offer.Currency.HasRegen && _wallet.Get(offer.Currency) >= offer.Currency.RegenCap);
+            return !(offer.HideWhenFull && offer.Currency.HasRegen && _wallet.Get(offer.Currency) >= _wallet.CapOf(offer.Currency));
         }
 
         /// <summary>Реклама загружена и её можно показать (на VK — предзагрузка, меняется со временем).</summary>

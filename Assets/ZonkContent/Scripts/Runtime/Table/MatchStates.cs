@@ -34,14 +34,18 @@ namespace Zonk.Table
         private readonly IChestService _chests;
         private readonly ISeasonPass _season;
         private readonly IAchievements _achievements;
+        private readonly ITalents _talents;
+        private readonly IWallet _wallet;
         private bool _chestEarned;
         private readonly CurrencyConfig _coinsCurrency;
 
         public MatchAftermath(UiKit kit, TableView table, MatchPresenter presenter, RewardGranter granter,
             IRewardService rewards, IInterstitialService interstitials, ISaveStore saves, IUiService ui, IQuestService quests,
             IDieMastery mastery, GameConfig config, IPlayerLevel level, IPlayerRecords records, IChestService chests, ISeasonPass season,
-            IAchievements achievements)
+            IAchievements achievements, [Zenject.InjectOptional] ITalents talents, [Zenject.InjectOptional] IWallet wallet)
         {
+            _talents = talents;
+            _wallet = wallet;
             _achievements = achievements;
             _season = season;
             _chests = chests;
@@ -87,11 +91,15 @@ namespace Zonk.Table
             }
 
             await _presenter.ShowResultAsync(localWon || !vsAi, ct);
+            if (localWon && vsAi && _talents != null && _talents.Value(TalentEffect.WinCelebration) > 0f)
+                _presenter.Celebrate();
 
             // Опыт игрока — за любую партию против соперника (за проигрыш тоже), не за игру вдвоём.
             var xp = vsAi ? RecordLocalMatch(outcome, participants, localWon) : default(XpGain?);
 
             var granted = localWon && rewards != null ? _granter.Grant(rewards) : new List<GrantedReward>();
+            if (localWon)
+                AddWinBonus(granted, xp.HasValue && xp.Value.FirstWinXp > 0);
             // Уже выданное вне наград режима (выигрыш ставки): показывается, но не удваивается рекламой.
             if (alreadyGranted != null)
                 granted.InsertRange(0, alreadyGranted);
@@ -220,6 +228,33 @@ namespace Zonk.Table
             if (xp.HasValue && _season != null)
                 _season.AddPoints(xp.Value.Total);
             return xp;
+        }
+
+        /// <summary>
+        /// Таланты «Купца»: +CoinsOnWinPercent к монетам за победу и ×2 за первую победу дня (FirstWinDoubleCoins).
+        /// Считается от монет наград режима; ставка и удвоение за рекламу — без бонуса.
+        /// </summary>
+        private void AddWinBonus(List<GrantedReward> granted, bool firstWinToday)
+        {
+            if (_talents == null || _wallet == null || _coinsCurrency == null)
+                return;
+
+            var coins = 0;
+            foreach (var reward in granted)
+            {
+                if (reward.Currency == _coinsCurrency)
+                    coins += reward.Amount;
+            }
+
+            var percent = _talents.Value(TalentEffect.CoinsOnWinPercent);
+            if (firstWinToday && _talents.Value(TalentEffect.FirstWinDoubleCoins) > 0f)
+                percent += 100f;
+            var bonus = Mathf.RoundToInt(coins * percent / 100f);
+            if (bonus <= 0)
+                return;
+
+            _wallet.Add(_coinsCurrency, bonus);
+            granted.Add(new GrantedReward(null, _coinsCurrency, bonus));
         }
 
         private static bool HasCurrency(IReadOnlyList<Reward> rewards)
@@ -360,12 +395,15 @@ namespace Zonk.Table
         private readonly MatchAftermath _aftermath;
         private readonly StageDresser _dresser;
         private readonly EnergyGate _energy;
+        private readonly ITalents _talents;
         private readonly IUiService _ui;
 
         public CampaignState(UiKit kit, TableView table, ICampaignProgress progress, IWallet wallet, GameConfig config,
             ILoadout loadout, OwnedContent owned, ModeMatch match, MatchAftermath aftermath, StageDresser dresser,
-            IUiService ui, RewardGranter granter, PlayerStats stats, EnergyGate energy)
+            IUiService ui, RewardGranter granter, PlayerStats stats, EnergyGate energy,
+            [Zenject.InjectOptional] ITalents talents)
         {
+            _talents = talents;
             _energy = energy;
             _stats = stats;
             _granter = granter;
@@ -478,6 +516,14 @@ namespace Zonk.Table
             else if (stake > 0)
             {
                 Toast.ShowAsync(_kit, _table.UiRoot, _kit.T("campaign.stakeLost", stake), UiColors.Bad, 1.2f, ct).Forget();
+                // Талант «Страховка ставки»: часть ставки возвращается.
+                var refundPercent = _talents != null ? Mathf.Clamp(_talents.Value(TalentEffect.StakeRefundPercent), 0f, 100f) : 0f;
+                var refund = Mathf.FloorToInt(stake * refundPercent / 100f);
+                if (refund > 0)
+                {
+                    _wallet.Add(_config.Coins, refund);
+                    stakeRewards.Add(new GrantedReward(null, _config.Coins, refund));
+                }
             }
 
             var choice = await _aftermath.ShowAsync(outcome, players, rewards, mode != null ? mode.InterstitialTrigger : null,

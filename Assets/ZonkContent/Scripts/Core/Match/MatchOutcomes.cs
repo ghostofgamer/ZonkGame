@@ -25,6 +25,12 @@ namespace Zonk.Core.Match
         public bool StartedFinalRound;
         public bool MatchFinished;
         public int NextPlayer;
+
+        /// <summary>Сохранено страховкой при Зонке (уже на счету).</summary>
+        public int Saved;
+
+        /// <summary>Добавка за длинный ход при «забрать» (уже в Banked).</summary>
+        public int Bonus;
     }
 
     public sealed class RollOutcome
@@ -39,6 +45,12 @@ namespace Zonk.Core.Match
 
         public bool IsZonk;
 
+        /// <summary>
+        /// Зонк, но сгорел заряд спасения: ход продолжается, очки хода целы, нужно бросить те же кости снова
+        /// (фаза AwaitingRoll). IsZonk при этом false.
+        /// </summary>
+        public bool ZonkSaved;
+
         /// <summary>Не null, если бросок закончил ход (Зонк).</summary>
         public TurnEnd TurnEnd;
     }
@@ -52,6 +64,9 @@ namespace Zonk.Core.Match
 
         /// <summary>Все кости отложены, в руку вернулись все шесть.</summary>
         public bool HotDice;
+
+        /// <summary>Добавка к очкам хода за горячие кости (личные правила; уже в TurnScore).</summary>
+        public int Bonus;
     }
 
     /// <summary>Вариант, какие кости отложить. Для ИИ и подсказок.</summary>

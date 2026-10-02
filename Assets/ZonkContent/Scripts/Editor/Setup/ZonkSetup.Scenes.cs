@@ -112,7 +112,17 @@ namespace Zonk.Editor.Setup
             if (cameraData == null)
                 cameraData = rig.Camera.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
             cameraData.renderPostProcessing = false;
-            new GameObject("Lighting").AddComponent<LightingDirector>().EditorSetup(sun, rig.Camera, volume, stage, sound);
+            // Пятно света на стол: прожектор из точки лампы вниз; сила и цвет — профиль локации (TableLight), иначе выключен.
+            var tableLight = new GameObject("TableLight").AddComponent<Light>();
+            tableLight.type = LightType.Spot;
+            tableLight.transform.position = new Vector3(0f, 3.3f, 0f);
+            tableLight.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+            tableLight.range = 8f;
+            tableLight.spotAngle = 95f;
+            tableLight.shadows = LightShadows.None;
+            tableLight.intensity = 0f;
+            tableLight.enabled = false;
+            new GameObject("Lighting").AddComponent<LightingDirector>().EditorSetup(sun, rig.Camera, volume, stage, sound, tableLight);
 
             var canvas = AddScaledCanvas(new GameObject("UI"));
             var eventSystem = new GameObject("EventSystem");

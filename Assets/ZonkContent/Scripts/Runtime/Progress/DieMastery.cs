@@ -50,8 +50,11 @@ namespace Zonk.Progress
         private readonly RewardGranter _granter;
         private readonly List<MasteryLevelUp> _levelUps = new List<MasteryLevelUp>();
 
-        public DieMastery(ISaveStore saves, GameConfig config, RewardGranter granter)
+        private readonly ITalents _talents;
+
+        public DieMastery(ISaveStore saves, GameConfig config, RewardGranter granter, ITalents talents = null)
         {
+            _talents = talents;
             _saves = saves;
             _config = config;
             _granter = granter;
@@ -83,6 +86,10 @@ namespace Zonk.Progress
         {
             if (die == null || !die.IsSpecial || points <= 0)
                 return;
+
+            // Талант «Мастер»: очки мастерства быстрее.
+            if (_talents != null)
+                points = (int)Math.Min(int.MaxValue, Math.Round(points * (1.0 + Math.Max(0f, _talents.Value(TalentEffect.MasteryPercent)) / 100.0)));
 
             var entry = Entry(die, true);
             entry.Points = (int)Math.Min(int.MaxValue, (long)entry.Points + points);

@@ -362,7 +362,7 @@ namespace Zonk.Editor
                 prices.Add(item.Price);
             }
 
-            tabs["Dice"] = database.All<DieConfig>().Where(d => d.IsSpecial).Select(d => d.Price).ToList();
+            tabs["Dice"] = database.All<DieConfig>().Where(d => d.IsSpecial && !d.RunOnly).Select(d => d.Price).ToList();
 
             foreach (var tab in tabs)
             {

@@ -177,6 +177,15 @@ namespace Zonk.Core.Match
                 return outcome;
             }
 
+            // Заряд спасения: ход не кончается, очки хода целы, те же кости бросаются снова.
+            if (CurrentPlayer.ZonkSavesLeft > 0)
+            {
+                CurrentPlayer.ZonkSavesLeft--;
+                outcome.ZonkSaved = true;
+                Phase = MatchPhase.AwaitingRoll;
+                return outcome;
+            }
+
             outcome.IsZonk = true;
             outcome.TurnEnd = EndTurnWithZonk();
             return outcome;
@@ -220,9 +229,12 @@ namespace Zonk.Core.Match
             TurnScore += score.Score;
 
             var hotDice = false;
+            var bonus = 0;
             if (DiceInHandCount == 0 && Rules.HotDice)
             {
                 hotDice = true;
+                bonus = SumHotDiceBonus(score.Score);
+                TurnScore += bonus;
                 CurrentPlayer.HotDiceCount++;
                 for (var die = 0; die < DiceCount; die++)
                 {
@@ -241,6 +253,7 @@ namespace Zonk.Core.Match
                 Score = score,
                 TurnScore = TurnScore,
                 HotDice = hotDice,
+                Bonus = bonus,
             };
         }
 
@@ -253,13 +266,14 @@ namespace Zonk.Core.Match
                 throw new InvalidOperationException("Cannot bank now");
 
             var player = CurrentPlayer;
-            var banked = TurnScore;
+            var bonus = SumBankBonus(TurnScore);
+            var banked = TurnScore + bonus;
             player.Score += banked;
             player.HasEntered = true;
             player.ZonkStreak = 0;
             player.BestTurn = Math.Max(player.BestTurn, banked);
 
-            var end = new TurnEnd { Player = CurrentPlayerIndex, Banked = banked };
+            var end = new TurnEnd { Player = CurrentPlayerIndex, Banked = banked, Bonus = bonus };
 
             if (player.Score >= Rules.TargetScore)
             {
@@ -382,6 +396,30 @@ namespace Zonk.Core.Match
             }
         }
 
+        /// <summary>Добавка за горячие кости: общие правила и личные текущего игрока. Без новых объектов.</summary>
+        private int SumHotDiceBonus(int keepScore)
+        {
+            var bonus = 0;
+            for (var i = 0; i < _modifiers.Count; i++)
+                bonus += _modifiers[i].HotDiceBonus(keepScore);
+            var own = _playerModifiers[CurrentPlayerIndex];
+            for (var i = 0; i < own.Count; i++)
+                bonus += own[i].HotDiceBonus(keepScore);
+            return Math.Max(0, bonus);
+        }
+
+        /// <summary>Добавка к записанным очкам за длинный ход.</summary>
+        private int SumBankBonus(int turnScore)
+        {
+            var bonus = 0;
+            for (var i = 0; i < _modifiers.Count; i++)
+                bonus += _modifiers[i].BankBonus(turnScore);
+            var own = _playerModifiers[CurrentPlayerIndex];
+            for (var i = 0; i < own.Count; i++)
+                bonus += own[i].BankBonus(turnScore);
+            return Math.Max(0, bonus);
+        }
+
         private static int Pow7(int exponent)
         {
             var value = 1;
@@ -415,6 +453,16 @@ namespace Zonk.Core.Match
                 penalty += Rules.ThreeZonkPenalty;
                 player.ZonkStreak = 0;
             }
+
+            // Страховка: часть сгоревших очков хода остаётся на счету.
+            var saved = 0;
+            for (var i = 0; i < _modifiers.Count; i++)
+                saved += _modifiers[i].ZonkKeep(TurnScore);
+            for (var i = 0; i < own.Count; i++)
+                saved += own[i].ZonkKeep(TurnScore);
+            saved = Math.Max(0, Math.Min(saved, TurnScore));
+            player.Score += saved;
+            end.Saved = saved;
 
             penalty = Math.Min(penalty, player.Score);
             player.Score -= penalty;

@@ -14,16 +14,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: Zonk::Zonk.Configs.EndlessRunConfig
   Plan:
     TargetBase: 1500
-    TargetPerFloor: 100
-    TargetMax: 4000
-    EnemyStartPower: 0.8
-    EnemyPowerPerFloor: 0.02
-    EnemyDiceEvery: 6
+    TargetPerFloor: 50
+    TargetMax: 3500
+    EnemyStartPower: 0.7
+    EnemyPowerPerFloor: 0.04
+    EnemyPowerAccel: 0.0008
+    EnemyDiceEvery: 8
     RulesEvery: 5
     MaxRules: 3
     GuardianEvery: 10
-    EarlyUntil: 10
-    MidUntil: 30
+    EarlyUntil: 8
+    MidUntil: 25
   EnergyCost: 1
   StartHearts: 3
   MaxHearts: 5
@@ -86,13 +87,28 @@ MonoBehaviour:
   CoinsPerFloor: 8
   GuardianCoins: 40
   Milestones:
+  - Floor: 5
+    Rewards:
+    - rid: 1889488798121984142
   - Floor: 10
     Rewards:
     - rid: 4243792314161692959
+  - Floor: 15
+    Rewards:
+    - rid: 1889488798121984143
+    - rid: 1889488798121984144
+  - Floor: 20
+    Rewards:
+    - rid: 1889488798121984145
+    - rid: 1889488798121984146
   - Floor: 25
     Rewards:
     - rid: 4243792314161692960
     - rid: 4243792314161692961
+  - Floor: 30
+    Rewards:
+    - rid: 1889488798121984147
+    - rid: 1889488798121984148
   - Floor: 50
     Rewards:
     - rid: 4243792314161692962
@@ -100,9 +116,281 @@ MonoBehaviour:
   - Floor: 100
     Rewards:
     - rid: 4243792314161692964
+  CoinsGrowthPerFloor: 0.5
+  MilestoneDoubleForAd: 1
+  Perks:
+  - Id: heart
+    Rarity: 0
+    Weight: 3
+    MaxStacks: 99
+    Tactic: 0
+    Perk:
+      rid: 1889488798121984149
+  - Id: combo
+    Rarity: 0
+    Weight: 10
+    MaxStacks: 99
+    Tactic: 1
+    Perk:
+      rid: 1889488798121984150
+  - Id: die
+    Rarity: 0
+    Weight: 6
+    MaxStacks: 6
+    Tactic: 3
+    Perk:
+      rid: 1889488798121984151
+  - Id: loaded
+    Rarity: 1
+    Weight: 3
+    MaxStacks: 3
+    Tactic: 3
+    Perk:
+      rid: 1889488798121984152
+  - Id: shield
+    Rarity: 1
+    Weight: 3
+    MaxStacks: 99
+    Tactic: 2
+    Perk:
+      rid: 1889488798121984153
+  - Id: head_start
+    Rarity: 0
+    Weight: 5
+    MaxStacks: 3
+    Tactic: 2
+    Perk:
+      rid: 1889488798121984154
+  - Id: insurance
+    Rarity: 1
+    Weight: 4
+    MaxStacks: 3
+    Tactic: 2
+    Perk:
+      rid: 1889488798121984155
+  - Id: relief
+    Rarity: 1
+    Weight: 3
+    MaxStacks: 3
+    Tactic: 2
+    Perk:
+      rid: 1889488798121984156
+  - Id: hot_hand
+    Rarity: 0
+    Weight: 6
+    MaxStacks: 3
+    Tactic: 1
+    Perk:
+      rid: 1889488798121984157
+  - Id: big_turn
+    Rarity: 0
+    Weight: 6
+    MaxStacks: 3
+    Tactic: 1
+    Perk:
+      rid: 1889488798121984158
+  - Id: single_one
+    Rarity: 0
+    Weight: 5
+    MaxStacks: 3
+    Tactic: 1
+    Perk:
+      rid: 1889488798121984159
+  - Id: single_five
+    Rarity: 0
+    Weight: 5
+    MaxStacks: 3
+    Tactic: 1
+    Perk:
+      rid: 1889488798121984160
+  - Id: zonk_save
+    Rarity: 1
+    Weight: 4
+    MaxStacks: 99
+    Tactic: 4
+    Perk:
+      rid: 1889488798121984161
+  - Id: lucky_charm
+    Rarity: 2
+    Weight: 1
+    MaxStacks: 1
+    Tactic: 4
+    Perk:
+      rid: 1889488798121984162
+  - Id: second_wind
+    Rarity: 2
+    Weight: 1
+    MaxStacks: 1
+    Tactic: 4
+    Perk:
+      rid: 1889488798121984163
+  - Id: golden_vein
+    Rarity: 2
+    Weight: 2
+    MaxStacks: 1
+    Tactic: 0
+    Perk:
+      rid: 1889488798121984164
+  - Id: token_purse
+    Rarity: 0
+    Weight: 4
+    MaxStacks: 99
+    Tactic: 0
+    Perk:
+      rid: 1889488798121984165
+  - Id: token_hunter
+    Rarity: 1
+    Weight: 2
+    MaxStacks: 1
+    Tactic: 0
+    Perk:
+      rid: 1889488798121984166
+  - Id: wider_choice
+    Rarity: 1
+    Weight: 2
+    MaxStacks: 1
+    Tactic: 0
+    Perk:
+      rid: 1889488798121984167
+  - Id: veteran
+    Rarity: 2
+    Weight: 1
+    MaxStacks: 1
+    Tactic: 0
+    Perk:
+      rid: 1889488798121984168
+  CampEvery: 3
+  EliteEnemyPower: 0.15
+  EliteExtraDice: 1
+  EliteTargetPercent: 10
+  EliteCoinsPercent: 50
+  TokensPerFloor: 1
+  EliteTokens: 2
+  ShopPrices: 03000000060000000a000000
+  MaxRevives: 3
+  DeepReviveFloor: 10
+  InterstitialEvery: 2
   references:
     version: 2
     RefIds:
+    - rid: 1889488798121984142
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488798121984143
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 300
+    - rid: 1889488798121984144
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 2
+    - rid: 1889488798121984145
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 400
+    - rid: 1889488798121984146
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 3
+    - rid: 1889488798121984147
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 800
+    - rid: 1889488798121984148
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 4
+    - rid: 1889488798121984149
+      type: {class: HeartPerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Hearts: 1
+    - rid: 1889488798121984150
+      type: {class: ComboPerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Step: 0.2
+    - rid: 1889488798121984151
+      type: {class: SpecialDiePerk, ns: Zonk.Configs, asm: Zonk}
+      data: 
+    - rid: 1889488798121984152
+      type: {class: LoadedDiePerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Steps:
+        - {fileID: 11400000, guid: 1e82c9c00018b4147a63ce4c1c8bce36, type: 2}
+        - {fileID: 11400000, guid: 9b3bfaad92204b644ae401e485221323, type: 2}
+        - {fileID: 11400000, guid: 13189a07641bb3a49b4bd22b56d85180, type: 2}
+    - rid: 1889488798121984153
+      type: {class: ShieldPerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Shields: 1
+    - rid: 1889488798121984154
+      type: {class: HeadStartPerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Points: 150
+    - rid: 1889488798121984155
+      type: {class: InsurancePerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        PercentPerStack: 15
+        MaxPercent: 45
+    - rid: 1889488798121984156
+      type: {class: ReliefPerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        PercentPerStack: 8
+        MaxPercent: 24
+    - rid: 1889488798121984157
+      type: {class: HotHandPerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        PercentPerStack: 50
+    - rid: 1889488798121984158
+      type: {class: BigTurnPerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Threshold: 1000
+        PercentPerStack: 15
+    - rid: 1889488798121984159
+      type: {class: SingleFacePerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Face: 1
+        StepPerStack: 0.3
+    - rid: 1889488798121984160
+      type: {class: SingleFacePerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Face: 5
+        StepPerStack: 0.3
+    - rid: 1889488798121984161
+      type: {class: ZonkSavePerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Charges: 1
+    - rid: 1889488798121984162
+      type: {class: LuckyCharmPerk, ns: Zonk.Configs, asm: Zonk}
+      data: 
+    - rid: 1889488798121984163
+      type: {class: SecondWindPerk, ns: Zonk.Configs, asm: Zonk}
+      data: 
+    - rid: 1889488798121984164
+      type: {class: GoldenVeinPerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Multiplier: 2
+    - rid: 1889488798121984165
+      type: {class: TokenPursePerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Tokens: 5
+    - rid: 1889488798121984166
+      type: {class: TokenHunterPerk, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Multiplier: 2
+    - rid: 1889488798121984167
+      type: {class: WiderChoicePerk, ns: Zonk.Configs, asm: Zonk}
+      data: 
+    - rid: 1889488798121984168
+      type: {class: VeteranPerk, ns: Zonk.Configs, asm: Zonk}
+      data: 
     - rid: 4243792314161692951
       type: {class: ThreeZonkPenaltyModifier, ns: Zonk.Core.Modifiers, asm: Zonk.Core}
       data:

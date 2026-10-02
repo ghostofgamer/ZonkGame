@@ -32,9 +32,14 @@ namespace Zonk.MatchFlow
         private readonly DiceSetView _dice;
         private readonly MatchPresenter _presenter;
         private readonly UiKit _kit;
+        private readonly AiProfile _hint;
+        private readonly IRandom _hintRandom;
 
-        public LocalPlayerController(MatchHudWindow hud, DiceSetView dice, MatchPresenter presenter, UiKit kit)
+        /// <param name="hint">Профиль ИИ для подсказки лучшего хода (талант BestMoveHint); null — без подсказки.</param>
+        public LocalPlayerController(MatchHudWindow hud, DiceSetView dice, MatchPresenter presenter, UiKit kit, AiProfile hint = null)
         {
+            _hint = hint;
+            _hintRandom = hint != null ? new SplitMixRandom(SplitMixRandom.NewSeed()) : null;
             _hud = hud;
             _dice = dice;
             _presenter = presenter;
@@ -66,6 +71,15 @@ namespace Zonk.MatchFlow
             _dice.EnableSelection(match);
             _presenter.HighlightScoringDice(match);
 
+            // Подсказка: какие кости отложить и забирать ли — как решил бы сильный ИИ. Только подсветка, решает игрок.
+            string hintText = null;
+            if (_hint != null)
+            {
+                var best = AiBrain.Decide(match, _hint, _hintRandom);
+                _presenter.HintDice(best.Keep);
+                hintText = _kit.T(best.Bank ? "match.hintBestBank" : "match.hintBestRoll");
+            }
+
             (bool, bool, int) State()
             {
                 var selection = _dice.Selection;
@@ -83,7 +97,7 @@ namespace Zonk.MatchFlow
             {
                 var score = match.EvaluateSelection(selection);
                 if (selection.Count == 0)
-                    _hud.SetHint(_kit.T("match.hintSelect"));
+                    _hud.SetHint(hintText ?? _kit.T("match.hintSelect"));
                 else if (!score.IsValid)
                     _hud.SetHint(_kit.T("match.hintInvalid"));
                 else if (!match.IsBankAllowed(match.TurnScore + score.Score) && !match.CurrentPlayer.HasEntered &&

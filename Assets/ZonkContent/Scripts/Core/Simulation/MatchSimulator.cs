@@ -115,6 +115,10 @@ namespace Zonk.Core.Simulation
                 if (roll.TurnEnd != null)
                     return roll.TurnEnd;
 
+                // Заряд спасения сгорел: те же кости бросаются снова.
+                if (roll.ZonkSaved)
+                    continue;
+
                 var decision = AiBrain.Decide(match, profile, aiRandom);
                 match.Keep(decision.Keep);
 

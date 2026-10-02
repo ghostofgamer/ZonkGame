@@ -41,6 +41,15 @@ namespace Zonk.Configs
         [Tooltip("Множитель яркости: 0 — лампа только для вида, 1 — как в префабе, больше — главный свет сцены")]
         public float LampIntensity = 1f;
 
+        [Header("Пятно света на стол")]
+        [Tooltip("Прожектор из точки лампы вниз на стол, сила. 0 — выключен. В тёмных локациях стол освещён из темноты — в этом их вид")]
+        [Min(0f)] public float TableLight;
+
+        public Color TableLightColor = new Color(1f, 0.84f, 0.62f);
+
+        [Tooltip("Ширина пятна, градусы конуса")]
+        [Range(30f, 150f)] public float TableLightAngle = 95f;
+
         [Header("Постобработка (свечение, виньетка, цвет)")]
         public VolumeProfile PostProcess;
 

@@ -36,6 +36,12 @@ namespace Zonk.Table
         public int Target;
         public IReadOnlyList<MatchModifier> SharedRules;
         public IReadOnlyList<MatchModifier> PlayerModifiers;
+
+        /// <summary>Фора игрока: очки на счету с начала партии (находки забега).</summary>
+        public int PlayerStartScore;
+
+        /// <summary>Заряды спасения от Зонка у игрока на партию (находки забега).</summary>
+        public int PlayerZonkSaves;
         public IReadOnlyList<MatchModifier> EnemyModifiers;
     }
 
@@ -102,7 +108,7 @@ namespace Zonk.Table
                 Rules = rules,
                 Players = new List<PlayerSetup>
                 {
-                    new PlayerSetup(me.Name, ParticipantFactory.Specs(me.Dice)) { Modifiers = List(setup.PlayerModifiers) },
+                    new PlayerSetup(me.Name, ParticipantFactory.Specs(me.Dice)) { Modifiers = List(setup.PlayerModifiers), StartScore = setup.PlayerStartScore, ZonkSaves = setup.PlayerZonkSaves },
                     new PlayerSetup(enemy.Name, ParticipantFactory.Specs(enemy.Dice)) { Modifiers = List(setup.EnemyModifiers) },
                 },
                 Modifiers = new List<MatchModifier>(List(setup.SharedRules)),

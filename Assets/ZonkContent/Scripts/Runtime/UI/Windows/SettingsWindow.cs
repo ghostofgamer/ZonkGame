@@ -24,6 +24,9 @@ namespace Zonk.UI.Windows
 
         [Tooltip("Вибрация (показывается только там, где она есть). Пусто — кнопки нет")]
         [SerializeField] private UiButtonView _vibration;
+        [Tooltip("Подсказка лучшего хода (видна, если взят талант). Пусто — кнопки нет")]
+        [SerializeField] private UiButtonView _hint;
+
         [SerializeField] private UiButtonView _back;
 
         [Tooltip("Кнопка текущего языка (копия Parts/LanguageButton). Пусто — выбора языка в окне нет")]
@@ -31,6 +34,7 @@ namespace Zonk.UI.Windows
 
         private IGameSettings _settings;
         private IHapticsService _haptics;
+        private ITalents _talents;
         private IUiService _ui;
         private LanguagePreference _languages;
         private UiConfig _uiConfig;
@@ -38,8 +42,9 @@ namespace Zonk.UI.Windows
 
         [Inject]
         public void Construct(IGameSettings settings, IUiService ui, LanguagePreference languages, GameConfig config,
-            IHapticsService haptics)
+            IHapticsService haptics, [InjectOptional] ITalents talents)
         {
+            _talents = talents;
             _settings = settings;
             _haptics = haptics;
             _ui = ui;
@@ -48,6 +53,11 @@ namespace Zonk.UI.Windows
         }
 
 #if UNITY_EDITOR
+        public void EditorSetupHint(UiButtonView hint)
+        {
+            _hint = hint;
+        }
+
         public void EditorSetup(TMP_Text title, UiButtonView sound, UiButtonView music, UiButtonView speed, UiButtonView back,
             LanguageButtonView language, UiButtonView vibration = null)
         {
@@ -89,6 +99,15 @@ namespace Zonk.UI.Windows
                 });
             }
 
+            if (_hint != null)
+            {
+                _hint.OnClick(() =>
+                {
+                    _settings.BestMoveHint = !_settings.BestMoveHint;
+                    Refresh();
+                });
+            }
+
             _back.OnClick(RequestClose);
         }
 
@@ -110,6 +129,14 @@ namespace Zonk.UI.Windows
                 _vibration.gameObject.SetActive(supported);
                 if (supported)
                     _vibration.SetText(T(_settings.Vibration ? "settings.vibrationOn" : "settings.vibrationOff"));
+            }
+
+            if (_hint != null)
+            {
+                var unlocked = _talents != null && _talents.Value(TalentEffect.BestMoveHint) > 0f;
+                _hint.gameObject.SetActive(unlocked);
+                if (unlocked)
+                    _hint.SetText(T(_settings.BestMoveHint ? "settings.hintOn" : "settings.hintOff"));
             }
 
             if (_language != null)

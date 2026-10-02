@@ -28,6 +28,7 @@ namespace Zonk.Progress
         public const string Chest = "zonk_chest";
         public const string Season = "zonk_season";
         public const string Achievements = "zonk_achievements";
+        public const string Talents = "zonk_talents";
     }
 
     [Serializable]
@@ -138,6 +139,48 @@ namespace Zonk.Progress
 
         /// <summary>Рубежи, за которые награда уже выдана.</summary>
         public List<int> Claimed = new List<int>();
+
+        // ---- Забег 2.0 (02.10.2026): новые поля, старые сохранения загружаются с нулями. ----
+
+        /// <summary>Взятые находки (кроме старых видов: множители — Combos, кости — Dice, сердца — Hearts) и их стаки.</summary>
+        public List<RunPerkStack> Perks = new List<RunPerkStack>();
+
+        /// <summary>Щиты: следующий проигрыш не отнимает сердце.</summary>
+        public int Shields;
+
+        /// <summary>Заряды спасения от Зонка, общий запас забега (тратятся в партиях).</summary>
+        public int ZonkSaves;
+
+        /// <summary>Жетоны забега: копятся за этажи, тратятся в лавке.</summary>
+        public int Tokens;
+
+        /// <summary>Сколько раз продолжали за рекламу в этом забеге (старое ReviveUsed — как 1).</summary>
+        public int RevivesUsed;
+
+        /// <summary>Бесплатные перебросы находок (таланты) на забег.</summary>
+        public int FreeRerolls;
+
+        /// <summary>«Второе дыхание» уже сработало.</summary>
+        public bool SecondWindUsed;
+
+        /// <summary>Для какого этажа выбран путь и какой (RunPath).</summary>
+        public int PathFloor;
+        public int Path;
+
+        /// <summary>Находки текущего выбора: поменяны за рекламу, вторая уже взята за рекламу, ещё одну можно взять.</summary>
+        public bool OffersRerolled;
+        public bool OffersExtraUsed;
+        public bool OffersExtraPending;
+
+        /// <summary>Сколько раз меняли находки на этом этаже (для нового случайного набора).</summary>
+        public int OfferSalt;
+    }
+
+    [Serializable]
+    public sealed class RunPerkStack
+    {
+        public string Id;
+        public int Stacks;
     }
 
     [Serializable]
@@ -161,6 +204,12 @@ namespace Zonk.Progress
 
         /// <summary>Категория комбинации или ID особой кости.</summary>
         public string Value;
+
+        /// <summary>ID находки (EndlessRunConfig.Perks). Пусто — старое сохранение: по Kind (combo, die, heart).</summary>
+        public string PerkId;
+
+        /// <summary>Цена в жетонах (лавка); 0 — находка после победы.</summary>
+        public int Price;
     }
 
     /// <summary>Башня: навсегда пройденный рубеж, текущая попытка, рекорд, этажи с выданной наградой.</summary>
@@ -183,6 +232,9 @@ namespace Zonk.Progress
 
         /// <summary>Индексы этажей, за первое прохождение которых награда уже выдана.</summary>
         public List<int> Cleared = new List<int>();
+
+        /// <summary>Сколько бесплатных продолжений (таланты) использовано в попытке.</summary>
+        public int FreeRevivesUsed;
     }
 
     /// <summary>Для аналитики: сколько раз запускали игру (первый запуск — новый игрок).</summary>
@@ -203,6 +255,9 @@ namespace Zonk.Progress
 
         /// <summary>Вибрация телефона (там, где она есть: Android).</summary>
         public bool Vibration = true;
+
+        /// <summary>Подсказка лучшего хода (талант «Мастера»): включена, пока игрок не выключит.</summary>
+        public bool BestMoveHint = true;
 
         /// <summary>Язык, выбранный игроком в настройках (код ISO 639-1). Пусто — язык площадки.</summary>
         public string Language;

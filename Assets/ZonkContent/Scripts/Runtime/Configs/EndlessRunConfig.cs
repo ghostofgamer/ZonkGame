@@ -72,6 +72,50 @@ namespace Zonk.Configs
 
         [Tooltip("Рубежи: награда один раз за всё время, когда впервые дошёл до этажа")]
         public List<RunMilestone> Milestones = new List<RunMilestone>();
+
+        [Tooltip("Прирост монет за этаж: на этаже N — CoinsPerFloor + N × это")]
+        public float CoinsGrowthPerFloor = 0.5f;
+
+        [Tooltip("Награду рубежа можно удвоить за рекламу")]
+        public bool MilestoneDoubleForAd = true;
+
+        [Header("Находки 2.0")]
+        [Tooltip("Пул находок: редкость, вес, стаки, тактика, поведение. Пусто — старые находки (очки, кость, сердце)")]
+        public List<RunPerkEntry> Perks = new List<RunPerkEntry>();
+
+        [Header("Развилки и лавка")]
+        [Tooltip("Привал или лавка на выбор — каждые столько этажей (чередуются)")]
+        [Min(0)] public int CampEvery = 3;
+
+        [Tooltip("Сильный соперник: прибавка к силе очков врага")]
+        public float EliteEnemyPower = 0.15f;
+
+        [Tooltip("Сильный соперник: особых костей больше на")]
+        public int EliteExtraDice = 1;
+
+        [Tooltip("Сильный соперник: цель выше на, %")]
+        public int EliteTargetPercent = 10;
+
+        [Tooltip("Сильный соперник: монет больше на, %")]
+        public int EliteCoinsPercent = 50;
+
+        [Tooltip("Жетонов за этаж: базовые и ещё по одному за каждые 10 этажей")]
+        public int TokensPerFloor = 1;
+
+        public int EliteTokens = 2;
+
+        [Tooltip("Цены лавки в жетонах: обычная, редкая, легендарная")]
+        public int[] ShopPrices = { 3, 6, 10 };
+
+        [Header("Реклама")]
+        [Tooltip("Сколько раз за забег продолжить за рекламу")]
+        [Min(0)] public int MaxRevives = 3;
+
+        [Tooltip("Второе и следующие продолжения — только с этого этажа")]
+        public int DeepReviveFloor = 10;
+
+        [Tooltip("Межстраничная реклама после партии — раз в столько этажей (частоту держит общий слой)")]
+        [Min(1)] public int InterstitialEvery = 2;
     }
 
     [Serializable]

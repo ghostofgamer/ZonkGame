@@ -93,6 +93,22 @@ namespace Zonk.Presentation
             Emit(EffectSystem(ref _dust, feel.DustPrefab), position, count);
         }
 
+        /// <summary>Праздник победы (талант WinCelebration): искры фонтанами по лотку.</summary>
+        public void Celebrate()
+        {
+            var system = EffectSystem(ref _sparks, Feel.SparksPrefab);
+            if (system == null)
+                return;
+
+            var center = _table.Tray.Center;
+            var bursts = Mathf.Max(1, Feel.CelebrationBursts);
+            for (var i = 0; i < bursts; i++)
+            {
+                var x = Mathf.Lerp(-1.2f, 1.2f, bursts > 1 ? i / (float)(bursts - 1) : 0.5f);
+                Emit(system, center + new Vector3(x, 0.2f, 0f), Feel.CelebrationSparks);
+            }
+        }
+
         /// <summary>Искры у каждой из костей.</summary>
         private void SparksAt(IReadOnlyList<int> slots, int perDie)
         {

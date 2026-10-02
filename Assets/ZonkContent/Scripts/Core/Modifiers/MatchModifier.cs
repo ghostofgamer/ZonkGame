@@ -30,6 +30,24 @@ namespace Zonk.Core.Modifiers
             return 0;
         }
 
+        /// <summary>Сколько очков хода сохраняется при Зонке (страховка): добавляется к счёту. По умолчанию 0.</summary>
+        public virtual int ZonkKeep(int turnScoreLost)
+        {
+            return 0;
+        }
+
+        /// <summary>Добавка к очкам хода за горячие кости: keepScore — очки отложенного, давшего горячие кости.</summary>
+        public virtual int HotDiceBonus(int keepScore)
+        {
+            return 0;
+        }
+
+        /// <summary>Добавка к записанным очкам при «забрать» (длинный ход). turnScore — очки хода.</summary>
+        public virtual int BankBonus(int turnScore)
+        {
+            return 0;
+        }
+
         /// <summary>
         /// Кто ходит первым: proposed — выбор режима (жребий), playerCount — сколько игроков. По умолчанию не меняет.
         /// Вызывается один раз в начале партии, только у общих правил.
@@ -180,5 +198,51 @@ namespace Zonk.Core.Modifiers
         }
 
         public override string DescriptionKey => "rule.opponentStarts";
+    }
+
+    /// <summary>Страховка: при Зонке KeepPercent% сгоревших очков хода остаются на счету. Обычно личное правило (находка).</summary>
+    [Serializable]
+    public sealed class ZonkInsuranceModifier : MatchModifier
+    {
+        public int KeepPercent = 25;
+
+        public override int ZonkKeep(int turnScoreLost)
+        {
+            return turnScoreLost <= 0 ? 0 : turnScoreLost * Math.Max(0, Math.Min(100, KeepPercent)) / 100;
+        }
+
+        public override string DescriptionKey => "rule.insurance";
+        public override object[] DescriptionArgs => new object[] { KeepPercent };
+    }
+
+    /// <summary>Горячая рука: за горячие кости ещё BonusPercent% очков отложенного, давшего их.</summary>
+    [Serializable]
+    public sealed class HotDiceBonusModifier : MatchModifier
+    {
+        public int BonusPercent = 50;
+
+        public override int HotDiceBonus(int keepScore)
+        {
+            return keepScore <= 0 ? 0 : keepScore * Math.Max(0, BonusPercent) / 100;
+        }
+
+        public override string DescriptionKey => "rule.hotDiceBonus";
+        public override object[] DescriptionArgs => new object[] { BonusPercent };
+    }
+
+    /// <summary>Длинный ход: забранные за ход очки от Threshold — ещё BonusPercent% сверху.</summary>
+    [Serializable]
+    public sealed class BigTurnBonusModifier : MatchModifier
+    {
+        public int Threshold = 1000;
+        public int BonusPercent = 20;
+
+        public override int BankBonus(int turnScore)
+        {
+            return turnScore < Threshold ? 0 : turnScore * Math.Max(0, BonusPercent) / 100;
+        }
+
+        public override string DescriptionKey => "rule.bigTurnBonus";
+        public override object[] DescriptionArgs => new object[] { BonusPercent, Threshold };
     }
 }

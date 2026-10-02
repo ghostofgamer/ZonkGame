@@ -79,13 +79,22 @@ Tools/Blender/     скрипты моделей (Blender в фоне), выхо
 
 **Расширяемость.** Новое добавляется, а не переписывается.
 - Контент добавляется ассетом без кода: кость, скин, предмет, аватар и рамка игрока, слот косметики, соперник, грозная версия босса, глава, фраза, режим.
-- Личные правила игрока (находки режима) — `PlayerSetup.Modifiers`: только очки комбинаций и штраф за Зонк.
+- Личные правила игрока (находки режима) — `PlayerSetup.Modifiers`: очки комбинаций, штраф за Зонк, страховка
+  (`ZonkKeep`), добавка за горячие кости (`HotDiceBonus`) и за длинный ход (`BankBonus`); пороги и цель общие.
+  Ещё у игрока: фора `PlayerSetup.StartScore` и заряды спасения `ZonkSaves` (Зонк не кончает ход — сгорает заряд,
+  бросок заново, `RollOutcome.ZonkSaved`). Всё только на игрока и только в режимах-рогаликах.
+- Находка «Бесконечного забега» — строка `EndlessRunConfig.Perks` (ID, редкость, вес, стаки, тактика) и наследник
+  `RunPerk` (`[SerializeReference]`); новая находка — класс и строка, без правки прогресса. Гружёные кости забега —
+  `DieConfig.RunOnly` (нет в магазине, наборе игрока, мастерстве и балансе).
 - Выбираемое в ассете поведение — наследник базового класса с `[SerializeReference, SubclassSelector]`:
   `ScoringRule`, `MatchModifier` (с описанием для игрока: `DescriptionKey`/`DescriptionArgs`), `AiSelectionPolicy`, `AiRiskPolicy`, `Reward`, `PriceOption`, `CosmeticApplier`,
   `CosmeticPayload`, `QuestGoal`, `QuestCondition`, `StarCondition`, `AtmosphereEffect`. Новый класс сам появляется в списке инспектора.
 - Долгие цели игрока: уровень (`IPlayerLevel`), статистика (`IPlayerRecords`), сундук (`IChestService`), достижения
   (`IAchievements`, цели — наследники `AchievementGoal`), сезонный путь (`ISeasonPass`, сезон — ассет `SeasonConfig`).
   Всё начисляется в `MatchAftermath` после партии против соперника; партии вдвоём не считаются.
+- Таланты (ITalents, узлы — ассеты TalentConfig): эффект читается в месте действия через ITalents.Value(TalentEffect) с
+  [InjectOptional]; новый эффект — значение TalentEffect и одно чтение. Таланты не дают силы в обычной партии (только выгода,
+  удобство, облик, рогалики). Talents читает уровень и достижения из разделов сохранения (не из сервисов — зависимость по кругу).
 - Прогресс игрока из партии (задания, мастерство) идёт событиями: `MatchRunner` и состояния режимов сообщают
   `IQuestService.Report` и `IDieMastery.AddPoints`, окна только показывают. Партии вдвоём прогресс не копят.
   Новое действие для заданий — `QuestEvent.CustomEvent("тег")` в месте действия и ассет с `CustomEventGoal`, без нового класса.

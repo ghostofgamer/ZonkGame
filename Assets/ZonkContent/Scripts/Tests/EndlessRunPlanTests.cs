@@ -12,23 +12,24 @@ namespace Zonk.Tests
         [Test]
         public void TargetGrowsAndStopsAtMax()
         {
-            Assert.AreEqual(1600, _plan.Target(1));
-            Assert.AreEqual(2500, _plan.Target(10));
-            Assert.AreEqual(4000, _plan.Target(25));
-            Assert.AreEqual(4000, _plan.Target(500));
+            Assert.AreEqual(1550, _plan.Target(1));
+            Assert.AreEqual(2000, _plan.Target(10));
+            Assert.AreEqual(3500, _plan.Target(40));
+            Assert.AreEqual(3500, _plan.Target(500));
         }
 
         [Test]
-        public void EnemyGetsStrongerSlowly()
+        public void EnemyStartsSoftAndAccelerates()
         {
-            Assert.AreEqual(0.8f, _plan.EnemyPower(1), 0.0001f);
-            Assert.AreEqual(1.0f, _plan.EnemyPower(11), 0.0001f);
-            Assert.AreEqual(0, _plan.EnemySpecialDice(5));
-            Assert.AreEqual(1, _plan.EnemySpecialDice(6));
+            Assert.AreEqual(0.7f, _plan.EnemyPower(1), 0.0001f);
+            Assert.AreEqual(0.7f + 0.4f + 0.08f, _plan.EnemyPower(11), 0.0001f);
+            Assert.Greater(_plan.EnemyPower(61) - _plan.EnemyPower(51), _plan.EnemyPower(11) - _plan.EnemyPower(1), "growth accelerates");
+            Assert.AreEqual(0, _plan.EnemySpecialDice(7));
+            Assert.AreEqual(1, _plan.EnemySpecialDice(8));
             Assert.AreEqual(6, _plan.EnemySpecialDice(200), "never more than six dice");
             Assert.AreEqual(0, _plan.AiTier(1));
-            Assert.AreEqual(1, _plan.AiTier(10));
-            Assert.AreEqual(2, _plan.AiTier(30));
+            Assert.AreEqual(1, _plan.AiTier(8));
+            Assert.AreEqual(2, _plan.AiTier(25));
         }
 
         [Test]

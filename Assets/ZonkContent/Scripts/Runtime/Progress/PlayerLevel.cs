@@ -83,8 +83,11 @@ namespace Zonk.Progress
         private readonly IGameClock _clock;
         private readonly List<PlayerLevelUp> _levelUps = new List<PlayerLevelUp>();
 
-        public PlayerLevel(ISaveStore saves, GameConfig config, RewardGranter granter, IGameClock clock)
+        private readonly ITalents _talents;
+
+        public PlayerLevel(ISaveStore saves, GameConfig config, RewardGranter granter, IGameClock clock, ITalents talents = null)
         {
+            _talents = talents;
             _saves = saves;
             _config = config != null ? config.PlayerLevel : null;
             _granter = granter;
@@ -123,6 +126,8 @@ namespace Zonk.Progress
                 return new XpGain(0, 0, data.Xp, data.Xp);
 
             var matchXp = _config.MatchXp(won, surrendered, score, vsBoss);
+            if (_talents != null && matchXp > 0)
+                matchXp = (int)Math.Round(matchXp * (1.0 + Math.Max(0f, _talents.Value(TalentEffect.XpPercent)) / 100.0));
             var firstWinXp = 0;
             if (won && !surrendered)
             {

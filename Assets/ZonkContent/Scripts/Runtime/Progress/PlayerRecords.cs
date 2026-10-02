@@ -199,7 +199,7 @@ namespace Zonk.Progress
             for (var i = 0; dice != null && i < dice.Count; i++)
             {
                 var die = dice[i];
-                if (die == null || !die.IsSpecial || string.IsNullOrEmpty(die.Id) || IndexOf(dice, die) != i)
+                if (die == null || !die.IsSpecial || die.RunOnly || string.IsNullOrEmpty(die.Id) || IndexOf(dice, die) != i)
                     continue;
 
                 var record = data.Dice.Find(d => d.Id == die.Id);

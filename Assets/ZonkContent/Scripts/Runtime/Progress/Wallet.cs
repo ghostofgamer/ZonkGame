@@ -11,6 +11,9 @@ namespace Zonk.Progress
         void Add(CurrencyConfig currency, int amount);
         bool TrySpend(CurrencyConfig currency, int amount);
 
+        /// <summary>Потолок восстановления валюты с учётом талантов (энергия).</summary>
+        int CapOf(CurrencyConfig currency);
+
         /// <summary>Сколько ждать до следующего восстановления. null: восстановления нет или уже потолок.</summary>
         TimeSpan? TimeToNextRegen(CurrencyConfig currency);
 
@@ -20,10 +23,31 @@ namespace Zonk.Progress
     public sealed class Wallet : IWallet
     {
         private readonly ISaveStore _saves;
+        private readonly ITalents _talents;
+        private readonly CurrencyConfig _energy;
 
-        public Wallet(ISaveStore saves)
+        public Wallet(ISaveStore saves, ITalents talents = null, GameConfig config = null)
         {
             _saves = saves;
+            _talents = talents;
+            _energy = config != null ? config.Energy : null;
+        }
+
+        /// <summary>Потолок: у энергии — плюс таланты (EnergyMax).</summary>
+        public int CapOf(CurrencyConfig currency)
+        {
+            if (currency == null)
+                return 0;
+            var extra = _talents != null && currency == _energy ? (int)_talents.Value(TalentEffect.EnergyMax) : 0;
+            return currency.RegenCap + extra;
+        }
+
+        /// <summary>Интервал восстановления: у энергии быстрее на EnergyRegenPercent (не быстрее чем вдвое).</summary>
+        private long IntervalOf(CurrencyConfig currency)
+        {
+            var percent = _talents != null && currency == _energy ? _talents.Value(TalentEffect.EnergyRegenPercent) : 0f;
+            var factor = 1.0 - Math.Min(50.0, Math.Max(0.0, percent)) / 100.0;
+            return Math.Max(1L, (long)Math.Round(currency.RegenIntervalSeconds * factor));
         }
 
         public event Action<CurrencyConfig> Changed;
@@ -66,7 +90,7 @@ namespace Zonk.Progress
                 return false;
 
             // Трата с потолка запускает отсчёт восстановления с этого момента.
-            if (currency.HasRegen && entry.Amount >= currency.RegenCap)
+            if (currency.HasRegen && entry.Amount >= CapOf(currency))
                 entry.RegenUnix = Now();
 
             entry.Amount -= amount;
@@ -82,10 +106,10 @@ namespace Zonk.Progress
 
             var entry = Entry(currency);
             ApplyRegen(currency, entry);
-            if (entry.Amount >= currency.RegenCap)
+            if (entry.Amount >= CapOf(currency))
                 return null;
 
-            var next = entry.RegenUnix + currency.RegenIntervalSeconds - Now();
+            var next = entry.RegenUnix + IntervalOf(currency) - Now();
             return TimeSpan.FromSeconds(Math.Max(0, next));
         }
 
@@ -111,7 +135,7 @@ namespace Zonk.Progress
                 return false;
 
             var now = Now();
-            if (entry.Amount >= currency.RegenCap)
+            if (entry.Amount >= CapOf(currency))
             {
                 entry.RegenUnix = now;
                 return false;
@@ -121,12 +145,12 @@ namespace Zonk.Progress
             if (entry.RegenUnix > now)
                 entry.RegenUnix = now;
 
-            var steps = (now - entry.RegenUnix) / currency.RegenIntervalSeconds;
+            var steps = (now - entry.RegenUnix) / IntervalOf(currency);
             if (steps <= 0)
                 return false;
 
-            entry.Amount = (int)Math.Min(currency.RegenCap, entry.Amount + steps * currency.RegenAmount);
-            entry.RegenUnix += steps * currency.RegenIntervalSeconds;
+            entry.Amount = (int)Math.Min(CapOf(currency), entry.Amount + steps * currency.RegenAmount);
+            entry.RegenUnix += steps * IntervalOf(currency);
             Changed?.Invoke(currency);
             return true;
         }

@@ -25,22 +25,18 @@ MonoBehaviour:
   FogDensity: 0.03
   Background: {r: 0.03, g: 0.04, b: 0.07, a: 1}
   LampIntensity: 1.6
+  TableLight: 9
+  TableLightColor: {r: 1, g: 0.84, b: 0.62, a: 1}
+  TableLightAngle: 95
   PostProcess: {fileID: 0}
   PostProcessFrom: 2
   ToonStyle: {fileID: 0}
   Effects:
-  - rid: 1889488795864137959
   - rid: 1889488795864137960
   TransitionDuration: 0.6
   references:
     version: 2
     RefIds:
-    - rid: 1889488795864137959
-      type: {class: RainEffect, ns: Zonk.Configs, asm: Zonk}
-      data:
-        Prefab: {fileID: 6396776973771765615, guid: eb93f9a11e4d7ea4b93bdf56341c8bae, type: 3}
-        MaxDrops: 960000005e010000bc020000
-        CameraOffset: {x: 0, y: 1.5, z: 2.5}
     - rid: 1889488795864137960
       type: {class: LightningEffect, ns: Zonk.Configs, asm: Zonk}
       data:

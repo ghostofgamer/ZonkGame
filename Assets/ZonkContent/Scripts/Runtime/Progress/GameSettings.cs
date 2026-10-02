@@ -15,6 +15,9 @@ namespace Zonk.Progress
         /// <summary>Вибрация телефона. Где её нет (браузер), настройка не показывается.</summary>
         bool Vibration { get; set; }
 
+        /// <summary>Подсказка лучшего хода (если взят талант BestMoveHint).</summary>
+        bool BestMoveHint { get; set; }
+
         /// <summary>Язык, выбранный игроком. Пусто — язык площадки (определяется при запуске).</summary>
         string Language { get; set; }
 
@@ -70,6 +73,16 @@ namespace Zonk.Progress
             set
             {
                 Data.Vibration = value;
+                Saved();
+            }
+        }
+
+        public bool BestMoveHint
+        {
+            get => Data.BestMoveHint;
+            set
+            {
+                Data.BestMoveHint = value;
                 Saved();
             }
         }

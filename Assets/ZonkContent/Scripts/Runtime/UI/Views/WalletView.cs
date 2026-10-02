@@ -154,7 +154,7 @@ namespace Zonk.UI.Views
 
             // «Энергия: 3/5» собирается, только когда меняется запас (или язык); таймер — каждую секунду, без строк.
             if (energyAmount != _shownEnergy || !ReferenceEquals(template, _shownEnergyTemplate))
-                _energyHead = UiFormat.Format(_localization, "ui.energy", energyAmount, _config.Energy != null ? _config.Energy.RegenCap : 0);
+                _energyHead = UiFormat.Format(_localization, "ui.energy", energyAmount, _config.Energy != null && _wallet != null ? _wallet.CapOf(_config.Energy) : 0);
 
             _shownEnergy = energyAmount;
             _shownRegenSeconds = regenSeconds;

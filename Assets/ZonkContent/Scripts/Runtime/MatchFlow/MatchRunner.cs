@@ -4,6 +4,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using Zonk.Configs;
+using Zonk.Core.Ai;
 using Zonk.Core.Dice;
 using Zonk.Core.Match;
 using Zonk.Core.Progress;
@@ -49,12 +50,15 @@ namespace Zonk.MatchFlow
         private readonly IQuestService _quests;
         private readonly IDieMastery _mastery;
         private readonly IPlayerRecords _records;
+        private readonly ITalents _talents;
         private readonly Zonk.Table.TutorialDirector _tutorial;
 
         public MatchRunner(TableView table, MatchPresenter presenter, ReactionDirector reactions, IChatChannel chat, UiKit kit,
             GameConfig config, IGameSettings settings, ContentDatabase content, IUiService ui, IQuestService quests,
-            IDieMastery mastery, Zonk.Table.TutorialDirector tutorial, IPlayerRecords records)
+            IDieMastery mastery, Zonk.Table.TutorialDirector tutorial, IPlayerRecords records,
+            [Zenject.InjectOptional] ITalents talents)
         {
+            _talents = talents;
             _records = records;
             _tutorial = tutorial;
             _quests = quests;
@@ -143,6 +147,21 @@ namespace Zonk.MatchFlow
             return outcome;
         }
 
+        /// <summary>Подсказка лучшего хода: взят талант, включена в настройках, партия против соперника (не вдвоём).</summary>
+        private AiProfile HintProfile(IReadOnlyList<MatchParticipant> participants)
+        {
+            if (_talents == null || _talents.Value(TalentEffect.BestMoveHint) <= 0f || !_settings.BestMoveHint)
+                return null;
+
+            var vsAi = false;
+            foreach (var participant in participants)
+                vsAi |= participant.Controller == ControllerKind.Ai;
+            if (!vsAi)
+                return null;
+
+            return _config.HintAi != null ? _config.HintAi.ToProfile() : AiProfile.CreateDefault();
+        }
+
         private List<IPlayerController> CreateControllers(IReadOnlyList<MatchParticipant> participants, MatchHudWindow hud, ulong seed)
         {
             var controllers = new List<IPlayerController>(participants.Count);
@@ -159,7 +178,7 @@ namespace Zonk.MatchFlow
                         break;
                     default:
                         // Remote появится вместе с онлайном; до тех пор все люди играют с этого экрана.
-                        controllers.Add(new LocalPlayerController(hud, _table.Dice, _presenter, _kit));
+                        controllers.Add(new LocalPlayerController(hud, _table.Dice, _presenter, _kit, HintProfile(participants)));
                         break;
                 }
             }
@@ -193,6 +212,16 @@ namespace Zonk.MatchFlow
                 hud.SetHint(string.Empty);
                 if (_presenter.LastRollManual && local && !progress.HotSeat)
                     _quests.Report(QuestEvent.CustomEvent(ManualRollTag));
+
+                // Зонк, но сгорел заряд спасения (находка забега): ход продолжается, те же кости — в стакан и снова бросок.
+                if (roll.ZonkSaved)
+                {
+                    hud.Refresh(match);
+                    await hud.ToastAsync(_kit.T("match.zonkSaved", match.Players[player].ZonkSavesLeft), UiColors.Gold, 0.8f, ct);
+                    await _presenter.PrepareNextRollAsync(match, ct);
+                    await controller.WaitRollAsync(match, ct);
+                    continue;
+                }
 
                 if (roll.IsZonk)
                 {
@@ -320,7 +349,12 @@ namespace Zonk.MatchFlow
 
             var dice = progress.Participants[player].Dice;
             for (var slot = 0; slot < points.Length && dice != null && slot < dice.Count; slot++)
+            {
+                // Гружёные кости забега мастерства не копят: их нет в коллекции игрока.
+                if (dice[slot] != null && dice[slot].RunOnly)
+                    continue;
                 _mastery.AddPoints(dice[slot], points[slot]);
+            }
         }
 
         private async UniTaskVoid AskSurrenderAsync(CancellationTokenSource surrender, MatchOutcome outcome, CancellationToken ct)

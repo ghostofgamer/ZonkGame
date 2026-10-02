@@ -59,6 +59,13 @@ namespace Zonk.Progress
     {
         private const int DailySalt = 1;
         private const int WeeklySalt = 2;
+
+        private readonly ITalents _talents;
+
+        private int Extra(TalentEffect effect)
+        {
+            return _talents != null ? Math.Max(0, (int)_talents.Value(effect)) : 0;
+        }
         private const int RerollSalt = 100;
 
         private static readonly QuestPeriod[] Periods = { QuestPeriod.Daily, QuestPeriod.Weekly };
@@ -75,8 +82,9 @@ namespace Zonk.Progress
         private bool _refreshing;
 
         public QuestService(ISaveStore saves, ContentDatabase content, GameConfig config, IInventory inventory,
-            RewardGranter granter, IGameClock clock, ICampaignProgress campaign, IRewardService rewards)
+            RewardGranter granter, IGameClock clock, ICampaignProgress campaign, IRewardService rewards, ITalents talents = null)
         {
+            _talents = talents;
             _saves = saves;
             _content = content;
             _config = config;
@@ -141,7 +149,7 @@ namespace Zonk.Progress
             get
             {
                 Refresh();
-                return Math.Max(0, _config.QuestRerollsPerDay - Data.Rerolls);
+                return Math.Max(0, _config.QuestRerollsPerDay + Extra(TalentEffect.QuestRerollsExtra) - Data.Rerolls);
             }
         }
 
@@ -247,7 +255,7 @@ namespace Zonk.Progress
                 {
                     data.Day = day;
                     data.Rerolls = 0;
-                    data.Daily = NewSet(QuestPeriod.Daily, _config.DailyQuestCount, QuestPicker.Seed(day, DailySalt));
+                    data.Daily = NewSet(QuestPeriod.Daily, _config.DailyQuestCount + Extra(TalentEffect.DailyQuestsExtra), QuestPicker.Seed(day, DailySalt));
                     changed = true;
                 }
 

@@ -30,6 +30,13 @@ namespace Zonk.Configs
         [Tooltip("Яркость костей, которые не входят ни в одну комбинацию (1 = как есть)")]
         public float UnusedDiceBrightness = 0.45f;
 
+        [Tooltip("Праздник победы (талант): сколько фонтанов искр по лотку и искр в каждом")]
+        public int CelebrationBursts = 5;
+        public int CelebrationSparks = 24;
+
+        [Tooltip("Подсказка лучшего хода (талант): цвет костей, которые советует отложить")]
+        public Color HintTint = new Color(1f, 0.85f, 0.35f);
+
         [Tooltip("Насколько обесцвечивать такие кости (0..1): на цветных скинах одного затемнения мало")]
         public float UnusedDiceDesaturate = 0.85f;
 

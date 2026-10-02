@@ -53,8 +53,9 @@ namespace Zonk.UI.Windows
         public int Stake { get; private set; }
 
         [Zenject.Inject]
-        public void Construct(IDieMastery mastery, IWallet wallet, IInventory inventory)
+        public void Construct(IDieMastery mastery, IWallet wallet, IInventory inventory, [Zenject.InjectOptional] ITalents talents)
         {
+            _talents = talents;
             _inventory = inventory;
             _mastery = mastery;
             _wallet = wallet;
@@ -201,6 +202,25 @@ namespace Zonk.UI.Windows
             return opponent != null ? Mathf.FloorToInt(stake * Mathf.Max(0f, opponent.StakePayout)) : 0;
         }
 
+        private ITalents _talents;
+        private int[] _stakeOptions;
+
+        /// <summary>Ставки: GameConfig.StakeOptions и по одной из ExtraStakeOptions за ранг таланта StakeOptionsExtra.</summary>
+        private int[] StakeOptions()
+        {
+            var basic = _config.StakeOptions ?? System.Array.Empty<int>();
+            var extra = _config.ExtraStakeOptions ?? System.Array.Empty<int>();
+            var count = _talents != null ? Mathf.Clamp((int)_talents.Value(TalentEffect.StakeOptionsExtra), 0, extra.Length) : 0;
+            if (_stakeOptions == null || _stakeOptions.Length != basic.Length + count)
+            {
+                _stakeOptions = new int[basic.Length + count];
+                System.Array.Copy(basic, _stakeOptions, basic.Length);
+                System.Array.Copy(extra, 0, _stakeOptions, basic.Length, count);
+            }
+
+            return _stakeOptions;
+        }
+
         /// <summary>Кнопки ставок из GameConfig.StakeOptions; ставка дороже кошелька недоступна.</summary>
         private void BuildStakes()
         {
@@ -215,7 +235,7 @@ namespace Zonk.UI.Windows
                 Destroy(button.gameObject);
             _stakeButtons.Clear();
 
-            var options = _config.StakeOptions ?? System.Array.Empty<int>();
+            var options = StakeOptions();
             _stakeList.gameObject.SetActive(options.Length > 1 && _config.Coins != null);
             foreach (var option in options)
             {
@@ -233,7 +253,7 @@ namespace Zonk.UI.Windows
         {
             var coins = _config.Coins != null ? _wallet.Get(_config.Coins) : 0;
             Stake = amount <= coins ? amount : 0;
-            var options = _config.StakeOptions ?? System.Array.Empty<int>();
+            var options = StakeOptions();
             for (var i = 0; i < _stakeButtons.Count && i < options.Length; i++)
             {
                 _stakeButtons[i].Interactable = options[i] <= coins;

@@ -34,11 +34,13 @@ namespace Zonk.Table
         private readonly PlayerStats _stats;
         private readonly TutorialDirector _tutorial;
         private readonly Presentation.TableView _table;
+        private readonly ITalents _talents;
 
         public TowerState(TowerProgress tower, ModeMatch match, MatchAftermath aftermath, EnergyGate energy, IRewardService rewards,
             IUiService ui, UiKit kit, ILocalization localization, PlayerStats stats, TutorialDirector tutorial,
-            Presentation.TableView table)
+            Presentation.TableView table, [Zenject.InjectOptional] ITalents talents)
         {
+            _talents = talents;
             _tower = tower;
             _match = match;
             _aftermath = aftermath;
@@ -75,7 +77,7 @@ namespace Zonk.Table
                 {
                     if (!await _energy.PayAsync(_tower.Config.EnergyCost, ct))
                         continue;
-                    _tower.StartAttempt();
+                    _tower.StartAttempt(Talent(TalentEffect.TowerStartHearts));
                 }
 
                 await PlayAttemptAsync(ct);
@@ -226,8 +228,18 @@ namespace Zonk.Table
             return string.Join(", ", parts);
         }
 
+        private int Talent(TalentEffect effect) => _talents != null ? (int)System.Math.Round(_talents.Value(effect)) : 0;
+
         private async UniTask<bool> TryReviveAsync(CancellationToken ct)
         {
+            // Талант: бесплатные продолжения без рекламы.
+            if (_tower.CanReviveFree(Talent(TalentEffect.TowerFreeRevives)))
+            {
+                _tower.ReviveFree();
+                await Toast.ShowAsync(_kit, _table.UiRoot, T("tower.freeRevive"), UiColors.Gold, 1.1f, ct);
+                return true;
+            }
+
             if (!await ModeWindows.TryReviveAsync(_tower.CanRevive, RevivePlacement, _ui, _rewards, _kit, ct))
                 return false;
 

@@ -67,8 +67,11 @@ namespace Zonk.Progress
         private readonly int[] _available = new int[3];
         private readonly List<CosmeticItemConfig> _candidates = new List<CosmeticItemConfig>();
 
-        public ChestService(ISaveStore saves, GameConfig config, IInventory inventory, IWallet wallet)
+        private readonly ITalents _talents;
+
+        public ChestService(ISaveStore saves, GameConfig config, IInventory inventory, IWallet wallet, ITalents talents = null)
         {
+            _talents = talents;
             _saves = saves;
             _config = config != null ? config.Chest : null;
             _inventory = inventory;
@@ -82,7 +85,9 @@ namespace Zonk.Progress
         public bool IsEnabled => _config != null;
         public int Ready => Data.Ready;
         public int Wins => Data.Wins;
-        public int WinsPerChest => _config != null ? Math.Max(1, _config.WinsPerChest) : 1;
+        public int WinsPerChest => _config != null
+            ? Math.Max(1, _config.WinsPerChest - (_talents != null ? (int)_talents.Value(TalentEffect.ChestWinsMinus) : 0))
+            : 1;
         public int Opened => Data.Opened;
 
         public bool AddWin()

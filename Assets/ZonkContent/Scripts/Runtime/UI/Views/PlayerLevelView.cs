@@ -25,18 +25,28 @@ namespace Zonk.UI.Views
         [Tooltip("«120 / 380» или «+60 опыта» после партии (необязательно)")]
         [SerializeField] private TMP_Text _caption;
 
+        [Tooltip("Значок «есть свободные очки талантов» (необязательно)")]
+        [SerializeField] private GameObject _talentBadge;
+
         private ILocalization _localization;
+        private ITalents _talents;
 
         /// <summary>Нажали на уровень (в меню открывает профиль). Кнопка — компонент Button на детали, если есть.</summary>
         public event Action Clicked;
 
         [Inject]
-        public void Construct([InjectOptional] ILocalization localization)
+        public void Construct([InjectOptional] ILocalization localization, [InjectOptional] ITalents talents)
         {
+            _talents = talents;
             _localization = localization;
         }
 
 #if UNITY_EDITOR
+        public void EditorSetupBadge(GameObject talentBadge)
+        {
+            _talentBadge = talentBadge;
+        }
+
         public void EditorSetup(TMP_Text level, RectTransform fill, TMP_Text caption)
         {
             _level = level;
@@ -63,6 +73,8 @@ namespace Zonk.UI.Views
             SetFill(Fraction(into, toNext));
             if (_caption != null)
                 _caption.text = into + " / " + toNext;
+            if (_talentBadge != null)
+                _talentBadge.SetActive(_talents != null && _talents.FreePoints > 0);
         }
 
         /// <summary>Опыт за партию: подпись «+N опыта» и заполнение полосы от «было» до «стало».</summary>

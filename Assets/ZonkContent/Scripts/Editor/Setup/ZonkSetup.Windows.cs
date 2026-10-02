@@ -54,6 +54,7 @@ namespace Zonk.Editor.Setup
             WindowPrefab<LanguageWindow>("LanguageWindow", popupIn, popupOut, true, BuildLanguage);
             WindowPrefab<ChallengeWindow>("ChallengeWindow", popupIn, popupOut, true, BuildChallenge);
             WindowPrefab<PerkChoiceWindow>("PerkChoiceWindow", popupIn, popupOut, true, BuildPerkChoice);
+            UpgradePerkChoiceWindow();
             WindowPrefab<ProfileWindow>("ProfileWindow", popupIn, popupOut, true, BuildProfile);
             WindowPrefab<ChestWindow>("ChestWindow", popupIn, popupOut, true, BuildChestWindow);
             WindowPrefab<SeasonWindow>("SeasonWindow", popupIn, popupOut, true, BuildSeasonWindow);

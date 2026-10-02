@@ -1,9 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using Base.Core.Localization;
 using Base.Services.Monetization;
 using Cysharp.Threading.Tasks;
+using UnityEngine;
 using Zonk.Configs;
 using Zonk.Core.Dice;
 using Zonk.Core.Modifiers;
@@ -14,15 +16,19 @@ using Zonk.UI.Windows;
 namespace Zonk.Table
 {
     /// <summary>
-    /// «Бесконечный забег»: лобби (рекорд, текущий забег) → этаж (соперник, цель, правила, сердца, находки) → партия →
-    /// итоги → находка на выбор → следующий этаж. Проигрыш забирает сердце и переигрывает этаж; сердца кончились —
-    /// один раз продолжить за рекламу, иначе конец забега. Выход в меню сохраняет забег, энергия берётся только
-    /// за начало нового. Логика прогресса — EndlessRunProgress, здесь только порядок окон.
+    /// «Бесконечный забег»: лобби (рекорд, текущий забег) → развилка (обычный, сильный, привал или лавка) → этаж
+    /// (соперник, цель, правила, сердца, находки) → партия → итоги → находка на выбор (за рекламу — ещё одна или
+    /// поменять) → следующий этаж. Проигрыш: щит принимает удар, иначе минус сердце и переигровка; сердца кончились —
+    /// «второе дыхание» или продолжить за рекламу (до MaxRevives раз), иначе конец. Выход в меню сохраняет забег,
+    /// энергия — только за начало нового. Логика прогресса — EndlessRunProgress, здесь только порядок окон.
     /// </summary>
     public sealed class EndlessRunState : ITableState
     {
         private const string RevivePlacement = "run_revive";
-        private const string InterstitialTrigger = "match_end";
+        private const string ExtraPerkPlacement = "run_perk_extra";
+        private const string RerollPlacement = "run_perk_reroll";
+        private const string MilestonePlacement = "run_milestone_double";
+        private const string InterstitialTrigger = "run_floor";
 
         private readonly EndlessRunProgress _run;
         private readonly ModeMatch _match;
@@ -37,10 +43,14 @@ namespace Zonk.Table
         private readonly ContentDatabase _content;
         private readonly TutorialDirector _tutorial;
         private readonly Presentation.TableView _table;
+        private readonly RewardGranter _granter;
+        private readonly UiPalette _palette;
+        private readonly List<RunPath> _paths = new List<RunPath>();
 
         public EndlessRunState(EndlessRunProgress run, ModeMatch match, MatchAftermath aftermath, EnergyGate energy,
             IRewardService rewards, IUiService ui, UiKit kit, ILocalization localization, ParticipantFactory participants,
-            PlayerStats stats, ContentDatabase content, TutorialDirector tutorial, Presentation.TableView table)
+            PlayerStats stats, ContentDatabase content, TutorialDirector tutorial, Presentation.TableView table, RewardGranter granter,
+            GameConfig config)
         {
             _run = run;
             _match = match;
@@ -55,6 +65,8 @@ namespace Zonk.Table
             _content = content;
             _tutorial = tutorial;
             _table = table;
+            _granter = granter;
+            _palette = config != null && config.Ui != null ? config.Ui.Palette : new UiPalette();
         }
 
         public string Id => TableStateIds.EndlessRun;
@@ -126,9 +138,20 @@ namespace Zonk.Table
         {
             while (_run.IsActive)
             {
-                // Находки, не выбранные до перезапуска игры, предлагаются снова.
+                // Невыбранное до перезапуска игры предлагается снова: лавка или находки.
                 if (_run.Offers.Count > 0)
-                    await ChooseOfferAsync(ct);
+                {
+                    if (_run.IsShopOpen)
+                        await ShopAsync(ct);
+                    else
+                        await ChooseOfferAsync(ct);
+                }
+
+                if (_run.NeedsPath)
+                {
+                    await ChoosePathAsync(ct);
+                    continue;
+                }
 
                 var floor = _run.BuildFloor();
                 if (await ShowFloorAsync(floor, ct) != ChallengeChoice.Primary)
@@ -145,25 +168,35 @@ namespace Zonk.Table
                     SharedRules = floor.SharedRules,
                     PlayerModifiers = floor.PlayerModifiers,
                     EnemyModifiers = floor.EnemyModifiers,
+                    PlayerStartScore = floor.PlayerStartScore,
+                    PlayerZonkSaves = floor.PlayerZonkSaves,
                 }, ct);
+
+                var players = result.Outcome.Match != null ? result.Outcome.Match.Players : null;
+                if (players != null && players.Count > 0)
+                    _run.OnMatchPlayed(floor, players[0].ZonkSavesLeft);
+
+                // Межстраничная реклама — на паузе после партии, раз в InterstitialEvery этажей (частоту держит общий слой).
+                var trigger = floor.Floor % Math.Max(1, _run.Config.InterstitialEvery) == 0 ? InterstitialTrigger : null;
 
                 ResultsChoice choice;
                 if (result.Won)
                 {
                     var win = _run.OnWin();
                     _stats.SubmitAsync(CancellationToken.None).Forget();
-                    choice = await _aftermath.ShowAsync(result.Outcome, result.Players, win.Rewards, InterstitialTrigger, true, ct,
+                    choice = await _aftermath.ShowAsync(result.Outcome, result.Players, win.Rewards, trigger, true, ct,
                         notes: WinNotes(win), againText: T("run.next"));
+                    await OfferMilestoneDoubleAsync(win, ct);
                 }
                 else
                 {
-                    var hearts = _run.OnLoss();
-                    var notes = new List<string> { hearts > 0 ? T("run.heartLost", hearts) : T("run.noHearts") };
-                    choice = await _aftermath.ShowAsync(result.Outcome, result.Players, null, InterstitialTrigger, hearts > 0, ct,
+                    var loss = _run.OnLoss();
+                    var notes = new List<string> { LossNote(loss) };
+                    choice = await _aftermath.ShowAsync(result.Outcome, result.Players, null, trigger, loss != RunLoss.Out, ct,
                         notes: notes, againText: T("run.retry"));
 
                     // Сердца кончились: продолжить за рекламу (этаж переигрывается сразу) или конец забега.
-                    if (hearts <= 0)
+                    if (loss == RunLoss.Out)
                     {
                         if (!await TryReviveAsync(ct))
                         {
@@ -180,17 +213,32 @@ namespace Zonk.Table
             }
         }
 
+        private string LossNote(RunLoss loss)
+        {
+            switch (loss)
+            {
+                case RunLoss.Shielded: return T("run.shielded", _run.Shields);
+                case RunLoss.SecondWind: return T("run.secondWind");
+                case RunLoss.HeartLost: return T("run.heartLost", _run.Hearts);
+                default: return T("run.noHearts");
+            }
+        }
+
         private async UniTask<ChallengeChoice> ShowFloorAsync(RunFloor floor, CancellationToken ct)
         {
             var body = new StringBuilder();
             ModeWindows.AppendOpponent(body, floor.Opponent, _kit);
+            if (floor.IsElite)
+                body.Append("\n<color=#").Append(ColorUtility.ToHtmlStringRGB(UiColors.Bad)).Append('>').Append(T("run.eliteFloor")).Append("</color>");
             body.Append("\n\n").Append(T("run.target", floor.Target));
-            body.Append('\n').Append(T("run.hearts", _run.Hearts));
-            body.Append('\n').Append(T("run.enemyPower", UnityEngine.Mathf.RoundToInt(floor.EnemyPower * 100f)));
+            body.Append('\n').Append(Status());
+            body.Append('\n').Append(T("run.enemyPower", Mathf.RoundToInt(floor.EnemyPower * 100f)));
+            if (floor.PlayerStartScore > 0)
+                body.Append('\n').Append(T("run.headStart", floor.PlayerStartScore));
 
             if (floor.NewRule != null)
             {
-                body.Append("\n\n<color=#").Append(UnityEngine.ColorUtility.ToHtmlStringRGB(UiColors.Bad)).Append('>')
+                body.Append("\n\n<color=#").Append(ColorUtility.ToHtmlStringRGB(UiColors.Bad)).Append('>')
                     .Append(T("run.newRule")).Append(' ').Append(RuleTexts.Describe(floor.NewRule, T, Language)).Append("</color>");
             }
 
@@ -204,7 +252,13 @@ namespace Zonk.Table
             return await ModeWindows.AskAsync(_ui, title, floor.Opponent.Portrait, body.ToString(), T("run.fight"), null, T("run.toMenu"), ct);
         }
 
-        /// <summary>Находки игрока: множители очков и особые кости забега.</summary>
+        /// <summary>«Сердца: 3 · Щиты: 1 · Спасения: 2 · Жетоны: 7».</summary>
+        private string Status()
+        {
+            return T("run.status", _run.Hearts, _run.Shields, _run.ZonkSaves, _run.Tokens);
+        }
+
+        /// <summary>Находки игрока: множители, особые кости, взятые находки со стаками.</summary>
         private void AppendPerks(StringBuilder body)
         {
             body.Append(T("run.yourPerks"));
@@ -227,44 +281,219 @@ namespace Zonk.Table
                 any = true;
             }
 
+            foreach (var stack in _run.Perks)
+            {
+                var entry = _run.FindEntry(stack.Id);
+                // Множители и кости уже перечислены выше; сердца — в строке состояния.
+                if (entry == null || entry.Perk is ComboPerk || entry.Perk is SpecialDiePerk || entry.Perk is LoadedDiePerk ||
+                    entry.Perk is HeartPerk || stack.Stacks <= 0)
+                    continue;
+                body.Append("\n• ").Append(T(entry.NameKey));
+                if (stack.Stacks > 1)
+                    body.Append(" ×").Append(stack.Stacks);
+                any = true;
+            }
+
             if (!any)
                 body.Append("\n• ").Append(T("run.noPerks"));
         }
 
+        // ---------- Развилка ----------
+
+        private async UniTask ChoosePathAsync(CancellationToken ct)
+        {
+            _run.PathOptions(_paths);
+            var options = new List<PerkOption>(_paths.Count);
+            foreach (var path in _paths)
+            {
+                var color = path == RunPath.Elite ? _palette.RarityRare
+                    : path == RunPath.Rest ? _palette.Good
+                    : path == RunPath.Shop ? _palette.RarityLegendary
+                    : _palette.Button;
+                options.Add(new PerkOption(PathText(path), color));
+            }
+
+            var index = await AskAsync(T("run.choosePath", _run.Floor), Status(), options, null, ct);
+            var chosen = index >= 0 && index < _paths.Count ? _paths[index] : RunPath.Normal;
+            _run.ChoosePath(chosen);
+            if (chosen == RunPath.Rest)
+                _table.Sound.Play(Presentation.Sfx.Coin);
+        }
+
+        private string PathText(RunPath path)
+        {
+            switch (path)
+            {
+                case RunPath.Elite:
+                    return T("run.path.elite") + "\n<size=70%>" + T("run.path.elite.desc") + "</size>";
+                case RunPath.Rest:
+                    return T("run.path.rest") + "\n<size=70%>" + T("run.path.rest.desc", Math.Min(_run.MaxHearts, _run.Hearts + 1)) + "</size>";
+                case RunPath.Shop:
+                    return T("run.path.shop") + "\n<size=70%>" + T("run.path.shop.desc", _run.Tokens) + "</size>";
+                default:
+                    return T("run.path.normal") + "\n<size=70%>" + T("run.path.normal.desc") + "</size>";
+            }
+        }
+
+        // ---------- Лавка ----------
+
+        private async UniTask ShopAsync(CancellationToken ct)
+        {
+            while (_run.IsShopOpen)
+            {
+                var options = new List<PerkOption>();
+                foreach (var offer in _run.Offers)
+                {
+                    var entry = _run.EntryOf(offer);
+                    var text = OfferText(offer) + "\n" + T("run.price", offer.Price);
+                    options.Add(new PerkOption(text, RarityColor(entry), _run.Tokens >= offer.Price));
+                }
+
+                var index = await AskAsync(T("run.shop"), T("run.tokens", _run.Tokens), options, new[] { T("run.leaveShop") }, ct);
+                if (index < 0)
+                {
+                    _run.LeaveShop();
+                    return;
+                }
+
+                if (_run.Buy(index))
+                    _table.Sound.Play(Presentation.Sfx.Coin);
+                if (_run.Offers.Count == 0)
+                {
+                    _run.LeaveShop();
+                    return;
+                }
+            }
+        }
+
+        // ---------- Находки ----------
+
         private async UniTask ChooseOfferAsync(CancellationToken ct)
         {
-            var options = new List<string>();
-            foreach (var offer in _run.Offers)
-                options.Add(OfferText(offer));
+            while (_run.Offers.Count > 0 && !_run.IsShopOpen)
+            {
+                var options = new List<PerkOption>();
+                foreach (var offer in _run.Offers)
+                    options.Add(new PerkOption(OfferText(offer), RarityColor(_run.EntryOf(offer))));
 
-            var window = await _ui.OpenAsync<PerkChoiceWindow>(ct, w => w.Setup(T("run.choosePerk"), options));
-            int index;
+                // Дополнительные кнопки: переброс (талант — даром, иначе за рекламу), ещё одна находка за рекламу.
+                var extras = new List<string>();
+                var actions = new List<int>();
+                if (_run.CanRerollFree)
+                {
+                    extras.Add(T("run.rerollFree", _run.FreeRerolls));
+                    actions.Add(0);
+                }
+                else if (_run.CanRerollForAd && _rewards.CanOffer)
+                {
+                    extras.Add(T("run.rerollAd"));
+                    actions.Add(1);
+                }
+
+                if (_run.CanTakeExtra && _rewards.CanOffer)
+                {
+                    extras.Add(T("run.extraAd"));
+                    actions.Add(2);
+                }
+
+                var title = _run.Floor <= 1 ? T("run.chooseStartPerk") : T("run.choosePerk");
+                var index = await AskAsync(title, Status(), options, extras, ct);
+                // После выбора предложения пропадают; если за рекламу взята «ещё одна» — остаются прочие (EndlessRunProgress.Choose).
+                if (index >= 0)
+                {
+                    _run.Choose(index);
+                    _table.Sound.Play(Presentation.Sfx.Coin);
+                    continue;
+                }
+
+                var action = actions[-1 - index];
+                if (action == 0)
+                {
+                    _run.RerollOffers(true);
+                }
+                else if (action == 1)
+                {
+                    var outcome = await _rewards.RequestAsync(RerollPlacement, ct);
+                    if (outcome.IsGranted())
+                        _run.RerollOffers(false);
+                }
+                else
+                {
+                    var outcome = await _rewards.RequestAsync(ExtraPerkPlacement, ct);
+                    if (outcome.IsGranted())
+                        _run.GrantExtraPick();
+                }
+            }
+        }
+
+        private async UniTask<int> AskAsync(string title, string subtitle, List<PerkOption> options, IReadOnlyList<string> extras,
+            CancellationToken ct)
+        {
+            var window = await _ui.OpenAsync<PerkChoiceWindow>(ct, w => w.Setup(title, subtitle, options, extras));
             try
             {
-                index = await window.WaitChoiceAsync(ct);
+                return await window.WaitChoiceAsync(ct);
             }
             finally
             {
                 await _ui.CloseAsync(window, CancellationToken.None);
             }
-
-            _run.Choose(index);
-            _table.Sound.Play(Presentation.Sfx.Coin);
         }
 
+        private Color RarityColor(RunPerkEntry entry)
+        {
+            return entry != null ? _palette.RarityColor(entry.Rarity) : _palette.Button;
+        }
+
+        /// <summary>Название, тактика, что даёт (с учётом стаков) и сколько уже накоплено.</summary>
         private string OfferText(RunOfferSave offer)
         {
-            switch (offer.Kind)
+            var entry = _run.EntryOf(offer);
+            if (entry == null || entry.Perk == null)
+                return offer.PerkId ?? offer.Value;
+
+            var stacks = _run.StacksOf(entry);
+            var text = new StringBuilder();
+            text.Append("<b>").Append(T(entry.NameKey)).Append("</b>");
+            if (entry.Tactic != RunTactic.General)
+                text.Append(" <size=70%>· ").Append(T("run.tactic." + entry.Tactic.ToString().ToLowerInvariant())).Append("</size>");
+            text.Append("\n<size=75%>").Append(Format(entry.DescriptionKey, entry.Perk.DescriptionArgs(_run.Context, offer.Value, stacks + 1)))
+                .Append("</size>");
+            if (stacks > 0)
+                text.Append("\n<size=70%>").Append(T("run.stacked", stacks)).Append("</size>");
+            return text.ToString();
+        }
+
+        /// <summary>Текст по ключу: «@ключ» в значениях — тоже текст, дроби — с запятой (кроме английского).</summary>
+        private string Format(string key, object[] args)
+        {
+            var values = new object[Math.Max(args.Length, 4)];
+            for (var i = 0; i < values.Length; i++)
             {
-                case RunOfferKind.Combo:
-                    var current = _run.ComboMultiplier(offer.Value);
-                    return T("run.perk.combo") + "\n" + ComboText(offer.Value, current + _run.Config.ComboStep);
-                case RunOfferKind.Die:
-                    var die = _content.Get<DieConfig>(offer.Value);
-                    return T("run.perk.die") + "\n" + (die != null ? T(die.NameKey) : offer.Value);
-                default:
-                    return T("run.perk.heart") + "\n" + T("run.perk.heartText", _run.Hearts + 1);
+                var value = i < args.Length ? args[i] : string.Empty;
+                if (value is string s && s.StartsWith("@"))
+                    value = T(s.Substring(1));
+                else if (value is double d)
+                    value = Number(d);
+                else if (value is float f)
+                    value = Number(f);
+                values[i] = value;
             }
+
+            try
+            {
+                return string.Format(T(key), values);
+            }
+            catch (FormatException)
+            {
+                return T(key);
+            }
+        }
+
+        private string Number(double value)
+        {
+            var text = value.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+            return Language == "en" ? text : text.Replace('.', ',');
         }
 
         /// <summary>«Очки за стрит: ×1,6» — тем же текстом, что правила.</summary>
@@ -280,12 +509,39 @@ namespace Zonk.Table
                 notes.Add(T("run.newRecord", win.Floor));
             if (win.HeartsGained > 0)
                 notes.Add(T("run.heartGained", win.HeartsGained));
+            if (win.Tokens > 0)
+                notes.Add(T("run.tokensGained", win.Tokens, _run.Tokens));
             foreach (var milestone in win.Milestones)
                 notes.Add(T("run.milestone", milestone));
             return notes;
         }
 
-        /// <summary>Сердца кончились: один раз за забег продолжить за рекламу.</summary>
+        /// <summary>Рубеж: награду (монеты, энергию) можно удвоить за рекламу.</summary>
+        private async UniTask OfferMilestoneDoubleAsync(RunWin win, CancellationToken ct)
+        {
+            if (win.MilestoneRewards.Count == 0 || !_run.Config.MilestoneDoubleForAd || !_rewards.CanOffer)
+                return;
+
+            var currency = new List<Reward>();
+            foreach (var reward in win.MilestoneRewards)
+            {
+                if (reward is CurrencyReward)
+                    currency.Add(reward);
+            }
+
+            if (currency.Count == 0 || !await ConfirmWindow.AskAsync(_ui, T("run.milestoneDouble", RewardNames.List(currency, T)), ct))
+                return;
+
+            var outcome = await _rewards.RequestAsync(MilestonePlacement, ct);
+            if (!outcome.IsGranted())
+                return;
+
+            var granted = _granter.Grant(currency);
+            _table.Sound.Play(Presentation.Sfx.Coin);
+            await Toast.ShowAsync(_kit, _table.UiRoot, RewardNames.Granted(granted, T), UiColors.Gold, 1.2f, ct);
+        }
+
+        /// <summary>Сердца кончились: продолжить за рекламу (до MaxRevives раз за забег, со второго — с глубины).</summary>
         private async UniTask<bool> TryReviveAsync(CancellationToken ct)
         {
             if (!await ModeWindows.TryReviveAsync(_run.CanRevive, RevivePlacement, _ui, _rewards, _kit, ct))

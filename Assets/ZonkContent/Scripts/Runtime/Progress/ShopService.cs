@@ -24,6 +24,7 @@ namespace Zonk.Progress
     /// </summary>
     public sealed class ShopService
     {
+        private readonly ITalents _talents;
         private readonly IWallet _wallet;
         private readonly IInventory _inventory;
         private readonly IRewardService _rewards;
@@ -38,8 +39,9 @@ namespace Zonk.Progress
         public const string AcquiredTag = "shop_acquired";
 
         public ShopService(IWallet wallet, IInventory inventory, IRewardService rewards, IPurchaseFlow purchases, IQuestService quests,
-            RewardGranter granter, ContentDatabase content, ISaveStore saves)
+            RewardGranter granter, ContentDatabase content, ISaveStore saves, ITalents talents = null)
         {
+            _talents = talents;
             _wallet = wallet;
             _inventory = inventory;
             _rewards = rewards;
@@ -55,6 +57,15 @@ namespace Zonk.Progress
 
         /// <summary>На площадке есть покупки за деньги.</summary>
         public bool IsPurchaseAvailable => _purchases.IsAvailable;
+
+        /// <summary>Цена за монеты со скидкой таланта (ShopCoinDiscountPercent, не больше 50%).</summary>
+        public int CoinPrice(CurrencyPriceOption option)
+        {
+            if (option == null)
+                return 0;
+            var discount = _talents != null ? Mathf.Clamp(_talents.Value(TalentEffect.ShopCoinDiscountPercent), 0f, 50f) : 0f;
+            return Mathf.Max(0, Mathf.RoundToInt(option.Amount * (1f - discount / 100f)));
+        }
 
         /// <summary>Можно ли показать этот вариант цены на текущей площадке.</summary>
         public bool IsOptionAvailable(PriceOption option)
@@ -91,7 +102,7 @@ namespace Zonk.Progress
             switch (option)
             {
                 case CurrencyPriceOption currency:
-                    if (!_wallet.TrySpend(currency.Currency, currency.Amount))
+                    if (!_wallet.TrySpend(currency.Currency, CoinPrice(currency)))
                         return AcquireResult.NotEnoughCurrency;
                     _inventory.Grant(item);
                     return AcquireResult.Acquired;

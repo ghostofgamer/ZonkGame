@@ -9,23 +9,27 @@ namespace Zonk.Core.Modes
     /// Только числа и расчёт, без Unity: пригодно для сервера и тестов. Всё, что случайно (какие правила выпали),
     /// выводится из сида забега и номера этажа — после перезапуска игры забег тот же.
     ///
-    /// Значения по умолчанию подобраны моделью 1500 забегов: медиана 8 этажей, 90% — до 21, 99% — до 57,
-    /// до 100-го доходят около 0.3% (README, журнал 2026-09-30).
+    /// Значения по умолчанию подобраны моделью 3000 забегов с находками 2.0 (README, журнал 2026-10-02): игрок —
+    /// ИИ «сбалансированный», разумный выбор находок, без рекламы — медиана 14 этажей, 75% — до 26, 90% — до 46, 99% — до 88.
+    /// Мягкий старт (враг слабее, новичок до 8-го), дальше сила врага растёт с ускорением: любая сборка со временем отстаёт.
     /// </summary>
     [Serializable]
     public sealed class EndlessRunPlan
     {
         /// <summary>Цель этажа: TargetBase + TargetPerFloor × этаж, не больше TargetMax.</summary>
         public int TargetBase = 1500;
-        public int TargetPerFloor = 100;
-        public int TargetMax = 4000;
+        public int TargetPerFloor = 50;
+        public int TargetMax = 3500;
 
         /// <summary>Сила очков врага (множитель всех его комбинаций): на первом этаже и прирост за этаж.</summary>
-        public float EnemyStartPower = 0.8f;
-        public float EnemyPowerPerFloor = 0.02f;
+        public float EnemyStartPower = 0.7f;
+        public float EnemyPowerPerFloor = 0.04f;
+
+        /// <summary>Ускорение роста силы врага: + EnemyPowerAccel × (этаж − 1)². Любая сборка игрока со временем отстаёт.</summary>
+        public float EnemyPowerAccel = 0.0008f;
 
         /// <summary>Враг получает особую кость каждые EnemyDiceEvery этажей, всего не больше 6.</summary>
-        public int EnemyDiceEvery = 6;
+        public int EnemyDiceEvery = 8;
 
         /// <summary>Новое общее правило каждые RulesEvery этажей; действуют последние MaxRules, старые уходят.</summary>
         public int RulesEvery = 5;
@@ -35,8 +39,8 @@ namespace Zonk.Core.Modes
         public int GuardianEvery = 10;
 
         /// <summary>ИИ врага: «новичок» до EarlyUntil-го этажа, «средний» до MidUntil-го, дальше «эксперт».</summary>
-        public int EarlyUntil = 10;
-        public int MidUntil = 30;
+        public int EarlyUntil = 8;
+        public int MidUntil = 25;
 
         public int Target(int floor)
         {
@@ -45,7 +49,8 @@ namespace Zonk.Core.Modes
 
         public float EnemyPower(int floor)
         {
-            return Math.Max(0.1f, EnemyStartPower + EnemyPowerPerFloor * (Math.Max(1, floor) - 1));
+            var step = Math.Max(1, floor) - 1;
+            return Math.Max(0.1f, EnemyStartPower + EnemyPowerPerFloor * step + EnemyPowerAccel * step * step);
         }
 
         public int EnemySpecialDice(int floor)

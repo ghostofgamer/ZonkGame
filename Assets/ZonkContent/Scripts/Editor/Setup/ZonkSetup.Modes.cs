@@ -9,7 +9,7 @@ namespace Zonk.Editor.Setup
 {
     /// <summary>
     /// Режимы-испытания (2026-09-30): «Бесконечный забег» (Configs/Modes/EndlessRun.asset) и башня
-    /// (Configs/Modes/Tower.asset, 30 этажей), таблицы рекордов для них. Создаются один раз, дальше правятся руками;
+    /// (Configs/Modes/Tower.asset, 30 этажей, продление до 60 — ZonkSetup.RunV2), таблицы рекордов для них. Создаются один раз, дальше правятся руками;
     /// новые этажи башни — строками в Tower.asset.
     /// </summary>
     public static partial class ZonkSetup
@@ -67,6 +67,9 @@ namespace Zonk.Editor.Setup
                 config.Tower = config.Tower != null ? config.Tower : tower;
                 EditorUtility.SetDirty(config);
             }
+
+            // Забег 2.0 и продление башни (ensure-шаги: старое и ручное не затираются).
+            BuildRunV2(config, config.EndlessRun != null ? config.EndlessRun : run, config.Tower != null ? config.Tower : tower);
 
             Leaderboard("endless", "leaderboard.endless", "zonkEndless", LeaderboardMetric.EndlessRunFloor, 3);
             Leaderboard("tower", "leaderboard.tower", "zonkTower", LeaderboardMetric.TowerFloor, 4);

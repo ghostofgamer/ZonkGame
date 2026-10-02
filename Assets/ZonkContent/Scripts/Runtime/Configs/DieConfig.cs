@@ -38,6 +38,9 @@ namespace Zonk.Configs
         [Tooltip("Как получить кость. Пусто = есть у всех с начала.")]
         public Price Price = new Price();
 
+        [Tooltip("Только для «Бесконечного забега» (гружёные кости находок): нет в магазине, наборе игрока, мастерстве и балансе")]
+        public bool RunOnly;
+
         private DieSpec _spec;
 
         public bool IsSpecial => MarkerColor.a > 0f;

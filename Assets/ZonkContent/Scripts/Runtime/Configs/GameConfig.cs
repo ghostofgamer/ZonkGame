@@ -47,6 +47,19 @@ namespace Zonk.Configs
         [Tooltip("Сундук за победы: таблица выпадения, вещи, гарантия легендарки")]
         public ChestConfig Chest;
 
+        [Header("Таланты")]
+        [Tooltip("Очков талантов за каждый уровень игрока после первого")]
+        [Min(0)] public int TalentPointsPerLevel = 1;
+
+        [Tooltip("Цена сброса талантов, монет")]
+        [Min(0)] public int TalentResetCoins = 2000;
+
+        [Tooltip("ИИ для подсказки лучшего хода (талант BestMoveHint); пусто — профиль по умолчанию")]
+        public AiProfileConfig HintAi;
+
+        [Tooltip("Ставки кампании, открываемые талантом StakeOptionsExtra (по одной за ранг)")]
+        public int[] ExtraStakeOptions = { 1000, 2500 };
+
         [Header("Мастерство костей")]
         [Tooltip("Уровни мастерства особых костей по возрастанию очков")]
         public List<MasteryLevel> MasteryLevels = new List<MasteryLevel>();

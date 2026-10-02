@@ -11,7 +11,12 @@ namespace Zonk.Core.Match
             Index = index;
             Name = setup.Name;
             Dice = setup.Dice;
+            Score = System.Math.Max(0, setup.StartScore);
+            ZonkSavesLeft = System.Math.Max(0, setup.ZonkSaves);
         }
+
+        /// <summary>Сколько зарядов «спасения от Зонка» осталось в этой партии.</summary>
+        public int ZonkSavesLeft { get; internal set; }
 
         public int Index { get; }
         public string Name { get; }

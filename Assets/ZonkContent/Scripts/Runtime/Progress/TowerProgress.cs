@@ -55,13 +55,26 @@ namespace Zonk.Progress
         /// <summary>Первое прохождение этажа ещё впереди: за него полная награда.</summary>
         public bool IsFirstClear(int index) => !Data.Cleared.Contains(index);
 
-        public void StartAttempt()
+        /// <summary>Новая попытка с рубежа. extraHearts — сердца сверх обычных (таланты).</summary>
+        public void StartAttempt(int extraHearts = 0)
         {
             var data = Data;
             data.Floor = IsComplete ? 0 : Checkpoint;
             data.Active = true;
-            data.Hearts = Math.Max(1, Config.HeartsPerAttempt);
+            data.Hearts = Math.Max(1, Config.HeartsPerAttempt + Math.Max(0, extraHearts));
             data.ReviveUsed = false;
+            data.FreeRevivesUsed = 0;
+            _saves.RequestSave();
+        }
+
+        /// <summary>Бесплатное продолжение (таланты): free — сколько их положено на попытку.</summary>
+        public bool CanReviveFree(int free) => IsActive && Data.Hearts <= 0 && Data.FreeRevivesUsed < free;
+
+        public void ReviveFree()
+        {
+            var data = Data;
+            data.FreeRevivesUsed++;
+            data.Hearts = 1;
             _saves.RequestSave();
         }
 

@@ -122,7 +122,7 @@ namespace Zonk.UI.Windows
             }
 
             // Вкладка особых костей: за монеты, рекламу, покупку или победу над соперником.
-            _shopDice = _content.All<DieConfig>().FindAll(d => d.IsSpecial);
+            _shopDice = _content.All<DieConfig>().FindAll(d => d.IsSpecial && !d.RunOnly);
             _shopDice.Sort((a, b) => a.Order != b.Order ? a.Order.CompareTo(b.Order) : string.CompareOrdinal(a.Id, b.Id));
             if (_shopDice.Count > 0)
             {
@@ -322,7 +322,7 @@ namespace Zonk.UI.Windows
                 switch (option)
                 {
                     case CurrencyPriceOption currency when currency.Currency != null:
-                        return currency.Amount + " " + T(currency.Currency.NameKey);
+                        return _shop.CoinPrice(currency) + " " + T(currency.Currency.NameKey);
                     case RewardedAdPriceOption rewarded when _shop.IsOptionAvailable(option):
                         ads = ads ?? T("shop.cardAds", _inventory.GetAdProgress(item), rewarded.AdsRequired);
                         break;
@@ -484,7 +484,7 @@ namespace Zonk.UI.Windows
             switch (option)
             {
                 case CurrencyPriceOption currency:
-                    return T("shop.buyFor", currency.Amount, currency.Currency != null ? T(currency.Currency.NameKey) : string.Empty);
+                    return T("shop.buyFor", _shop.CoinPrice(currency), currency.Currency != null ? T(currency.Currency.NameKey) : string.Empty);
                 case RewardedAdPriceOption ads:
                     return T("shop.watchAds", _inventory.GetAdProgress(item), ads.AdsRequired);
                 case PurchasePriceOption purchase:

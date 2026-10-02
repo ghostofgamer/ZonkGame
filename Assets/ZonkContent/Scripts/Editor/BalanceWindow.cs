@@ -66,7 +66,7 @@ namespace Zonk.Editor
 
             var profile = new AiProfile { Selection = new ValueSelection { DieValue = 60 } };
             var text = new StringBuilder("Кость | победы 2 особых + 4 обычных против 6 обычных | очки за ход | Зонк\n");
-            var dice = database.All<DieConfig>().Where(d => d.IsSpecial).ToList();
+            var dice = database.All<DieConfig>().Where(d => d.IsSpecial && !d.RunOnly).ToList();
             for (var i = 0; i < dice.Count; i++)
             {
                 var die = dice[i];

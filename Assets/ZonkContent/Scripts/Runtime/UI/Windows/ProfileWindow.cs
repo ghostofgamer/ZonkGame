@@ -18,7 +18,7 @@ namespace Zonk.UI.Windows
     /// Списки строятся при открытии (редко: память выделять можно). Открывается нажатием на уровень или аватар
     /// в главном меню, закрывается кнопкой «Назад» (WaitCloseRequestAsync). Без вкладок (старый префаб) — только статистика.
     /// </summary>
-    public sealed class ProfileWindow : UiWindow
+    public sealed partial class ProfileWindow : UiWindow
     {
         /// <summary>Сколько честных бросков нужно, чтобы говорить об удаче.</summary>
         private const int MinLuckRolls = 30;
@@ -55,6 +55,7 @@ namespace Zonk.UI.Windows
             Stats,
             Look,
             Achievements,
+            Talents,
         }
 
         private IPlayerRecords _records;
@@ -139,6 +140,7 @@ namespace Zonk.UI.Windows
                 _lookTab.OnClick(() => ShowPage(Page.Look));
             if (_achievementsTab != null)
                 _achievementsTab.OnClick(() => ShowPage(Page.Achievements));
+            AwakeTalents();
         }
 
         protected override void OnShowing()
@@ -155,6 +157,7 @@ namespace Zonk.UI.Windows
                 _framesTitle.text = T("profile.frames");
             if (_achievementsTab != null)
                 _achievementsTab.SetText(T("profile.achievements"));
+            ShowingTalents();
             Build();
             ShowPage(_page);
         }
@@ -166,7 +169,7 @@ namespace Zonk.UI.Windows
             var hasLook = _lookPage != null && _avatarsGrid != null && _cellTemplate != null;
             var hasAchievements = _achievementsPage != null && _achievementsList != null && _achievementTemplate != null &&
                                   _achievements != null;
-            if ((page == Page.Look && !hasLook) || (page == Page.Achievements && !hasAchievements))
+            if ((page == Page.Look && !hasLook) || (page == Page.Achievements && !hasAchievements) || (page == Page.Talents && !HasTalents))
                 page = Page.Stats;
             _page = page;
 
@@ -179,11 +182,16 @@ namespace Zonk.UI.Windows
             PaintTab(_statsTab, true, page == Page.Stats);
             PaintTab(_lookTab, hasLook, page == Page.Look);
             PaintTab(_achievementsTab, hasAchievements, page == Page.Achievements);
+            if (_talentsPage != null)
+                _talentsPage.SetActive(page == Page.Talents);
+            PaintTab(_talentsTab, HasTalents, page == Page.Talents);
 
             if (page == Page.Look)
                 BuildLook();
             else if (page == Page.Achievements)
                 BuildAchievements();
+            else if (page == Page.Talents)
+                BuildTalents();
         }
 
         private void PaintTab(UiButtonView tab, bool visible, bool selected)

@@ -47,8 +47,11 @@ namespace Zonk.Progress
         private readonly GameConfig _config;
         private readonly IInventory _inventory;
 
-        public Loadout(ISaveStore saves, ContentDatabase content, GameConfig config, IInventory inventory)
+        private readonly ITalents _talents;
+
+        public Loadout(ISaveStore saves, ContentDatabase content, GameConfig config, IInventory inventory, ITalents talents = null)
         {
+            _talents = talents;
             _saves = saves;
             _content = content;
             _config = config;
@@ -221,7 +224,7 @@ namespace Zonk.Progress
             Changed?.Invoke();
         }
 
-        public int PresetCount => Math.Max(1, _config.DicePresetCount);
+        public int PresetCount => Math.Max(1, _config.DicePresetCount + (_talents != null ? (int)_talents.Value(TalentEffect.DicePresetsExtra) : 0));
 
         public int ActivePreset => ActiveIndex(Data);
 
