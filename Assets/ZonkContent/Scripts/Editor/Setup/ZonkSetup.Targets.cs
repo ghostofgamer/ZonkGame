@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using Zonk.Configs;
@@ -57,13 +56,7 @@ namespace Zonk.Editor.Setup
 
         private static void RetuneTargets()
         {
-            var opponents = new Dictionary<string, OpponentConfig>();
-            foreach (var guid in AssetDatabase.FindAssets("t:OpponentConfig", new[] { ConfigsFolder }))
-            {
-                var asset = AssetDatabase.LoadAssetAtPath<OpponentConfig>(AssetDatabase.GUIDToAssetPath(guid));
-                if (asset != null && !string.IsNullOrEmpty(asset.Id))
-                    opponents[asset.Id] = asset;
-            }
+            var opponents = ContentById<OpponentConfig>();
 
             var changed = 0;
             foreach (var (id, target) in TargetsV3)

@@ -14,6 +14,8 @@ namespace Zonk.Table
         public const string DiceSkin = "dice_skin";
         public const string Environment = "environment";
         public const string RollStyle = "roll_style";
+        public const string Avatar = "avatar";
+        public const string Frame = "frame";
     }
 
     /// <summary>Собирает участников партии из сохранения и конфигов.</summary>
@@ -108,14 +110,14 @@ namespace Zonk.Table
             return new MatchParticipant
             {
                 Name = name,
-                Color = opponent.IsBoss ? UiBossColor : PlayerColor(1),
+                Color = opponent.IsBoss ? _config.BossColor : PlayerColor(1),
                 Controller = ControllerKind.Ai,
                 Dice = dice,
                 DiceSkin = opponent.DiceSkin != null ? opponent.DiceSkin : skinSlot != null ? skinSlot.DefaultItem : null,
                 Cup = opponent.Cup != null ? opponent.Cup : cupSlot != null ? cupSlot.DefaultItem : null,
                 Opponent = opponent,
                 AiProfile = opponent.Ai != null ? opponent.Ai.ToProfile() : null,
-                AiThinkDelay = opponent.Ai != null ? opponent.Ai.ThinkDelay : new Vector2(0.6f, 1.4f),
+                AiThinkDelay = opponent.Ai != null ? opponent.Ai.ThinkDelay : _config.DefaultAiThinkDelay,
                 RollStyles = opponent.RollStyle != null ? new List<RollStyleConfig> { opponent.RollStyle } : new List<RollStyleConfig>(),
             };
         }
@@ -149,7 +151,5 @@ namespace Zonk.Table
                     dice[i] = _config.StandardDie;
             }
         }
-
-        private static readonly Color UiBossColor = new Color(0.95f, 0.45f, 0.35f);
     }
 }

@@ -53,8 +53,7 @@ namespace Zonk.Editor
             }
 
             var texts = LoadTexts(warnings);
-            var config = AssetDatabase.FindAssets("t:GameConfig").Select(AssetDatabase.GUIDToAssetPath)
-                .Select(AssetDatabase.LoadAssetAtPath<GameConfig>).FirstOrDefault(c => c != null);
+            var config = ContentDatabaseBuilder.FindFirst<GameConfig>();
             var ids = new Dictionary<string, ContentConfig>();
 
             foreach (var item in database.Items)
@@ -165,8 +164,8 @@ namespace Zonk.Editor
                 }
             }
 
-            ValidateGameConfig(errors);
-            ValidateModes(texts, errors, warnings);
+            ValidateGameConfig(config, errors);
+            ValidateModes(config, texts, errors, warnings);
             ValidateShopVariety(database, warnings);
             ValidateScriptFiles(errors);
             return errors;
@@ -239,6 +238,9 @@ namespace Zonk.Editor
                     break;
                 case MaterialPayload material when material.Material == null:
                     errors.Add($"{item.name}: material is not set");
+                    break;
+                case SpritePayload sprite when sprite.Sprite == null:
+                    errors.Add($"{item.name}: sprite is not set");
                     break;
             }
         }
@@ -346,7 +348,7 @@ namespace Zonk.Editor
 
         /// <summary>
         /// Правило магазина: в каждой вкладке (слот косметики, особые кости) есть что получить за монеты, за рекламу
-        /// и за покупку. Нарушение — предупреждение: вкладку можно временно оставить без одного вида.
+        /// за покупку и за игру (награда). Нарушение — предупреждение: вкладку можно временно оставить без одного вида.
         /// </summary>
         private static void ValidateShopVariety(ContentDatabase database, List<string> warnings)
         {
@@ -371,14 +373,14 @@ namespace Zonk.Editor
                     warnings.Add($"Shop tab {tab.Key}: nothing for rewarded ads");
                 if (!options.Any(o => o is PurchasePriceOption))
                     warnings.Add($"Shop tab {tab.Key}: nothing for real money");
+                if (!options.Any(o => o is ProgressPriceOption))
+                    warnings.Add($"Shop tab {tab.Key}: nothing earned by playing (ProgressPriceOption)");
             }
         }
 
         /// <summary>Режимы-испытания: соперники, стражи, этажи башни, правила с текстами.</summary>
-        private static void ValidateModes(HashSet<string> texts, List<string> errors, List<string> warnings)
+        private static void ValidateModes(GameConfig config, HashSet<string> texts, List<string> errors, List<string> warnings)
         {
-            var guid = AssetDatabase.FindAssets("t:" + nameof(GameConfig), new[] { ContentDatabaseBuilder.GameFolder }).FirstOrDefault();
-            var config = guid != null ? AssetDatabase.LoadAssetAtPath<GameConfig>(AssetDatabase.GUIDToAssetPath(guid)) : null;
             if (config == null)
                 return;
 
@@ -428,10 +430,8 @@ namespace Zonk.Editor
             }
         }
 
-        private static void ValidateGameConfig(List<string> errors)
+        private static void ValidateGameConfig(GameConfig config, List<string> errors)
         {
-            var guid = AssetDatabase.FindAssets("t:" + nameof(GameConfig), new[] { ContentDatabaseBuilder.GameFolder }).FirstOrDefault();
-            var config = guid != null ? AssetDatabase.LoadAssetAtPath<GameConfig>(AssetDatabase.GUIDToAssetPath(guid)) : null;
             if (config == null)
             {
                 errors.Add("GameConfig not found");

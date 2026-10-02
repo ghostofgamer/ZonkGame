@@ -1,0 +1,578 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 47c3b3bf37fc84d49b05c2d99922d583, type: 3}
+  m_Name: Season_1
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.SeasonConfig
+  Id: season_1
+  NameKey: season.s1.name
+  Start: 2026-10-01
+  End: 2026-11-12
+  PointsPerStep: 600
+  Steps:
+  - Free:
+    - rid: 1889488795864138149
+    Premium:
+    - rid: 1889488795864138150
+  - Free:
+    - rid: 1889488795864138151
+    Premium:
+    - rid: 1889488795864138152
+  - Free:
+    - rid: 1889488795864138153
+    - rid: 1889488795864138154
+    Premium:
+    - rid: 1889488795864138155
+  - Free:
+    - rid: 1889488795864138156
+    Premium:
+    - rid: 1889488795864138157
+    - rid: 1889488795864138158
+  - Free:
+    - rid: 1889488795864138159
+    Premium:
+    - rid: 1889488795864138160
+  - Free:
+    - rid: 1889488795864138161
+    - rid: 1889488795864138162
+    Premium:
+    - rid: 1889488795864138163
+  - Free:
+    - rid: 1889488795864138164
+    Premium:
+    - rid: 1889488795864138165
+  - Free:
+    - rid: 1889488795864138166
+    - rid: 1889488795864138167
+    Premium:
+    - rid: 1889488795864138168
+    - rid: 1889488795864138169
+  - Free:
+    - rid: 1889488795864138170
+    - rid: 1889488795864138171
+    Premium:
+    - rid: 1889488795864138172
+  - Free:
+    - rid: 1889488795864138173
+    Premium:
+    - rid: 1889488795864138174
+    - rid: 1889488795864138175
+  - Free:
+    - rid: 1889488795864138176
+    Premium:
+    - rid: 1889488795864138177
+  - Free:
+    - rid: 1889488795864138178
+    - rid: 1889488795864138179
+    Premium:
+    - rid: 1889488795864138180
+    - rid: 1889488795864138181
+  - Free:
+    - rid: 1889488795864138182
+    Premium:
+    - rid: 1889488795864138183
+  - Free:
+    - rid: 1889488795864138184
+    Premium:
+    - rid: 1889488795864138185
+  - Free:
+    - rid: 1889488795864138186
+    - rid: 1889488795864138187
+    Premium:
+    - rid: 1889488795864138188
+  - Free:
+    - rid: 1889488795864138189
+    Premium:
+    - rid: 1889488795864138190
+    - rid: 1889488795864138191
+  - Free:
+    - rid: 1889488795864138192
+    Premium:
+    - rid: 1889488795864138193
+  - Free:
+    - rid: 1889488795864138194
+    - rid: 1889488795864138195
+    - rid: 1889488795864138196
+    Premium:
+    - rid: 1889488795864138197
+  - Free:
+    - rid: 1889488795864138198
+    Premium:
+    - rid: 1889488795864138199
+  - Free:
+    - rid: 1889488795864138200
+    Premium:
+    - rid: 1889488795864138201
+    - rid: 1889488795864138202
+    - rid: 1889488795864138203
+  - Free:
+    - rid: 1889488795864138204
+    - rid: 1889488795864138205
+    Premium:
+    - rid: 1889488795864138206
+  - Free:
+    - rid: 1889488795864138207
+    Premium:
+    - rid: 1889488795864138208
+  - Free:
+    - rid: 1889488795864138209
+    Premium:
+    - rid: 1889488795864138210
+  - Free:
+    - rid: 1889488795864138211
+    - rid: 1889488795864138212
+    Premium:
+    - rid: 1889488795864138213
+    - rid: 1889488795864138214
+  - Free:
+    - rid: 1889488795864138215
+    Premium:
+    - rid: 1889488795864138216
+    - rid: 1889488795864138217
+  - Free:
+    - rid: 1889488795864138218
+    Premium:
+    - rid: 1889488795864138219
+  - Free:
+    - rid: 1889488795864138220
+    - rid: 1889488795864138221
+    Premium:
+    - rid: 1889488795864138222
+  - Free:
+    - rid: 1889488795864138223
+    Premium:
+    - rid: 1889488795864138224
+    - rid: 1889488795864138225
+  - Free:
+    - rid: 1889488795864138226
+    Premium:
+    - rid: 1889488795864138227
+  - Free:
+    - rid: 1889488795864138228
+    - rid: 1889488795864138229
+    Premium:
+    - rid: 1889488795864138230
+    - rid: 1889488795864138231
+  PassProductId: season_1_pass
+  PremiumForAd: 1
+  PremiumFreeAfterSteps: 8
+  references:
+    version: 2
+    RefIds:
+    - rid: 1889488795864138149
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138150
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138151
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138152
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138153
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138154
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 2
+    - rid: 1889488795864138155
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138156
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138157
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138158
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 3
+    - rid: 1889488795864138159
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 250
+    - rid: 1889488795864138160
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 500
+    - rid: 1889488795864138161
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138162
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 2
+    - rid: 1889488795864138163
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138164
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138165
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138166
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138167
+      type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Item: {fileID: 11400000, guid: d214a9812d628c342a3d47aee91e71b1, type: 2}
+    - rid: 1889488795864138168
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138169
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 3
+    - rid: 1889488795864138170
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138171
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 2
+    - rid: 1889488795864138172
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138173
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 250
+    - rid: 1889488795864138174
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 500
+    - rid: 1889488795864138175
+      type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Item: {fileID: 11400000, guid: 341ba66599186d946add5a9a06ae75cb, type: 2}
+    - rid: 1889488795864138176
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138177
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138178
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138179
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 2
+    - rid: 1889488795864138180
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138181
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 3
+    - rid: 1889488795864138182
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138183
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138184
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138185
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138186
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 250
+    - rid: 1889488795864138187
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 2
+    - rid: 1889488795864138188
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 500
+    - rid: 1889488795864138189
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138190
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138191
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 3
+    - rid: 1889488795864138192
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138193
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138194
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138195
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 2
+    - rid: 1889488795864138196
+      type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Item: {fileID: 11400000, guid: c74829ab083467046963b1a0c24999cc, type: 2}
+    - rid: 1889488795864138197
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138198
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138199
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138200
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 250
+    - rid: 1889488795864138201
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 500
+    - rid: 1889488795864138202
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 3
+    - rid: 1889488795864138203
+      type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Item: {fileID: 11400000, guid: ef047da549c9bce409e4d14be4695fbd, type: 2}
+    - rid: 1889488795864138204
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138205
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 2
+    - rid: 1889488795864138206
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138207
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138208
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138209
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138210
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138211
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138212
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 2
+    - rid: 1889488795864138213
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138214
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 3
+    - rid: 1889488795864138215
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 250
+    - rid: 1889488795864138216
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 500
+    - rid: 1889488795864138217
+      type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Item: {fileID: 11400000, guid: a0ec59270501aab4998fe4c06b31570b, type: 2}
+    - rid: 1889488795864138218
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138219
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138220
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138221
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 2
+    - rid: 1889488795864138222
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138223
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138224
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138225
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 3
+    - rid: 1889488795864138226
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100
+    - rid: 1889488795864138227
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 200
+    - rid: 1889488795864138228
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 250
+    - rid: 1889488795864138229
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 2
+    - rid: 1889488795864138230
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 500
+    - rid: 1889488795864138231
+      type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Item: {fileID: 11400000, guid: 1439b8f94405e2347b17daaf7804e84e, type: 2}

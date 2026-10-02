@@ -32,9 +32,7 @@ namespace Zonk.Editor.Setup
                 return;
 
             // Заблокированная сцена (ZonkLocked) не пересоздаётся: в ней ручные правки.
-            if (IsLocked(BootstrapScene))
-                Debug.Log($"[Zonk] {BootstrapScene} is locked ({LockLabel}): kept as is");
-            else
+            if (!SkipIfLocked(BootstrapScene))
                 BuildBootstrapScene(content);
 
             if (IsLocked(TableScene))
@@ -80,6 +78,7 @@ namespace Zonk.Editor.Setup
                 Anchor("Environment", null, Vector3.zero, "environment"),
                 Anchor("Table", null, Vector3.zero, "table"),
                 Anchor("Lamp", null, new Vector3(0f, 3.6f, 0f), "lamp"),
+                DecorAnchor(),
             };
 
             var tray = BuildTray(out var feltAnchor);
@@ -115,7 +114,7 @@ namespace Zonk.Editor.Setup
             cameraData.renderPostProcessing = false;
             new GameObject("Lighting").AddComponent<LightingDirector>().EditorSetup(sun, rig.Camera, volume, stage, sound);
 
-            var canvas = CreateCanvas();
+            var canvas = AddScaledCanvas(new GameObject("UI"));
             var eventSystem = new GameObject("EventSystem");
             eventSystem.AddComponent<EventSystem>();
             eventSystem.AddComponent<InputSystemUIInputModule>();
@@ -159,6 +158,14 @@ namespace Zonk.Editor.Setup
 
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(source, anchor.transform);
             instance.hideFlags = HideFlags.DontSaveInEditor | HideFlags.NotEditable;
+        }
+
+        /// <summary>Безделушка на переднем левом углу стола, зеркально стакану игрока; повёрнута к камере меню.</summary>
+        private static CosmeticAnchor DecorAnchor()
+        {
+            var anchor = Anchor("Decor", null, new Vector3(-2.25f, 0f, -1.3f), DecorSlotId);
+            anchor.transform.rotation = Quaternion.Euler(0f, 25f, 0f);
+            return anchor;
         }
 
         private static CosmeticAnchor Anchor(string name, Transform parent, Vector3 position, string slotId)
@@ -325,6 +332,7 @@ namespace Zonk.Editor.Setup
                 Shot(shots, "shop_roll", new Vector3(2.88f, 3.44f, -6.15f), new Vector3(0.9f, 0.04f, -0.5f), 45f),
                 Shot(shots, "shop_dice", new Vector3(0f, 2.2f, -1.7f), new Vector3(0f, 0.1f, 0f), 40f),
                 Shot(shots, "shop_lamp", new Vector3(1.8f, 2.4f, -3.2f), new Vector3(0f, 3.4f, 0f), 45f),
+                Shot(shots, "shop_decor", new Vector3(-0.6f, 1.9f, -3.9f), new Vector3(-2.25f, 0.25f, -1.3f), 40f),
             };
 
             var rig = root.AddComponent<CameraRig>();
@@ -343,9 +351,9 @@ namespace Zonk.Editor.Setup
             return shot;
         }
 
-        private static Canvas CreateCanvas()
+        /// <summary>Экранный канвас 1920×1080 в режиме Expand и приёмник нажатий на объекте go.</summary>
+        private static Canvas AddScaledCanvas(GameObject go)
         {
-            var go = new GameObject("UI");
             var canvas = go.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = go.AddComponent<CanvasScaler>();

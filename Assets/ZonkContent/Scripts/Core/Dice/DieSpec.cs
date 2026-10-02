@@ -11,7 +11,6 @@ namespace Zonk.Core.Dice
     {
         public const int FaceCount = 6;
 
-        private readonly double[] _probabilities;
         private readonly double[] _cumulative;
 
         public DieSpec(string id, IReadOnlyList<double> weights)
@@ -31,14 +30,12 @@ namespace Zonk.Core.Dice
                 throw new ArgumentException($"Die '{id}' has zero total weight");
 
             Id = id;
-            _probabilities = new double[FaceCount];
             _cumulative = new double[FaceCount];
 
             double sum = 0;
             for (var i = 0; i < FaceCount; i++)
             {
-                _probabilities[i] = weights[i] / total;
-                sum += _probabilities[i];
+                sum += weights[i] / total;
                 _cumulative[i] = sum;
             }
 
@@ -49,12 +46,6 @@ namespace Zonk.Core.Dice
         public static readonly DieSpec Standard = new DieSpec("standard", new double[] { 1, 1, 1, 1, 1, 1 });
 
         public string Id { get; }
-
-        /// <summary>Вероятность выпадения грани face (1..6).</summary>
-        public double Probability(int face)
-        {
-            return _probabilities[face - 1];
-        }
 
         /// <summary>Бросок: значение грани 1..6.</summary>
         public int Roll(IRandom random)

@@ -138,14 +138,7 @@ namespace Zonk.Editor.Setup
             return Prefab(Prefabs + "/UI/LoadingScreen.prefab", () =>
             {
                 var root = new GameObject("LoadingScreen");
-                var canvas = root.AddComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-                canvas.sortingOrder = 100;
-                var scaler = root.AddComponent<CanvasScaler>();
-                scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-                scaler.referenceResolution = new Vector2(1920f, 1080f);
-                scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.Expand;
-                root.AddComponent<GraphicRaycaster>();
+                AddScaledCanvas(root).sortingOrder = 100;
 
                 var window = UiRect("Window", root.transform);
                 Stretch(window);
@@ -192,6 +185,21 @@ namespace Zonk.Editor.Setup
             text.textWrappingMode = TextWrappingModes.Normal;
             text.raycastTarget = false;
             return text;
+        }
+
+        /// <summary>Автоподбор размера текста в пределах min…max: длинные строки на других языках не вылезают.</summary>
+        private static void AutoSize(TextMeshProUGUI text, float min, float max)
+        {
+            text.enableAutoSizing = true;
+            text.fontSizeMin = min;
+            text.fontSizeMax = max;
+        }
+
+        /// <summary>Тёмная обводка текста поверх 3D-сцены.</summary>
+        private static void DarkOutline(TextMeshProUGUI text)
+        {
+            text.outlineColor = new Color(0f, 0f, 0f, 0.8f);
+            text.outlineWidth = 0.2f;
         }
 
         private static void Stretch(RectTransform rect)

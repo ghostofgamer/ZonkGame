@@ -11,8 +11,10 @@ namespace Zonk.Core.Ai
 
             var me = match.CurrentPlayer;
             var bestOther = 0;
-            foreach (var player in match.Players)
+            var players = match.Players;
+            for (var i = 0; i < players.Count; i++)
             {
+                var player = players[i];
                 if (player.Index != me.Index && player.Score > bestOther)
                     bestOther = player.Score;
             }

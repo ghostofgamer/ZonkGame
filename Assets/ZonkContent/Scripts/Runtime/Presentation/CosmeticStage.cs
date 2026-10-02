@@ -23,15 +23,13 @@ namespace Zonk.Presentation
     {
         public override void Apply(CosmeticItemConfig item, CosmeticSlotConfig slot, CosmeticStage stage)
         {
-            foreach (var anchor in stage.AnchorsFor(slot.Id))
-                anchor.Show(item, slot.DefaultItem);
+            stage.ShowInAnchors(slot.Id, item, slot.DefaultItem);
         }
     }
 
-
     /// <summary>
     /// Предмет не меняет сцену сразу (стиль броска): он используется в момент действия.
-    /// Предпросмотр в магазине показывает ShopScreen.
+    /// Предпросмотр в магазине показывает ShopWindow.
     /// </summary>
     [Serializable]
     public sealed class NoSceneApplier : CosmeticApplier
@@ -40,6 +38,7 @@ namespace Zonk.Presentation
         {
         }
     }
+
     /// <summary>Скин костей: перекрашивает кости игрока на столе.</summary>
     [Serializable]
     public sealed class DiceSkinApplier : CosmeticApplier
@@ -58,6 +57,9 @@ namespace Zonk.Presentation
     {
         [SerializeField] private List<CosmeticAnchor> _anchors = new List<CosmeticAnchor>();
         [SerializeField] private DiceSetView _dice;
+
+        private static readonly CosmeticApplier DefaultApplier = new AnchorPrefabApplier();
+        private readonly List<SceneLight> _lightBuffer = new List<SceneLight>();
 
         public DiceSetView Dice => _dice;
 
@@ -111,12 +113,13 @@ namespace Zonk.Presentation
         }
 #endif
 
-        public IEnumerable<CosmeticAnchor> AnchorsFor(string slotId)
+        /// <summary>Поставить предмет во все якоря слота slotId.</summary>
+        public void ShowInAnchors(string slotId, CosmeticItemConfig item, CosmeticItemConfig slotDefault)
         {
             foreach (var anchor in _anchors)
             {
                 if (anchor != null && anchor.SlotId == slotId)
-                    yield return anchor;
+                    anchor.Show(item, slotDefault);
             }
         }
 
@@ -125,7 +128,7 @@ namespace Zonk.Presentation
             if (item == null || item.Slot == null)
                 return;
 
-            var applier = item.Slot.Applier ?? new AnchorPrefabApplier();
+            var applier = item.Slot.Applier ?? DefaultApplier;
             applier.Apply(item, item.Slot, this);
             ItemApplied?.Invoke(item);
         }
@@ -137,7 +140,7 @@ namespace Zonk.Presentation
                 return;
 
             item = item != null ? item : slot.DefaultItem;
-            var applier = slot.Applier ?? new AnchorPrefabApplier();
+            var applier = slot.Applier ?? DefaultApplier;
             if (item != null)
             {
                 applier.Apply(item, slot, this);
@@ -151,8 +154,11 @@ namespace Zonk.Presentation
             result.Clear();
             foreach (var anchor in _anchors)
             {
-                if (anchor != null && anchor.Instance != null)
-                    result.AddRange(anchor.Instance.GetComponentsInChildren<SceneLight>(true));
+                if (anchor == null || anchor.Instance == null)
+                    continue;
+
+                anchor.Instance.GetComponentsInChildren(true, _lightBuffer);
+                result.AddRange(_lightBuffer);
             }
         }
     }

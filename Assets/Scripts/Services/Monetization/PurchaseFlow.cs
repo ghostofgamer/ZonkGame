@@ -28,9 +28,12 @@ namespace Base.Services.Monetization
         private readonly ISaveStore _saves;
         private readonly IEntitlements _entitlements;
         private readonly MonetizationConfig _config;
+        private readonly IPurchaseVerifier _verifier;
 
-        public PurchaseFlow(IPurchaseService purchases, ISaveStore saves, IEntitlements entitlements, MonetizationConfig config)
+        public PurchaseFlow(IPurchaseService purchases, ISaveStore saves, IEntitlements entitlements, MonetizationConfig config,
+            IPurchaseVerifier verifier = null)
         {
+            _verifier = verifier ?? new TrustingPurchaseVerifier();
             _purchases = purchases;
             _saves = saves;
             _entitlements = entitlements;
@@ -78,6 +81,12 @@ namespace Base.Services.Monetization
                 return PurchaseOutcome.Failed;
             }
 
+            if (!await _verifier.VerifyAsync(result.Purchase, cancellationToken))
+            {
+                Debug.LogWarning($"[Purchases] '{productId}' failed verification, not delivered");
+                return PurchaseOutcome.Failed;
+            }
+
             await DeliverAsync(product, result.Purchase, cancellationToken);
             return PurchaseOutcome.Success;
         }
@@ -89,9 +98,16 @@ namespace Base.Services.Monetization
 
             await _saves.WaitLoadedAsync(cancellationToken);
 
-            var pending = await _purchases.GetPendingPurchasesAsync(cancellationToken);
+            var list = await _purchases.GetPurchasesAsync(cancellationToken);
+            var pending = list.Items;
             foreach (var purchase in pending)
             {
+                if (!await _verifier.VerifyAsync(purchase, cancellationToken))
+                {
+                    Debug.LogWarning($"[Purchases] Pending purchase of '{purchase.ProductId}' failed verification, skipped");
+                    continue;
+                }
+
                 var product = _config.FindProduct(purchase.ProductId);
                 if (product == null)
                 {
@@ -103,7 +119,37 @@ namespace Base.Services.Monetization
                 await DeliverAsync(product, purchase, cancellationToken);
             }
 
+            if (list.Ok && _purchases.ListsPermanentPurchases)
+                await ReconcileAsync(pending, cancellationToken);
+
             Debug.Log($"[Purchases] Restored: pending={pending.Count} entitlements=[{string.Join(", ", _entitlements.All)}]");
+        }
+
+        /// <summary>
+        /// РЎРІРµСЂРєР° РїСЂР°РІ СЃ РїР»РѕС‰Р°РґРєРѕР№: РїСЂР°РІРѕ РїРѕСЃС‚РѕСЏРЅРЅРѕРіРѕ С‚РѕРІР°СЂР° РµСЃС‚СЊ, Р° РїРѕРєСѓРїРєРё РІ РѕС‚РІРµС‚Рµ РїР»РѕС‰Р°РґРєРё РЅРµС‚ (РїСЂР°РІРєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ,
+        /// РІРѕР·РІСЂР°С‚ РґРµРЅРµРі) вЂ” РїСЂР°РІРѕ СЃРЅРёРјР°РµС‚СЃСЏ. РўРѕР»СЊРєРѕ РєРѕРіРґР° РїР»РѕС‰Р°РґРєР° РѕС‚РІРµС‚РёР»Р° Рё РѕС‚РґР°С‘С‚ РїРѕСЃС‚РѕСЏРЅРЅС‹Рµ РїРѕРєСѓРїРєРё РІСЃРµРіРґР°.
+        /// </summary>
+        private async UniTask ReconcileAsync(IReadOnlyList<PurchaseInfo> purchases, CancellationToken cancellationToken)
+        {
+            var revoked = false;
+            foreach (var product in _config.Products)
+            {
+                if (product.Kind != ProductKind.Permanent || !_entitlements.Has(product.Entitlement))
+                    continue;
+
+                var bought = false;
+                for (var i = 0; i < purchases.Count && !bought; i++)
+                    bought = purchases[i].ProductId == product.Id;
+                if (bought)
+                    continue;
+
+                Debug.LogWarning($"[Purchases] '{product.Entitlement}' is not confirmed by the platform: revoked");
+                _entitlements.Revoke(product.Entitlement);
+                revoked = true;
+            }
+
+            if (revoked)
+                await _saves.SaveNowAsync(cancellationToken);
         }
 
         public int ClaimConsumable(string productId)

@@ -41,6 +41,9 @@ namespace Zonk.Presentation
         private Vector3 _manualFlick;
         private float _manualEnergy;
 
+        /// <summary>Условие «стакан отпущен»: одно на все броски, без нового делегата на каждый.</summary>
+        private Func<bool> _manualDone;
+
         private ManualRollConfig Manual => _config.ManualRoll != null ? _config.ManualRoll : ManualRollConfig.Fallback;
 
         /// <summary>Бросок своей рукой включён в конфиге.</summary>
@@ -293,7 +296,8 @@ namespace Zonk.Presentation
         /// </summary>
         private async UniTask<Vector3> ManualThrowAsync(HandView hand, RollParams style, CancellationToken ct)
         {
-            await UniTask.WaitUntil(() => _manualReleased || !_manualActive, cancellationToken: ct);
+            await UniTask.WaitUntil(_manualDone ?? (_manualDone = () => _manualReleased || !_manualActive),
+                cancellationToken: ct);
 
             var manual = Manual;
             var tray = _table.Tray;

@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78e9d6a0a4ed1974ca62a0936925b2c9, type: 3}
+  m_Name: Ch5_Garden
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.ChapterConfig
+  Id: chapter_garden
+  NameKey: chapter.garden
+  Order: 5
+  Environment: {fileID: 11400000, guid: 5e004b900ca80c744bea7e228a23d673, type: 2}
+  Intro:
+  - SpeakerKey: story.narrator
+    Portrait: {fileID: 0}
+    TextKey: story.garden.1
+  - SpeakerKey: story.rose
+    Portrait: {fileID: 0}
+    TextKey: story.garden.2
+  Outro:
+  - SpeakerKey: story.rose
+    Portrait: {fileID: 0}
+    TextKey: story.garden.outro
+  Opponents:
+  - {fileID: 11400000, guid: b1f608b570240944986a0630d9f4244f, type: 2}
+  - {fileID: 11400000, guid: 2035e82ca19126448b29b9ea2d62c3bf, type: 2}
+  - {fileID: 11400000, guid: 8810a7056f0c7774795d6238cc2622ee, type: 2}
+  - {fileID: 11400000, guid: ee47a1a4db391cc49beb495d6ebd5a90, type: 2}
+  - {fileID: 11400000, guid: ce670fe1654b29744ad26776084d965e, type: 2}
+  DreadBosses:
+  - {fileID: 11400000, guid: ec9f23b9f271a7f4296157a1abe4535b, type: 2}

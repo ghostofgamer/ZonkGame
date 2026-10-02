@@ -69,13 +69,7 @@ namespace Zonk.Editor.Setup
 
         private static void RetuneEconomy(GameConfig config)
         {
-            var content = new Dictionary<string, ContentConfig>();
-            foreach (var guid in AssetDatabase.FindAssets("t:ContentConfig", new[] { ConfigsFolder }))
-            {
-                var asset = AssetDatabase.LoadAssetAtPath<ContentConfig>(AssetDatabase.GUIDToAssetPath(guid));
-                if (asset != null && !string.IsNullOrEmpty(asset.Id))
-                    content[asset.Id] = asset;
-            }
+            var content = ContentById<ContentConfig>();
 
             var changed = 0;
             foreach (var (id, from, to) in CoinPricesV2)

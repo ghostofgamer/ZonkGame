@@ -40,17 +40,17 @@ namespace Zonk.Progress
         public ShopService(IWallet wallet, IInventory inventory, IRewardService rewards, IPurchaseFlow purchases, IQuestService quests,
             RewardGranter granter, ContentDatabase content, ISaveStore saves)
         {
+            _wallet = wallet;
+            _inventory = inventory;
+            _rewards = rewards;
+            _purchases = purchases;
+            _quests = quests;
             _granter = granter;
             _content = content;
             _saves = saves;
 
             // Оплаченное (в том числе восстановленное при запуске) сразу выдаётся в игре.
             purchases.Delivered += _ => SyncPurchases();
-            _quests = quests;
-            _wallet = wallet;
-            _inventory = inventory;
-            _rewards = rewards;
-            _purchases = purchases;
         }
 
         /// <summary>На площадке есть покупки за деньги.</summary>

@@ -81,16 +81,20 @@ namespace Zonk.Editor.Setup
             return asset != null && AssetDatabase.GetLabels(asset).Contains(LockLabel);
         }
 
+        /// <summary>Заблокирован ли ассет; если да — пишет в консоль, что генератор его пропускает.</summary>
+        private static bool SkipIfLocked(string path)
+        {
+            if (!IsLocked(path))
+                return false;
+
+            Debug.Log($"[Zonk] {path} is locked ({LockLabel}): kept as is");
+            return true;
+        }
+
         /// <summary>Удалить ассет для пересоздания, если он не заблокирован. true — удалён.</summary>
         private static bool DeleteUnlessLocked(string path)
         {
-            if (IsLocked(path))
-            {
-                Debug.Log($"[Zonk] {path} is locked ({LockLabel}): kept as is");
-                return false;
-            }
-
-            return AssetDatabase.DeleteAsset(path);
+            return !SkipIfLocked(path) && AssetDatabase.DeleteAsset(path);
         }
     }
 }

@@ -38,6 +38,10 @@ namespace Zonk.UI.Views
         private int _shownCoins = int.MinValue;
         private int _shownEnergy = int.MinValue;
         private int _shownRegenSeconds = int.MinValue;
+        private string _shownEnergyTemplate;
+        private string _energyHead;
+        private readonly NumberTemplate _coinsText = new NumberTemplate();
+        private readonly char[] _energyBuffer = new char[128];
 
         // Накрутка монет: к чему идёт число и идёт ли анимация.
         private int _targetCoins;
@@ -144,15 +148,52 @@ namespace Zonk.UI.Views
             var energyAmount = _wallet.Get(_config.Energy);
             var next = _wallet.TimeToNextRegen(_config.Energy);
             var regenSeconds = next.HasValue ? (int)next.Value.TotalSeconds : -1;
-            if (energyAmount == _shownEnergy && regenSeconds == _shownRegenSeconds)
+            var template = _localization.Get("ui.energy");
+            if (energyAmount == _shownEnergy && regenSeconds == _shownRegenSeconds && ReferenceEquals(template, _shownEnergyTemplate))
                 return;
+
+            // «Энергия: 3/5» собирается, только когда меняется запас (или язык); таймер — каждую секунду, без строк.
+            if (energyAmount != _shownEnergy || !ReferenceEquals(template, _shownEnergyTemplate))
+                _energyHead = UiFormat.Format(_localization, "ui.energy", energyAmount, _config.Energy != null ? _config.Energy.RegenCap : 0);
 
             _shownEnergy = energyAmount;
             _shownRegenSeconds = regenSeconds;
-            var energy = Format("ui.energy", energyAmount, _config.Energy != null ? _config.Energy.RegenCap : 0);
-            if (next.HasValue)
-                energy += $"  {regenSeconds / 60}:{regenSeconds % 60:00}";
-            _energy.text = energy;
+            _shownEnergyTemplate = template;
+            if (regenSeconds < 0)
+                _energy.text = _energyHead;
+            else
+                SetEnergyWithTimer(regenSeconds);
+        }
+
+        /// <summary>«Энергия: 3/5  4:07» в общий буфер символов: таймер тикает раз в секунду без выделения памяти.</summary>
+        private void SetEnergyWithTimer(int seconds)
+        {
+            var length = 0;
+            for (var i = 0; i < _energyHead.Length && length < _energyBuffer.Length - 16; i++)
+                _energyBuffer[length++] = _energyHead[i];
+
+            _energyBuffer[length++] = ' ';
+            _energyBuffer[length++] = ' ';
+            length = AppendNumber(seconds / 60, length);
+            _energyBuffer[length++] = ':';
+            _energyBuffer[length++] = (char)('0' + seconds % 60 / 10);
+            _energyBuffer[length++] = (char)('0' + seconds % 10);
+            _energy.SetCharArray(_energyBuffer, 0, length);
+        }
+
+        private int AppendNumber(int value, int length)
+        {
+            var start = length;
+            do
+            {
+                _energyBuffer[length++] = (char)('0' + value % 10);
+                value /= 10;
+            } while (value > 0 && length < _energyBuffer.Length - 3);
+
+            // Цифры записаны с конца: развернуть.
+            for (int a = start, b = length - 1; a < b; a++, b--)
+                (_energyBuffer[a], _energyBuffer[b]) = (_energyBuffer[b], _energyBuffer[a]);
+            return length;
         }
 
         private void SetCoins(int coins)
@@ -161,7 +202,8 @@ namespace Zonk.UI.Views
                 return;
 
             _shownCoins = coins;
-            _coins.text = Format("ui.coins", coins);
+            // Во время накрутки меняется каждый кадр: число без сборки строки.
+            _coinsText.Set(_coins, _localization.Get("ui.coins"), coins);
         }
 
         /// <summary>
@@ -277,18 +319,6 @@ namespace Zonk.UI.Views
         {
             var u = 1f - t;
             return 1f - u * u * u;
-        }
-
-        private string Format(string key, params object[] args)
-        {
-            try
-            {
-                return string.Format(_localization.Get(key), args);
-            }
-            catch (FormatException)
-            {
-                return _localization.Get(key);
-            }
         }
     }
 }

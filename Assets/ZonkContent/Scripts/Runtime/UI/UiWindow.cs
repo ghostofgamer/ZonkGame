@@ -41,19 +41,8 @@ namespace Zonk.UI
 
         protected string T(string key, params object[] args)
         {
-            var format = T(key);
-            try
-            {
-                return string.Format(format, args);
-            }
-            catch (System.FormatException)
-            {
-                return format;
-            }
+            return UiFormat.Format(Localization, key, args);
         }
-
-        public bool IsPopup => _popup;
-        public bool IsVisible { get; private set; }
 
         protected CanvasGroup Group => _group != null ? _group : _group = GetComponent<CanvasGroup>();
 
@@ -84,7 +73,6 @@ namespace Zonk.UI
         {
             gameObject.SetActive(true);
             _closeRequest = new UniTaskCompletionSource();
-            IsVisible = true;
             Group.blocksRaycasts = true;
             Group.interactable = false;
             OnShowing();
@@ -100,7 +88,6 @@ namespace Zonk.UI
 
         public async UniTask HideAsync(CancellationToken ct)
         {
-            IsVisible = false;
             Group.interactable = false;
             Group.blocksRaycasts = false;
             OnHiding();

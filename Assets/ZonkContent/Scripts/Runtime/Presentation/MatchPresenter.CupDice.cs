@@ -176,58 +176,66 @@ namespace Zonk.Presentation
             var previous = cup.position;
             var previousVelocity = Vector3.zero;
             var first = true;
-            var half = size * 0.5f;
             // Ограничения по углам кости (полудиагональ куба 0.87 ребра), а не по центру: углы не торчат сквозь стенки.
             var top = Mathf.Max(floor, height - size * 0.9f);
             var wall = Mathf.Max(0.01f, radius - size * 0.87f);
 
             while (true)
             {
-                // После Update: рука и стакан уже встали в позу этого кадра.
-                if (await UniTask.Yield(PlayerLoopTiming.PreLateUpdate, ct).SuppressCancellationThrow() || cup == null)
+                // После Update: рука и стакан уже встали в позу этого кадра. Отмена — проверкой токена:
+                // SuppressCancellationThrow на каждом кадре создавал бы объект.
+                await UniTask.Yield(PlayerLoopTiming.PreLateUpdate);
+                if (ct.IsCancellationRequested || cup == null)
                     return;
 
-                var feel = Feel;
-                var dt = Mathf.Clamp(Time.deltaTime, 0.001f, 0.05f);
+                StepCupDice(cup, ref previous, ref previousVelocity, ref first, wall, floor, top, size);
+            }
+        }
 
-                // Ускорение стакана: кости «отстают» от него, как в настоящем стакане.
-                var position = cup.position;
-                var velocity = (position - previous) / dt;
-                var acceleration = first ? Vector3.zero : (velocity - previousVelocity) / dt;
-                previous = position;
-                previousVelocity = velocity;
-                first = false;
+        /// <summary>Один кадр физики костей в стакане.</summary>
+        private void StepCupDice(Transform cup, ref Vector3 previous, ref Vector3 previousVelocity, ref bool first,
+            float wall, float floor, float top, float size)
+        {
+            var feel = Feel;
+            var dt = Mathf.Clamp(Time.deltaTime, 0.001f, 0.05f);
 
-                var toCup = Quaternion.Inverse(cup.rotation);
-                var inertia = Vector3.ClampMagnitude(toCup * (-acceleration * feel.CupInertiaShare), feel.CupMaxAcceleration);
-                var force = inertia + toCup * new Vector3(0f, -feel.CupGravity, 0f);
+            // Ускорение стакана: кости «отстают» от него, как в настоящем стакане.
+            var position = cup.position;
+            var velocity = (position - previous) / dt;
+            var acceleration = first ? Vector3.zero : (velocity - previousVelocity) / dt;
+            previous = position;
+            previousVelocity = velocity;
+            first = false;
 
-                // Два подшага: быстрые удары тряски не пробивают стенки.
-                var step = dt * 0.5f;
-                for (var sub = 0; sub < 2; sub++)
-                {
-                    for (var i = 0; i < _cupDiceCount; i++)
-                    {
-                        _cupVel[i] += force * step;
-                        _cupPos[i] += _cupVel[i] * step;
-                        Collide(i, wall, floor, top, feel);
-                    }
+            var toCup = Quaternion.Inverse(cup.rotation);
+            var inertia = Vector3.ClampMagnitude(toCup * (-acceleration * feel.CupInertiaShare), feel.CupMaxAcceleration);
+            var force = inertia + toCup * new Vector3(0f, -feel.CupGravity, 0f);
 
-                    SeparateDice(size * 0.95f, feel.CupBounce);
-                }
-
-                var rotation = cup.rotation;
-                var damping = Mathf.Exp(-feel.CupSpinDamping * dt);
+            // Два подшага: быстрые удары тряски не пробивают стенки.
+            var step = dt * 0.5f;
+            for (var sub = 0; sub < 2; sub++)
+            {
                 for (var i = 0; i < _cupDiceCount; i++)
                 {
-                    var spin = _cupSpin[i];
-                    var speed = spin.magnitude;
-                    if (speed > 0.001f)
-                        _cupRot[i] = Quaternion.AngleAxis(speed * dt * Mathf.Rad2Deg, spin / speed) * _cupRot[i];
-                    _cupSpin[i] = spin * damping;
-
-                    Dice[_cupSlots[i]].transform.SetPositionAndRotation(position + rotation * _cupPos[i], rotation * _cupRot[i]);
+                    _cupVel[i] += force * step;
+                    _cupPos[i] += _cupVel[i] * step;
+                    Collide(i, wall, floor, top, feel);
                 }
+
+                SeparateDice(size * 0.95f, feel.CupBounce);
+            }
+
+            var rotation = cup.rotation;
+            var damping = Mathf.Exp(-feel.CupSpinDamping * dt);
+            for (var i = 0; i < _cupDiceCount; i++)
+            {
+                var spin = _cupSpin[i];
+                var speed = spin.magnitude;
+                if (speed > 0.001f)
+                    _cupRot[i] = Quaternion.AngleAxis(speed * dt * Mathf.Rad2Deg, spin / speed) * _cupRot[i];
+                _cupSpin[i] = spin * damping;
+
+                Dice[_cupSlots[i]].transform.SetPositionAndRotation(position + rotation * _cupPos[i], rotation * _cupRot[i]);
             }
         }
 

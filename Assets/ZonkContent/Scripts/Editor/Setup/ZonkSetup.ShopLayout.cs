@@ -88,13 +88,7 @@ namespace Zonk.Editor.Setup
 
         private static void ApplyShopLayout(GameConfig config, CurrencyConfig coins)
         {
-            var content = new Dictionary<string, ContentConfig>();
-            foreach (var guid in AssetDatabase.FindAssets("t:ContentConfig", new[] { ConfigsFolder }))
-            {
-                var asset = AssetDatabase.LoadAssetAtPath<ContentConfig>(AssetDatabase.GUIDToAssetPath(guid));
-                if (asset != null && !string.IsNullOrEmpty(asset.Id))
-                    content[asset.Id] = asset;
-            }
+            var content = ContentById<ContentConfig>();
 
             // Таблицы по порядку версий: каждая применяется ко всем своим предметам один раз, к бесплатным — всегда.
             var firstTime = config.ShopLayoutVersion < 3;

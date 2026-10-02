@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 78e9d6a0a4ed1974ca62a0936925b2c9, type: 3}
+  m_Name: Ch7_Basement
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.ChapterConfig
+  Id: chapter_basement
+  NameKey: chapter.basement
+  Order: 7
+  Environment: {fileID: 11400000, guid: 53a0c2cb0d85af54687c8dc8bb849a5a, type: 2}
+  Intro:
+  - SpeakerKey: story.narrator
+    Portrait: {fileID: 0}
+    TextKey: story.basement.1
+  - SpeakerKey: story.krot
+    Portrait: {fileID: 0}
+    TextKey: story.basement.2
+  Outro:
+  - SpeakerKey: story.krot
+    Portrait: {fileID: 0}
+    TextKey: story.basement.outro
+  Opponents:
+  - {fileID: 11400000, guid: e4abd920a4dd17a4680743258fef82ce, type: 2}
+  - {fileID: 11400000, guid: c9dce8e3ca55fff49b75e88c9c25ae66, type: 2}
+  - {fileID: 11400000, guid: 0d4bfa14391eaca4cb5a9f9d589251bf, type: 2}
+  - {fileID: 11400000, guid: be0ac58a8ee99884bbc73a79e33137ba, type: 2}
+  - {fileID: 11400000, guid: 2469f11d389db5b42a551fcf9dcb32e3, type: 2}
+  DreadBosses:
+  - {fileID: 11400000, guid: dd76ba872b42fce44858cf3acfe417ee, type: 2}

@@ -61,11 +61,11 @@ namespace Zonk.Editor.Setup
             var skinSlot = SlotAt("dice_skin");
             Item("skin_pearl", skinSlot, 6, new MeshMaterialPayload
             {
-                Material = Mat(new ArtSet(), "Die_Pearl", new Color(0.95f, 0.93f, 1f), dieTexture, 0.9f, 0.15f, Color.black),
+                Material = Mat(null, "Die_Pearl", new Color(0.95f, 0.93f, 1f), dieTexture, 0.9f, 0.15f, Color.black),
             });
             Item("skin_emerald", skinSlot, 7, new MeshMaterialPayload
             {
-                Material = Mat(new ArtSet(), "Die_Emerald", new Color(0.35f, 0.85f, 0.5f), dieTexture, 0.85f, 0.2f, Color.black),
+                Material = Mat(null, "Die_Emerald", new Color(0.35f, 0.85f, 0.5f), dieTexture, 0.85f, 0.2f, Color.black),
             });
 
             Item("lamp_brass", lampSlot, 2, new MaterialPayload { Material = ShopMat("Lamp_Brass", new Color(0.72f, 0.55f, 0.25f), 0.6f, 0.8f) });
@@ -124,8 +124,8 @@ namespace Zonk.Editor.Setup
                 t.Dice = new List<DieConfig> { lucky };
                 t.Rewards = new List<Reward>
                 {
-                    new CurrencyReward { Currency = coins, Amount = 5000 },
-                    new CurrencyReward { Currency = energy, Amount = 10 },
+                    Gift(coins, 5000),
+                    Gift(energy, 10),
                 };
                 t.Price.Options.Add(new PurchasePriceOption { ProductId = "starter_pack" });
             });
@@ -161,10 +161,9 @@ namespace Zonk.Editor.Setup
                 { "ai_cautious", 0.7f }, { "ai_balanced", 0.9f }, { "ai_expert", 1f },
             };
 
-            foreach (var guid in AssetDatabase.FindAssets("t:OpponentConfig", new[] { ConfigsFolder }))
+            foreach (var opponent in FindAll<OpponentConfig>(ConfigsFolder))
             {
-                var opponent = AssetDatabase.LoadAssetAtPath<OpponentConfig>(AssetDatabase.GUIDToAssetPath(guid));
-                if (opponent == null || opponent.Ai == null || !Mathf.Approximately(opponent.StakePayout, 1f) ||
+                if (opponent.Ai == null || !Mathf.Approximately(opponent.StakePayout, 1f) ||
                     !payouts.TryGetValue(opponent.Ai.Id, out var payout))
                 {
                     continue;
@@ -189,7 +188,7 @@ namespace Zonk.Editor.Setup
 
         private static Material ShopMat(string name, Color color, float smoothness, float metallic = 0f, Color? emission = null)
         {
-            return Mat(new ArtSet(), name, color, null, smoothness, metallic, emission ?? Color.black);
+            return Mat(null, name, color, null, smoothness, metallic, emission ?? Color.black);
         }
 
         private static CosmeticSlotConfig SlotAt(string id)
@@ -212,10 +211,9 @@ namespace Zonk.Editor.Setup
 
         private static void SetThemeInfo(string id, string descriptionKey, int order)
         {
-            foreach (var guid in AssetDatabase.FindAssets("t:ThemeSetConfig", new[] { ConfigsFolder }))
+            foreach (var theme in FindAll<ThemeSetConfig>(ConfigsFolder))
             {
-                var theme = AssetDatabase.LoadAssetAtPath<ThemeSetConfig>(AssetDatabase.GUIDToAssetPath(guid));
-                if (theme == null || theme.Id != id || !string.IsNullOrEmpty(theme.DescriptionKey))
+                if (theme.Id != id || !string.IsNullOrEmpty(theme.DescriptionKey))
                     continue;
 
                 theme.DescriptionKey = descriptionKey;

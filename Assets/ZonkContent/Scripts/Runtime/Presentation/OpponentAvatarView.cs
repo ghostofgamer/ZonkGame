@@ -138,17 +138,25 @@ namespace Zonk.Presentation
 
         private async UniTask ShakeHeadAsync(float duration, CancellationToken ct)
         {
-            await Animate.RunAsync(duration, t =>
-                _head.localRotation = _headRest * Quaternion.Euler(0f, Mathf.Sin(t * Mathf.PI * 6f) * 20f * (1f - t), 0f),
-                ct, AnimateEase.Linear);
+            for (var time = 0f; time < duration; time += Time.deltaTime)
+            {
+                var t = time / duration;
+                _head.localRotation = _headRest * Quaternion.Euler(0f, Mathf.Sin(t * Mathf.PI * 6f) * 20f * (1f - t), 0f);
+                await UniTask.Yield(PlayerLoopTiming.Update, ct);
+            }
+
             _head.localRotation = _headRest;
         }
 
         private async UniTask BounceAsync(float height, int times, float duration, CancellationToken ct)
         {
-            await Animate.RunAsync(duration, t =>
-                _body.localPosition = _bodyRest + Vector3.up * Mathf.Abs(Mathf.Sin(t * Mathf.PI * times)) * height,
-                ct, AnimateEase.Linear);
+            for (var time = 0f; time < duration; time += Time.deltaTime)
+            {
+                var t = time / duration;
+                _body.localPosition = _bodyRest + Vector3.up * (Mathf.Abs(Mathf.Sin(t * Mathf.PI * times)) * height);
+                await UniTask.Yield(PlayerLoopTiming.Update, ct);
+            }
+
             _body.localPosition = _bodyRest;
         }
 
@@ -177,8 +185,8 @@ namespace Zonk.Presentation
             {
                 time += Time.deltaTime;
                 _body.localScale = new Vector3(1f, 1f + Mathf.Sin(time * 1.6f) * 0.012f, 1f);
-                if (await UniTask.Yield(PlayerLoopTiming.Update, ct).SuppressCancellationThrow())
-                    return;
+                // Без токена в Yield: SuppressCancellationThrow на каждом кадре создавал бы объект.
+                await UniTask.Yield(PlayerLoopTiming.Update);
             }
         }
     }

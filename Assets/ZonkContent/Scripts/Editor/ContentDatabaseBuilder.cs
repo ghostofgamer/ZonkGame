@@ -41,10 +41,13 @@ namespace Zonk.Editor
             Debug.Log($"[Content] Database rebuilt: {items.Count} items");
         }
 
-        public static ContentDatabase FindDatabase()
+        public static ContentDatabase FindDatabase() => FindFirst<ContentDatabase>();
+
+        /// <summary>Первый ассет типа T в папке игры (или null): единственные ассеты вроде GameConfig и UiConfig.</summary>
+        public static T FindFirst<T>() where T : Object
         {
-            var guid = AssetDatabase.FindAssets("t:" + nameof(ContentDatabase), new[] { GameFolder }).FirstOrDefault();
-            return guid == null ? null : AssetDatabase.LoadAssetAtPath<ContentDatabase>(AssetDatabase.GUIDToAssetPath(guid));
+            var guid = AssetDatabase.FindAssets("t:" + typeof(T).Name, new[] { GameFolder }).FirstOrDefault();
+            return guid == null ? null : AssetDatabase.LoadAssetAtPath<T>(AssetDatabase.GUIDToAssetPath(guid));
         }
 
         private static void OnPostprocessAllAssets(string[] imported, string[] deleted, string[] moved, string[] movedFrom)

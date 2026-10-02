@@ -18,9 +18,7 @@ namespace Zonk.Editor.Setup
 
             // Заголовок растянут по верхнему краю панели.
             var title = Text("Title", panel, _ui.BoldFont, 50, _ui.Palette.Gold);
-            title.enableAutoSizing = true;
-            title.fontSizeMin = 28;
-            title.fontSizeMax = 50;
+            AutoSize(title, 28, 50);
             Anchor(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -60f), new Vector2(-80f, 90f));
 
             // Портрет соперника — в левом верхнем углу (без портрета текст занимает всю ширину).
@@ -61,9 +59,7 @@ namespace Zonk.Editor.Setup
             var panel = CenterPanel(root, new Vector2(1500f, 760f));
 
             var title = Text("Title", panel, _ui.BoldFont, 50, _ui.Palette.Gold);
-            title.enableAutoSizing = true;
-            title.fontSizeMin = 28;
-            title.fontSizeMax = 50;
+            AutoSize(title, 28, 50);
             Anchor(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -70f), new Vector2(-80f, 100f));
 
             // Находки — большими кнопками в ряд: название и что даёт (две строки, автоподбор размера).

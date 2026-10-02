@@ -53,14 +53,12 @@ namespace Zonk.UI.Windows
         private CancellationTokenSource _previewCts;
         private UniTask _previewTask = UniTask.CompletedTask;
         private IDieMastery _mastery;
-        private GameConfig _config;
 
         [Inject]
         public void Construct(ContentDatabase content, IInventory inventory, ILoadout loadout, ShopService shop, TableView table,
-            MatchPresenter presenter, UiKit kit, IDieMastery mastery, GameConfig config)
+            MatchPresenter presenter, UiKit kit, IDieMastery mastery)
         {
             _mastery = mastery;
-            _config = config;
             _content = content;
             _inventory = inventory;
             _loadout = loadout;
@@ -192,28 +190,15 @@ namespace Zonk.UI.Windows
 
         private void SelectSlot(CosmeticSlotConfig slot)
         {
-            RestoreEquipped();
-            _slot = slot;
-            _diceTab = false;
-            _coinsTab = false;
-            _title.text = slot != null ? T(slot.NameKey) : T("shop.themes");
-
-            var shot = slot != null ? slot.CameraShotId : CameraShots.Menu;
-            _table.Camera.MoveToAsync(shot, 0.6f, _ct).Forget();
+            OpenTab(slot, false, false, slot != null ? T(slot.NameKey) : T("shop.themes"), slot != null ? slot.CameraShotId : CameraShots.Menu);
             ShowDiceShowcase(slot != null && slot.Applier is DiceSkinApplier);
 
-            ClearCards();
-
-            var entries = new List<ContentConfig>();
+            IReadOnlyList<ContentConfig> entries = _themes;
             if (slot != null)
             {
                 var items = _content.All<CosmeticItemConfig>().FindAll(i => i.Slot == slot && (!i.HiddenInShop || _inventory.IsOwned(i)));
                 items.Sort((a, b) => a.Order.CompareTo(b.Order));
-                entries.AddRange(items);
-            }
-            else
-            {
-                entries.AddRange(_themes);
+                entries = items;
             }
 
             foreach (var entry in entries)
@@ -233,14 +218,7 @@ namespace Zonk.UI.Windows
         /// <summary>Вкладка особых костей: камера на лоток, в нём шесть костей в виде выбранной.</summary>
         private void SelectDice()
         {
-            RestoreEquipped();
-            _slot = null;
-            _diceTab = true;
-            _coinsTab = false;
-            _title.text = T("shop.dice");
-            _table.Camera.MoveToAsync("shop_dice", 0.6f, _ct).Forget();
-
-            ClearCards();
+            OpenTab(null, true, false, T("shop.dice"), "shop_dice");
             foreach (var die in _shopDice)
             {
                 var captured = die;
@@ -250,6 +228,18 @@ namespace Zonk.UI.Windows
             }
 
             SelectItem(_shopDice.Count > 0 ? _shopDice[0] : null);
+        }
+
+        /// <summary>Общее начало вкладки: вернуть надетое, заголовок, полёт камеры к ракурсу, убрать прежние карточки.</summary>
+        private void OpenTab(CosmeticSlotConfig slot, bool diceTab, bool coinsTab, string title, string cameraShot)
+        {
+            RestoreEquipped();
+            _slot = slot;
+            _diceTab = diceTab;
+            _coinsTab = coinsTab;
+            _title.text = title;
+            _table.Camera.MoveToAsync(cameraShot, 0.6f, _ct).Forget();
+            ClearCards();
         }
 
         /// <summary>Перерисовать текущую вкладку (после покупки или смены отметки).</summary>
@@ -266,14 +256,7 @@ namespace Zonk.UI.Windows
         /// <summary>Вкладка пакетов монет за деньги: камера на меню, карточки пакетов.</summary>
         private void SelectCoins()
         {
-            RestoreEquipped();
-            _slot = null;
-            _diceTab = false;
-            _coinsTab = true;
-            _title.text = T("shop.coins");
-            _table.Camera.MoveToAsync(CameraShots.Menu, 0.6f, _ct).Forget();
-
-            ClearCards();
+            OpenTab(null, false, true, T("shop.coins"), CameraShots.Menu);
             foreach (var pack in _coinPacks)
             {
                 var captured = pack;
@@ -375,7 +358,7 @@ namespace Zonk.UI.Windows
             foreach (var pair in _cards)
                 pair.Value.SetSelected(pair.Key == item);
 
-            Clear(_details, _detailButtonTemplate.transform, _detailTextTemplate.transform);
+            ClearDetails();
             _itemName.text = item != null ? T(item.NameKey) : string.Empty;
             if (item == null)
                 return;
@@ -549,15 +532,14 @@ namespace Zonk.UI.Windows
             if (this == null)
                 return;
 
-            var lifetime = this.GetCancellationTokenOnDestroy();
             if (result == AcquireResult.Acquired)
             {
                 _table.Sound.Play(Sfx.Coin);
-                Toast.ShowAsync(_kit, (RectTransform)transform, T("shop.coinsAdded", pack.Amount), UiColors.Good, 0.9f, lifetime).Forget();
+                ShowToast(T("shop.coinsAdded", pack.Amount), UiColors.Good, 0.9f);
             }
             else if (result == AcquireResult.Unavailable)
             {
-                Toast.ShowAsync(_kit, (RectTransform)transform, T("shop.unavailable"), UiColors.Bad, 0.8f, lifetime).Forget();
+                ShowToast(T("shop.unavailable"), UiColors.Bad, 0.8f);
             }
         }
 
@@ -567,27 +549,30 @@ namespace Zonk.UI.Windows
             if (this == null)
                 return;
 
-            var root = (RectTransform)transform;
-            var lifetime = this.GetCancellationTokenOnDestroy();
             switch (result)
             {
                 case AcquireResult.Acquired:
                     _table.Sound.Play(Sfx.Coin);
                     if (item is CosmeticItemConfig cosmetic)
                         _loadout.Equip(cosmetic);
-                    Toast.ShowAsync(_kit, root, T("shop.acquired"), UiColors.Good, 0.8f, lifetime).Forget();
+                    ShowToast(T("shop.acquired"), UiColors.Good, 0.8f);
                     break;
                 case AcquireResult.NotEnoughCurrency:
-                    Toast.ShowAsync(_kit, root, T("shop.notEnough"), UiColors.Bad, 0.8f, lifetime).Forget();
+                    ShowToast(T("shop.notEnough"), UiColors.Bad, 0.8f);
                     break;
                 case AcquireResult.Unavailable:
-                    Toast.ShowAsync(_kit, root, T("shop.unavailable"), UiColors.Bad, 0.8f, lifetime).Forget();
+                    ShowToast(T("shop.unavailable"), UiColors.Bad, 0.8f);
                     break;
             }
 
             Reselect();
             if (result != AcquireResult.Acquired)
                 SelectItem(item);
+        }
+
+        private void ShowToast(string text, Color color, float duration)
+        {
+            Toast.ShowAsync(_kit, (RectTransform)transform, text, color, duration, this.GetCancellationTokenOnDestroy()).Forget();
         }
 
         private void Preview(ContentConfig item)
@@ -684,11 +669,11 @@ namespace Zonk.UI.Windows
             }
         }
 
-        private static void Clear(Transform container, params Transform[] keep)
+        private void ClearDetails()
         {
-            foreach (Transform child in container)
+            foreach (Transform child in _details)
             {
-                if (System.Array.IndexOf(keep, child) < 0)
+                if (child != _detailButtonTemplate.transform && child != _detailTextTemplate.transform)
                     Destroy(child.gameObject);
             }
         }

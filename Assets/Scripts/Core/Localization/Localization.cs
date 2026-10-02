@@ -17,6 +17,7 @@ namespace Base.Core.Localization
         public const string Fallback = English;
 
         private static readonly string[] DefaultLanguages = { Russian, English };
+        private static readonly char[] RegionSeparators = { '-', '_' };
 
         private readonly Dictionary<string, IReadOnlyDictionary<string, string>> _table =
             new Dictionary<string, IReadOnlyDictionary<string, string>>();
@@ -99,7 +100,7 @@ namespace Base.Core.Localization
 
             var code = languageCode.Trim().ToLowerInvariant();
 
-            var separator = code.IndexOfAny(new[] { '-', '_' });
+            var separator = code.IndexOfAny(RegionSeparators);
             if (separator > 0)
                 code = code.Substring(0, separator);
 

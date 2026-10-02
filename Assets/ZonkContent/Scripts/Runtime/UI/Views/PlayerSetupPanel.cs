@@ -97,14 +97,7 @@ namespace Zonk.UI.Views
 
         private string Format(string key, params object[] args)
         {
-            try
-            {
-                return string.Format(_localization.Get(key), args);
-            }
-            catch (System.FormatException)
-            {
-                return _localization.Get(key);
-            }
+            return UiFormat.Format(_localization, key, args);
         }
     }
 }

@@ -61,6 +61,8 @@ namespace Zonk.Progress
         private const int WeeklySalt = 2;
         private const int RerollSalt = 100;
 
+        private static readonly QuestPeriod[] Periods = { QuestPeriod.Daily, QuestPeriod.Weekly };
+
         private readonly ISaveStore _saves;
         private readonly ContentDatabase _content;
         private readonly GameConfig _config;
@@ -121,7 +123,7 @@ namespace Zonk.Progress
             get
             {
                 Refresh();
-                foreach (var period in new[] { QuestPeriod.Daily, QuestPeriod.Weekly })
+                foreach (var period in Periods)
                 {
                     foreach (var slot in Slots(period))
                     {
@@ -279,7 +281,7 @@ namespace Zonk.Progress
         private bool Apply(QuestEvent e)
         {
             var changed = false;
-            foreach (var period in new[] { QuestPeriod.Daily, QuestPeriod.Weekly })
+            foreach (var period in Periods)
             {
                 foreach (var slot in Slots(period))
                 {

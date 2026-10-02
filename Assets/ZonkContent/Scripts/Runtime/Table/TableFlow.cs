@@ -21,6 +21,9 @@ namespace Zonk.Table
         public const string Leaderboards = "leaderboards";
         public const string Tower = "tower";
         public const string EndlessRun = "endless_run";
+        public const string Profile = "profile";
+        public const string Chest = "chest";
+        public const string Season = "season";
     }
 
     /// <summary>

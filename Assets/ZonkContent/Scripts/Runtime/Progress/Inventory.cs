@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Base.Services.Monetization;
 using Base.Services.Saves;
 using Zonk.Configs;
@@ -85,16 +84,12 @@ namespace Zonk.Progress
             if (_themesOf == null)
             {
                 _themesOf = new Dictionary<ContentConfig, List<ThemeSetConfig>>();
-                foreach (var theme in _content != null ? _content.All<ThemeSetConfig>() : new List<ThemeSetConfig>())
+                foreach (var theme in _content != null ? _content.All<ThemeSetConfig>() : NoThemes)
                 {
-                    foreach (var member in theme.Items.Cast<ContentConfig>().Concat(theme.Dice))
-                    {
-                        if (member == null)
-                            continue;
-                        if (!_themesOf.TryGetValue(member, out var list))
-                            _themesOf[member] = list = new List<ThemeSetConfig>();
-                        list.Add(theme);
-                    }
+                    foreach (var member in theme.Items)
+                        AddThemeMember(member, theme);
+                    foreach (var member in theme.Dice)
+                        AddThemeMember(member, theme);
                 }
             }
 
@@ -102,6 +97,15 @@ namespace Zonk.Progress
         }
 
         private static readonly List<ThemeSetConfig> NoThemes = new List<ThemeSetConfig>();
+
+        private void AddThemeMember(ContentConfig member, ThemeSetConfig theme)
+        {
+            if (member == null)
+                return;
+            if (!_themesOf.TryGetValue(member, out var list))
+                _themesOf[member] = list = new List<ThemeSetConfig>();
+            list.Add(theme);
+        }
 
         private bool IsOwnedDirectly(ContentConfig item)
         {

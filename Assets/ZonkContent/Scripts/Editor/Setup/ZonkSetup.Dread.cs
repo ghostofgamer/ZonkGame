@@ -73,12 +73,12 @@ namespace Zonk.Editor.Setup
             };
 
             var coins = AssetDatabase.LoadAssetAtPath<CurrencyConfig>(ConfigsFolder + "/Currencies/Coins.asset");
-            var expert = AssetDatabase.LoadAssetAtPath<AiProfileConfig>(ConfigsFolder + "/Ai/Ai_expert.asset");
+            var expert = AiAt("expert");
             var skinSlot = SlotAt("dice_skin");
 
             foreach (var spec in specs)
             {
-                var boss = AssetDatabase.LoadAssetAtPath<OpponentConfig>(ConfigsFolder + "/Opponents/Opp_" + spec.BossId + ".asset");
+                var boss = OpponentAt(spec.BossId);
                 var chapter = AssetDatabase.LoadAssetAtPath<ChapterConfig>(ConfigsFolder + "/Chapters/" + spec.ChapterAsset + ".asset");
                 if (boss == null || chapter == null || skinSlot == null)
                 {
@@ -112,7 +112,8 @@ namespace Zonk.Editor.Setup
                     o.Dice = new List<DieConfig>();
                     foreach (var dieId in spec.Dice)
                     {
-                        var die = AssetDatabase.LoadAssetAtPath<DieConfig>(ConfigsFolder + "/Dice/Die_" + dieId + ".asset");
+                        // Повторы допустимы: одна особая кость может стоять в нескольких слотах.
+                        var die = DieAt(dieId);
                         if (die != null)
                             o.Dice.Add(die);
                     }
@@ -126,9 +127,9 @@ namespace Zonk.Editor.Setup
 
                     o.Modifiers.AddRange(spec.ExtraRules);
                     o.StarConditions = new List<StarCondition>(spec.Stars);
-                    o.FirstWinRewards.Add(new CurrencyReward { Currency = coins, Amount = spec.FirstCoins });
+                    o.FirstWinRewards.Add(Gift(coins, spec.FirstCoins));
                     o.FirstWinRewards.Add(new ContentReward { Item = skin });
-                    o.RepeatWinRewards.Add(new CurrencyReward { Currency = coins, Amount = spec.RepeatCoins });
+                    o.RepeatWinRewards.Add(Gift(coins, spec.RepeatCoins));
                 });
 
                 if (!chapter.DreadBosses.Contains(dread))
@@ -142,10 +143,9 @@ namespace Zonk.Editor.Setup
         /// <summary>Портрет грозной версии — портрет её босса (свой не рисуется). После BuildPortraits.</summary>
         private static void LinkDreadPortraits()
         {
-            foreach (var guid in AssetDatabase.FindAssets("t:OpponentConfig", new[] { ConfigsFolder }))
+            foreach (var opponent in FindAll<OpponentConfig>(ConfigsFolder))
             {
-                var opponent = AssetDatabase.LoadAssetAtPath<OpponentConfig>(AssetDatabase.GUIDToAssetPath(guid));
-                if (opponent == null || opponent.DreadOf == null || opponent.Portrait != null || opponent.DreadOf.Portrait == null)
+                if (opponent.DreadOf == null || opponent.Portrait != null || opponent.DreadOf.Portrait == null)
                     continue;
 
                 opponent.Portrait = opponent.DreadOf.Portrait;

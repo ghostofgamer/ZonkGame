@@ -31,6 +31,9 @@ namespace Zonk.UI.Windows
 
         private readonly Choice<ChallengeChoice> _choice = new Choice<ChallengeChoice>();
 
+        // Левый отступ текста с портретом (из префаба): без портрета текст расширяется на его место.
+        private float _bodyLeft = -1f;
+
 #if UNITY_EDITOR
         public void EditorSetup(TMP_Text title, Image portrait, TMP_Text body, ScrollRect scroll, UiButtonView primary,
             UiButtonView secondary, UiButtonView back)
@@ -44,8 +47,6 @@ namespace Zonk.UI.Windows
             _back = back;
         }
 #endif
-
-        private float _bodyLeft = -1f;
 
         private void Awake()
         {

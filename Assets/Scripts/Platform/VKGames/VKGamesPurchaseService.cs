@@ -31,6 +31,13 @@ namespace Base.Platform.VKGames
             return UniTask.FromResult(PurchaseResult.Fail(Unavailable));
         }
 
+        public bool ListsPermanentPurchases => false;
+
+        public UniTask<PurchaseList> GetPurchasesAsync(CancellationToken cancellationToken = default)
+        {
+            return UniTask.FromResult(PurchaseList.Failed);
+        }
+
         public UniTask<IReadOnlyList<PurchaseInfo>> GetPendingPurchasesAsync(CancellationToken cancellationToken = default)
         {
             return UniTask.FromResult(NoPurchases);

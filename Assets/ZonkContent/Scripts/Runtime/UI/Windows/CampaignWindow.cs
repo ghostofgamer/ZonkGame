@@ -184,25 +184,8 @@ namespace Zonk.UI.Windows
         /// <summary>Награды одной строкой: «90 монет, Пятёрочная». Предмет, который уже есть, помечается.</summary>
         private string RewardsText(IReadOnlyList<Reward> rewards)
         {
-            if (rewards == null || rewards.Count == 0)
-                return string.Empty;
-
-            var parts = new List<string>();
-            foreach (var reward in rewards)
-            {
-                switch (reward)
-                {
-                    case CurrencyReward currency when currency.Currency != null && currency.Amount > 0:
-                        parts.Add(currency.Amount + " " + T(currency.Currency.NameKey));
-                        break;
-                    case ContentReward content when content.Item != null:
-                        var owned = _inventory != null && _inventory.IsOwned(content.Item);
-                        parts.Add(RewardNames.Describe(content.Item, T) + (owned ? " " + T("campaign.rewardOwned") : string.Empty));
-                        break;
-                }
-            }
-
-            return string.Join(", ", parts);
+            return RewardNames.List(rewards, T, _inventory != null ? _inventory.IsOwned : (System.Func<ContentConfig, bool>)null,
+                T("campaign.rewardOwned"));
         }
 
         private static string StarLine(int mask, int bit, string condition)
@@ -232,7 +215,7 @@ namespace Zonk.UI.Windows
                 Destroy(button.gameObject);
             _stakeButtons.Clear();
 
-            var options = _config.StakeOptions ?? new int[0];
+            var options = _config.StakeOptions ?? System.Array.Empty<int>();
             _stakeList.gameObject.SetActive(options.Length > 1 && _config.Coins != null);
             foreach (var option in options)
             {
@@ -250,7 +233,7 @@ namespace Zonk.UI.Windows
         {
             var coins = _config.Coins != null ? _wallet.Get(_config.Coins) : 0;
             Stake = amount <= coins ? amount : 0;
-            var options = _config.StakeOptions ?? new int[0];
+            var options = _config.StakeOptions ?? System.Array.Empty<int>();
             for (var i = 0; i < _stakeButtons.Count && i < options.Length; i++)
             {
                 _stakeButtons[i].Interactable = options[i] <= coins;
@@ -313,26 +296,20 @@ namespace Zonk.UI.Windows
                 if (firstAvailable == null && state == OpponentState.Available)
                     firstAvailable = opponent;
 
-                // Строка из префаба: вид (звёзды картинками, портрет, шрифты) настраивается в Parts/OpponentRow.
+                var interactable = state != OpponentState.Locked;
                 if (_opponentRowPrefab != null)
                 {
-                    var row = Instantiate(_opponentRowPrefab, _opponentList);
-                    row.gameObject.SetActive(true);
                     var rowStatus = (opponent.IsBoss ? T("campaign.boss") : string.Empty) +
                                     (state == OpponentState.Locked ? " " + T("campaign.state.locked") : string.Empty);
-                    row.Setup(T(opponent.NameKey), rowStatus.Trim(), opponent.Portrait, _progress.GetStarMask(opponent),
-                        StarsText.MaxStars(opponent), _config.Ui, rowColor, state != OpponentState.Locked, () => Select(captured));
+                    AddRow(opponent, rowStatus.Trim(), rowColor, interactable, () => Select(captured));
                     continue;
                 }
 
-                var button = _opponentTemplate.Spawn(_opponentList);
                 // Имя, у босса пометка, звёзды у всех (серые — ещё не получены), у закрытого — «закрыт».
                 var stars = StarsText.Render(_progress.GetStarMask(opponent), StarsText.MaxStars(opponent));
                 var status = state == OpponentState.Locked ? stars + "  " + T("campaign.state.locked") : stars;
-                button.SetText(T(opponent.NameKey) + (opponent.IsBoss ? "  " + T("campaign.boss") : string.Empty) + "  " + status);
-                button.SetColor(rowColor);
-                button.Interactable = state != OpponentState.Locked;
-                button.OnClick(() => Select(captured));
+                AddTemplateRow(T(opponent.NameKey) + (opponent.IsBoss ? "  " + T("campaign.boss") : string.Empty) + "  " + status,
+                    rowColor, interactable, () => Select(captured));
             }
 
             // Грозные версии боссов: видны всегда и выбираются даже закрытыми — игрок читает правила и видит, что его
@@ -351,22 +328,35 @@ namespace Zonk.UI.Windows
 
                 if (_opponentRowPrefab != null)
                 {
-                    var row = Instantiate(_opponentRowPrefab, _opponentList);
-                    row.gameObject.SetActive(true);
-                    row.Setup(T(dread.NameKey), rowStatus, dread.Portrait, _progress.GetStarMask(dread), StarsText.MaxStars(dread),
-                        _config.Ui, rowColor, true, () => Select(captured));
+                    AddRow(dread, rowStatus, rowColor, true, () => Select(captured));
                     continue;
                 }
 
-                var button = _opponentTemplate.Spawn(_opponentList);
                 var stars = StarsText.Render(_progress.GetStarMask(dread), StarsText.MaxStars(dread));
-                button.SetText(T(dread.NameKey) + "  " + rowStatus + "  " + stars);
-                button.SetColor(rowColor);
-                button.Interactable = true;
-                button.OnClick(() => Select(captured));
+                AddTemplateRow(T(dread.NameKey) + "  " + rowStatus + "  " + stars, rowColor, true, () => Select(captured));
             }
 
             Select(firstAvailable);
+        }
+
+        /// <summary>Строка из префаба: вид (звёзды картинками, портрет, шрифты) настраивается в Parts/OpponentRow.</summary>
+        private void AddRow(OpponentConfig opponent, string status, Color color, bool interactable,
+            UnityEngine.Events.UnityAction onClick)
+        {
+            var row = Instantiate(_opponentRowPrefab, _opponentList);
+            row.gameObject.SetActive(true);
+            row.Setup(T(opponent.NameKey), status, opponent.Portrait, _progress.GetStarMask(opponent), StarsText.MaxStars(opponent),
+                _config.Ui, color, interactable, onClick);
+        }
+
+        /// <summary>Строка в старом префабе окна: кнопка-шаблон, всё одной строкой текста.</summary>
+        private void AddTemplateRow(string text, Color color, bool interactable, UnityEngine.Events.UnityAction onClick)
+        {
+            var button = _opponentTemplate.Spawn(_opponentList);
+            button.SetText(text);
+            button.SetColor(color);
+            button.Interactable = interactable;
+            button.OnClick(onClick);
         }
 
         private void Select(OpponentConfig opponent)

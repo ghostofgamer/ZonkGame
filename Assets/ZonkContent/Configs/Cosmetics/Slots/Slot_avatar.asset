@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0bca9ea92f5e8eb439d99d4ec59031d4, type: 3}
+  m_Name: Slot_avatar
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticSlotConfig
+  Id: avatar
+  NameKey: slot.avatar
+  Icon: {fileID: 0}
+  Order: 100
+  CameraShotId: menu
+  DefaultItem: {fileID: 11400000, guid: c654884997711b741a0c75aae3ddea43, type: 2}
+  Applier:
+    rid: 1889488795864137905
+  ShowInShop: 0
+  MultiSelect: 0
+  DrivesLighting: 0
+  references:
+    version: 2
+    RefIds:
+    - rid: 1889488795864137905
+      type: {class: NoSceneApplier, ns: Zonk.Presentation, asm: Zonk}
+      data: 

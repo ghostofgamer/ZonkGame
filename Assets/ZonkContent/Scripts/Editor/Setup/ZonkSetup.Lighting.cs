@@ -138,10 +138,10 @@ namespace Zonk.Editor.Setup
         /// <summary>Чердак: деревянная комната со скатом крыши и круглым окном.</summary>
         private static GameObject AtticPrefab()
         {
-            var wood = Mat(new ArtSet(), "Floor_Wood", new Color(0.4f, 0.27f, 0.16f), null, 0.2f);
-            var plank = Mat(new ArtSet(), "Attic_Plank", new Color(0.55f, 0.4f, 0.26f), null, 0.2f);
-            var window = Mat(new ArtSet(), "Window", new Color(0.5f, 0.7f, 0.9f), null, 0.9f, 0f, new Color(0.6f, 0.8f, 1.1f));
-            var barrel = Mat(new ArtSet(), "Barrel", new Color(0.45f, 0.28f, 0.14f), null, 0.3f);
+            var wood = Mat(null, "Floor_Wood", new Color(0.4f, 0.27f, 0.16f), null, 0.2f);
+            var plank = Mat(null, "Attic_Plank", new Color(0.55f, 0.4f, 0.26f), null, 0.2f);
+            var window = Mat(null, "Window", new Color(0.5f, 0.7f, 0.9f), null, 0.9f, 0f, new Color(0.6f, 0.8f, 1.1f));
+            var barrel = Mat(null, "Barrel", new Color(0.45f, 0.28f, 0.14f), null, 0.3f);
             return Prefab(Prefabs + "/Environments/Env_Attic.prefab", () =>
             {
                 var root = Room("Env_Attic", wood, plank);
@@ -157,11 +157,11 @@ namespace Zonk.Editor.Setup
         /// <summary>Сад: трава, живая изгородь, деревья, небо.</summary>
         private static GameObject GardenPrefab()
         {
-            var grass = Mat(new ArtSet(), "Grass", new Color(0.3f, 0.55f, 0.25f), null, 0.1f);
-            var hedge = Mat(new ArtSet(), "Hedge", new Color(0.18f, 0.4f, 0.18f), null, 0.1f);
-            var trunk = Mat(new ArtSet(), "Trunk", new Color(0.4f, 0.28f, 0.18f), null, 0.2f);
-            var crown = Mat(new ArtSet(), "Tree_Crown", new Color(0.25f, 0.5f, 0.22f), null, 0.1f);
-            var sky = Mat(new ArtSet(), "Sky", new Color(0.55f, 0.75f, 0.95f), null, 0f, 0f, new Color(0.35f, 0.5f, 0.7f));
+            var grass = Mat(null, "Grass", new Color(0.3f, 0.55f, 0.25f), null, 0.1f);
+            var hedge = Mat(null, "Hedge", new Color(0.18f, 0.4f, 0.18f), null, 0.1f);
+            var trunk = Mat(null, "Trunk", new Color(0.4f, 0.28f, 0.18f), null, 0.2f);
+            var crown = Mat(null, "Tree_Crown", new Color(0.25f, 0.5f, 0.22f), null, 0.1f);
+            var sky = Mat(null, "Sky", new Color(0.55f, 0.75f, 0.95f), null, 0f, 0f, new Color(0.35f, 0.5f, 0.7f));
             return Prefab(Prefabs + "/Environments/Env_Garden.prefab", () =>
             {
                 var root = new GameObject("Env_Garden");
@@ -327,12 +327,7 @@ namespace Zonk.Editor.Setup
                     pixels[y * size + x] = new Color(value, value, value, value);
                 }
 
-                var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
-                texture.SetPixels(pixels);
-                texture.Apply();
-                File.WriteAllBytes(path, texture.EncodeToPNG());
-                Object.DestroyImmediate(texture);
-                AssetDatabase.ImportAsset(path);
+                SavePng(path, TextureFrom(size, size, pixels));
                 if (AssetImporter.GetAtPath(path) is TextureImporter importer)
                 {
                     importer.textureType = TextureImporterType.Cookie;
@@ -381,31 +376,10 @@ namespace Zonk.Editor.Setup
                 renderer.velocityScale = 0.02f;
                 renderer.shadowCastingMode = ShadowCastingMode.Off;
                 renderer.receiveShadows = false;
-                renderer.sharedMaterial = RainMaterial();
+                renderer.sharedMaterial = ParticleMaterial("M_Rain", false, false);
                 return root;
             });
         }
 
-        private static Material RainMaterial()
-        {
-            var path = Materials + "/M_Rain.mat";
-            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
-            if (material != null)
-                return material;
-
-            material = new Material(Shader.Find("Universal Render Pipeline/Particles/Unlit")) { name = "M_Rain" };
-            // Прозрачный режим URP-частиц: смешивание по альфе, без записи глубины.
-            material.SetFloat("_Surface", 1f);
-            material.SetFloat("_Blend", 0f);
-            material.SetOverrideTag("RenderType", "Transparent");
-            material.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
-            material.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
-            material.SetInt("_ZWrite", 0);
-            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            material.renderQueue = (int)RenderQueue.Transparent;
-            material.SetColor("_BaseColor", Color.white);
-            AssetDatabase.CreateAsset(material, path);
-            return material;
-        }
     }
 }

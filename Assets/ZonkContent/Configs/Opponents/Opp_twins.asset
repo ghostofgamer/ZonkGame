@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f87d2b53912aca947b723c9fb666bc03, type: 3}
+  m_Name: Opp_twins
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.OpponentConfig
+  Id: opp_twins
+  NameKey: opp.twins
+  TitleKey: opp.twins.title
+  RuleKey: 
+  Portrait: {fileID: 21300000, guid: da7de8fcc52ec6c41b5f79371d39cdfa, type: 3}
+  BodyColor: {r: 0.6, g: 0.3, b: 0.2, a: 1}
+  Accessory: {fileID: 2827515006440756545, guid: 1aa3c401c6857e140ac2eb5a20c4cc17, type: 3}
+  IsBoss: 0
+  DreadOf: {fileID: 0}
+  DreadUnlockStars: 3
+  Ai: {fileID: 11400000, guid: 0cb08a7a725a0174ebcc0379a7e05d46, type: 2}
+  Dice:
+  - {fileID: 11400000, guid: e71f1b038b70cf941b9a7bf2a6e1d519, type: 2}
+  - {fileID: 11400000, guid: e71f1b038b70cf941b9a7bf2a6e1d519, type: 2}
+  - {fileID: 11400000, guid: db28c967133efcc4c9ab1fab49f4f19e, type: 2}
+  - {fileID: 11400000, guid: db28c967133efcc4c9ab1fab49f4f19e, type: 2}
+  DiceSkin: {fileID: 0}
+  Cup: {fileID: 0}
+  TargetScore: 6000
+  StarConditions:
+  - rid: 1889488795864138021
+  - rid: 1889488795864138022
+  StakePayout: 0.65
+  Modifiers: []
+  Reactions: {fileID: 11400000, guid: 096e3e429b23d4c498ffca9732e7ea3b, type: 2}
+  RollStyle: {fileID: 11400000, guid: 2736ec281ac3e7043b5c078b344b93f5, type: 2}
+  EnergyCost: -1
+  FirstWinRewards:
+  - rid: 1889488795864138023
+  RepeatWinRewards:
+  - rid: 1889488795864138024
+  references:
+    version: 2
+    RefIds:
+    - rid: 1889488795864138021
+      type: {class: MaxTurnsStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Turns: 10
+    - rid: 1889488795864138022
+      type: {class: HotDiceStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Count: 1
+    - rid: 1889488795864138023
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 320
+    - rid: 1889488795864138024
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 40

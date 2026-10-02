@@ -73,8 +73,7 @@ namespace Zonk.Editor
         {
             ContentDatabaseBuilder.Rebuild();
             var database = ContentDatabaseBuilder.FindDatabase();
-            var config = AssetDatabase.FindAssets("t:" + nameof(GameConfig), new[] { ContentDatabaseBuilder.GameFolder })
-                .Select(g => AssetDatabase.LoadAssetAtPath<GameConfig>(AssetDatabase.GUIDToAssetPath(g))).FirstOrDefault(c => c != null);
+            var config = ContentDatabaseBuilder.FindFirst<GameConfig>();
             if (database == null || config == null)
                 return "Нет ContentDatabase или GameConfig: запустите Zonk/Setup/Build Everything";
 
@@ -120,6 +119,7 @@ namespace Zonk.Editor
             var last = chapters.Count > 0 ? chapters[chapters.Count - 1].Opponents.Where(o => o != null).ToList() : opponents;
             var repeat = last.Count > 0 ? last.Average(o => (double)o.RepeatWinRewards.Sum(Coins)) : 0;
 
+            var menuCoins = MenuCoins(config);
             var inputs = new EconomyInputs
             {
                 StartCoins = config.Coins != null ? config.Coins.StartAmount : 0,
@@ -130,8 +130,8 @@ namespace Zonk.Editor
                 WeeklyQuestCoins = QuestCoins(database, QuestPeriod.Weekly, config.WeeklyQuestCount),
                 MasteryPoints = config.MasteryLevels.Select(l => l != null ? l.Points : int.MaxValue).ToArray(),
                 MasteryCoins = config.MasteryLevels.Select(l => l != null ? l.Rewards.Sum(Coins) : 0).ToArray(),
-                MenuAdCoins = MenuCoins(config).Amount,
-                MenuAdsPerDay = MenuCoins(config).PerDay > 0 ? MenuCoins(config).PerDay : int.MaxValue,
+                MenuAdCoins = menuCoins.Amount,
+                MenuAdsPerDay = menuCoins.PerDay > 0 ? menuCoins.PerDay : int.MaxValue,
             };
 
             text.AppendLine($"Всё за монеты: {catalog}. Из них кампания дарит: {catalog - mustBuy}. Докупать: {mustBuy}.");

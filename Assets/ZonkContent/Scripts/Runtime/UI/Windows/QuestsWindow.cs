@@ -36,6 +36,10 @@ namespace Zonk.UI.Windows
         private QuestPeriod _period = QuestPeriod.Daily;
         private bool _busy;
 
+        // Что показывает таймер: строка собирается раз в минуту, а не каждую секунду.
+        private int _shownTimerMinutes = -1;
+        private QuestPeriod _shownTimerPeriod;
+
 #if UNITY_EDITOR
         public void EditorSetup(TMP_Text title, UiButtonView dailyTab, UiButtonView weeklyTab, TMP_Text timer, RectTransform list,
             QuestRowView rowTemplate, UiButtonView back)
@@ -97,7 +101,7 @@ namespace Zonk.UI.Windows
                 var row = _rowTemplate.Spawn(_list);
                 var target = slot.Target;
                 row.Show(slot.Quest.Describe(T), slot.Progress, target,
-                    T("quests.reward", RewardText(slot.Quest.Rewards)), slot.IsDone);
+                    T("quests.reward", RewardNames.List(slot.Quest.Rewards, T)), slot.IsDone);
 
                 var captured = slot;
                 row.Claim.SetText(T(slot.IsClaimed ? "quests.claimed" : "quests.claim"));
@@ -196,9 +200,6 @@ namespace Zonk.UI.Windows
             }
         }
 
-        private int _shownTimerMinutes = -1;
-        private QuestPeriod _shownTimerPeriod;
-
         private void UpdateTimer()
         {
             var left = _quests.TimeToReset(_period);
@@ -216,23 +217,5 @@ namespace Zonk.UI.Windows
             _timer.text = T("quests.resetIn", time);
         }
 
-        private string RewardText(IReadOnlyList<Reward> rewards)
-        {
-            var parts = new List<string>();
-            foreach (var reward in rewards)
-            {
-                switch (reward)
-                {
-                    case CurrencyReward currency when currency.Currency != null:
-                        parts.Add(currency.Amount + " " + T(currency.Currency.NameKey));
-                        break;
-                    case ContentReward content when content.Item != null:
-                        parts.Add(RewardNames.Describe(content.Item, T));
-                        break;
-                }
-            }
-
-            return string.Join(", ", parts);
-        }
     }
 }

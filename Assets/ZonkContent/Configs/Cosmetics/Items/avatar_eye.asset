@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3758024ff1cf4ad4caa14cc6c86d79b3, type: 3}
+  m_Name: avatar_eye
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticItemConfig
+  Id: avatar_eye
+  NameKey: item.avatar_eye
+  Slot: {fileID: 11400000, guid: 6973b7495d1b75841b5c896b13a875a5, type: 2}
+  Icon: {fileID: 21300000, guid: 80a15cbc81d76cb41b56e2ab03e0ce9a, type: 3}
+  Order: 7
+  Rarity: 1
+  Payload:
+    rid: 1889488795864137920
+  Price:
+    Options:
+    - rid: 1889488795864137921
+  HiddenInShop: 0
+  references:
+    version: 2
+    RefIds:
+    - rid: 1889488795864137920
+      type: {class: SpritePayload, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Sprite: {fileID: 21300000, guid: 80a15cbc81d76cb41b56e2ab03e0ce9a, type: 3}
+    - rid: 1889488795864137921
+      type: {class: ProgressPriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        HintKey: hint.chest

@@ -32,17 +32,21 @@ namespace Zonk.UI.Windows
         [Tooltip("Звёзды за соперника (вложенный префаб Parts/Stars). Пусто — звёзды строкой текста")]
         [SerializeField] private StarsView _stars;
 
-        private UiConfig _uiConfig;
+        [Tooltip("Уровень игрока: опыт за партию (вложенный префаб Parts/PlayerLevel). Пусто — опыт строкой текста")]
+        [SerializeField] private PlayerLevelView _playerLevel;
+
         [SerializeField] private UiButtonView _menu;
         [SerializeField] private UiButtonView _again;
         [SerializeField] private UiButtonView _double;
 
+        private UiConfig _uiConfig;
         private readonly Choice<ResultsChoice> _choice = new Choice<ResultsChoice>();
 
 #if UNITY_EDITOR
         public void EditorSetup(TMP_Text title, RectTransform lines, TMP_Text lineTemplate, RectTransform rewards,
-            TMP_Text rewardTemplate, UiButtonView menu, UiButtonView again, UiButtonView doubleReward, StarsView stars)
+            TMP_Text rewardTemplate, UiButtonView menu, UiButtonView again, UiButtonView doubleReward, StarsView stars, PlayerLevelView playerLevel = null)
         {
+            _playerLevel = playerLevel;
             _stars = stars;
             _title = title;
             _lines = lines;
@@ -69,6 +73,8 @@ namespace Zonk.UI.Windows
             _rewardTemplate.gameObject.SetActive(false);
             if (_stars != null)
                 _stars.gameObject.SetActive(false);
+            if (_playerLevel != null)
+                _playerLevel.gameObject.SetActive(false);
             _menu.OnClick(() => _choice.Set(ResultsChoice.Menu));
             _again.OnClick(() => _choice.Set(ResultsChoice.Again));
             _double.OnClick(() => _choice.Set(ResultsChoice.DoubleReward));
@@ -138,6 +144,22 @@ namespace Zonk.UI.Windows
             }
 
             Spawn(_lineTemplate, _lines).text = T("results.stars", StarsText.Render(mask, count));
+        }
+
+        /// <summary>Опыт за партию: полоса уровня заполняется, в старом префабе — строкой.</summary>
+        public void ShowXp(XpGain gain, IPlayerLevel level)
+        {
+            if (gain.Total <= 0 && gain.XpBefore == gain.XpAfter)
+                return;
+
+            if (_playerLevel != null)
+            {
+                _playerLevel.gameObject.SetActive(true);
+                _playerLevel.PlayGain(gain, level);
+                return;
+            }
+
+            Spawn(_lineTemplate, _lines).text = T("level.xpGained", gain.Total);
         }
 
         /// <summary>Монеты за партию уже выданы: кошелёк окна показывает их полётом и накруткой.</summary>

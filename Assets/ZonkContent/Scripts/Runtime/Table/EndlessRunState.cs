@@ -117,18 +117,8 @@ namespace Zonk.Table
                 primary = cost > 0 ? T("run.startCost", cost) : T("run.start");
             }
 
-            var window = await _ui.OpenAsync<ChallengeWindow>(ct,
-                w => w.Setup(T("mode.endlessRun"), null, body.ToString(), primary, secondary, T("ui.back")));
-            _tutorial.Show(TutorialTrigger.EndlessRun);
-            try
-            {
-                return await window.WaitChoiceAsync(ct);
-            }
-            finally
-            {
-                _tutorial.Hide();
-                await _ui.CloseAsync(window, CancellationToken.None);
-            }
+            return await ModeWindows.AskAsync(_ui, T("mode.endlessRun"), null, body.ToString(), primary, secondary, T("ui.back"), ct,
+                _tutorial, TutorialTrigger.EndlessRun);
         }
 
         /// <summary>Этажи подряд, пока игрок не выйдет в меню или забег не кончится.</summary>
@@ -146,6 +136,7 @@ namespace Zonk.Table
 
                 var result = await _match.PlayAsync(new ModeMatchSetup
                 {
+                    Mode = TableStateIds.EndlessRun,
                     Opponent = floor.Opponent,
                     EnemyDice = floor.EnemyDice,
                     EnemyAi = floor.EnemyAi,
@@ -192,9 +183,7 @@ namespace Zonk.Table
         private async UniTask<ChallengeChoice> ShowFloorAsync(RunFloor floor, CancellationToken ct)
         {
             var body = new StringBuilder();
-            body.Append("<b>").Append(T(floor.Opponent.NameKey)).Append("</b>");
-            if (!string.IsNullOrEmpty(floor.Opponent.TitleKey))
-                body.Append('\n').Append(T(floor.Opponent.TitleKey));
+            ModeWindows.AppendOpponent(body, floor.Opponent, _kit);
             body.Append("\n\n").Append(T("run.target", floor.Target));
             body.Append('\n').Append(T("run.hearts", _run.Hearts));
             body.Append('\n').Append(T("run.enemyPower", UnityEngine.Mathf.RoundToInt(floor.EnemyPower * 100f)));
@@ -212,16 +201,7 @@ namespace Zonk.Table
             AppendPerks(body);
 
             var title = floor.IsGuardian ? T("run.floorGuardian", floor.Floor) : T("run.floor", floor.Floor);
-            var window = await _ui.OpenAsync<ChallengeWindow>(ct,
-                w => w.Setup(title, floor.Opponent.Portrait, body.ToString(), T("run.fight"), null, T("run.toMenu")));
-            try
-            {
-                return await window.WaitChoiceAsync(ct);
-            }
-            finally
-            {
-                await _ui.CloseAsync(window, CancellationToken.None);
-            }
+            return await ModeWindows.AskAsync(_ui, title, floor.Opponent.Portrait, body.ToString(), T("run.fight"), null, T("run.toMenu"), ct);
         }
 
         /// <summary>Находки игрока: множители очков и особые кости забега.</summary>
@@ -237,9 +217,10 @@ namespace Zonk.Table
                 any = true;
             }
 
-            var floor = _run.BuildFloor();
-            foreach (var die in floor.PlayerDice)
+            // Кости забега по ID из сохранения: собирать этаж (соперник, правила) ради них не нужно.
+            foreach (var id in _run.DiceIds)
             {
+                var die = string.IsNullOrEmpty(id) ? null : _content.Get<DieConfig>(id);
                 if (die == null)
                     continue;
                 body.Append("\n• ").Append(T("reward.die", T(die.NameKey)));
@@ -307,14 +288,7 @@ namespace Zonk.Table
         /// <summary>Сердца кончились: один раз за забег продолжить за рекламу.</summary>
         private async UniTask<bool> TryReviveAsync(CancellationToken ct)
         {
-            if (!_run.CanRevive || !_rewards.CanOffer)
-                return false;
-
-            if (!await ConfirmWindow.AskAsync(_ui, T("run.reviveAsk"), ct))
-                return false;
-
-            var result = await _rewards.RequestAsync(RevivePlacement, ct);
-            if (!result.IsGranted())
+            if (!await ModeWindows.TryReviveAsync(_run.CanRevive, RevivePlacement, _ui, _rewards, _kit, ct))
                 return false;
 
             _run.Revive();

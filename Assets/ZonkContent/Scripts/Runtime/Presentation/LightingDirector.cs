@@ -238,7 +238,12 @@ namespace Zonk.Presentation
                 if (_camera != null)
                     _camera.backgroundColor = Color.Lerp(fromBackground, profile.Background, t);
 
-                if (t >= 1f || await UniTask.Yield(PlayerLoopTiming.Update, ct).SuppressCancellationThrow())
+                if (t >= 1f)
+                    return;
+
+                // Отмена — проверкой токена: SuppressCancellationThrow на каждом кадре создавал бы объект.
+                await UniTask.Yield(PlayerLoopTiming.Update);
+                if (ct.IsCancellationRequested)
                     return;
                 time += Time.unscaledDeltaTime;
             }
@@ -262,7 +267,8 @@ namespace Zonk.Presentation
 
                 RenderSettings.ambientSkyColor = _ambientSky + color * (intensity * 0.35f * k);
                 RenderSettings.ambientEquatorColor = _ambientEquator + color * (intensity * 0.25f * k);
-                if (await UniTask.Yield(PlayerLoopTiming.Update, ct).SuppressCancellationThrow())
+                await UniTask.Yield(PlayerLoopTiming.Update);
+                if (ct.IsCancellationRequested)
                     break;
                 time += Time.unscaledDeltaTime;
             }

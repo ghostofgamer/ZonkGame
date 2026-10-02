@@ -47,7 +47,7 @@ namespace Zonk.Table
             if (step == null || string.IsNullOrEmpty(step.TextKey) || !_saves.IsLoaded)
                 return;
 
-            var id = trigger.ToString();
+            var id = TriggerId(trigger);
             var data = Data;
             if (data.Seen.Contains(id) && !ReplayInEditor())
                 return;
@@ -67,7 +67,7 @@ namespace Zonk.Table
         /// <summary>Подсказка момента уже показывалась игроку.</summary>
         public bool WasSeen(TutorialTrigger trigger)
         {
-            return _saves.IsLoaded && Data.Seen.Contains(trigger.ToString());
+            return _saves.IsLoaded && Data.Seen.Contains(TriggerId(trigger));
         }
 
         /// <summary>Убрать подсказку (конец партии, уход из меню).</summary>
@@ -107,6 +107,17 @@ namespace Zonk.Table
                     _tipCts = null;
                 cts.Dispose();
             }
+        }
+
+        // Имена моментов (ID в сохранении): Show зовут на каждом ходу партии, строка создаётся один раз на момент.
+        private static readonly string[] TriggerIds = new string[Enum.GetValues(typeof(TutorialTrigger)).Length];
+
+        private static string TriggerId(TutorialTrigger trigger)
+        {
+            var index = (int)trigger;
+            if (index < 0 || index >= TriggerIds.Length)
+                return trigger.ToString();
+            return TriggerIds[index] ?? (TriggerIds[index] = trigger.ToString());
         }
 
         private static bool ReplayInEditor()

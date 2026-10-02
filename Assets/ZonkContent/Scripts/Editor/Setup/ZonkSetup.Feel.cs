@@ -1,4 +1,3 @@
-using System.IO;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -82,7 +81,7 @@ namespace Zonk.Editor.Setup
                 renderer.lengthScale = 1.5f;
                 renderer.shadowCastingMode = ShadowCastingMode.Off;
                 renderer.receiveShadows = false;
-                renderer.sharedMaterial = ParticleMaterial("M_Sparks", true);
+                renderer.sharedMaterial = ParticleMaterial("M_Sparks", true, true);
                 return root;
             });
         }
@@ -128,7 +127,7 @@ namespace Zonk.Editor.Setup
                 renderer.renderMode = ParticleSystemRenderMode.Billboard;
                 renderer.shadowCastingMode = ShadowCastingMode.Off;
                 renderer.receiveShadows = false;
-                renderer.sharedMaterial = ParticleMaterial("M_Dust", false);
+                renderer.sharedMaterial = ParticleMaterial("M_Dust", false, true);
                 return root;
             });
         }
@@ -143,8 +142,11 @@ namespace Zonk.Editor.Setup
             return new ParticleSystem.MinMaxGradient(gradient);
         }
 
-        /// <summary>Материал частиц URP Unlit с мягкой круглой текстурой: additive — светится (искры), иначе — по альфе.</summary>
-        private static Material ParticleMaterial(string name, bool additive)
+        /// <summary>
+        /// Прозрачный материал частиц URP Unlit без записи глубины: additive — светится (искры), иначе смешивание по альфе.
+        /// softDot — частица мягкой круглой точкой (общая текстура), иначе без текстуры.
+        /// </summary>
+        private static Material ParticleMaterial(string name, bool additive, bool softDot)
         {
             var path = Materials + "/" + name + ".mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
@@ -163,7 +165,8 @@ namespace Zonk.Editor.Setup
                 material.EnableKeyword("_BLENDMODE_ADD");
             material.renderQueue = (int)RenderQueue.Transparent;
             material.SetColor("_BaseColor", Color.white);
-            material.SetTexture("_BaseMap", SoftDotTexture());
+            if (softDot)
+                material.SetTexture("_BaseMap", SoftDotTexture());
             AssetDatabase.CreateAsset(material, path);
             return material;
         }
@@ -190,10 +193,8 @@ namespace Zonk.Editor.Setup
                 }
             }
 
-            EnsureFolder(Path.GetDirectoryName(path)?.Replace('\\', '/'));
-            File.WriteAllBytes(path, texture.EncodeToPNG());
-            Object.DestroyImmediate(texture);
-            AssetDatabase.ImportAsset(path);
+            EnsureFolder(ParentFolder(path));
+            SavePng(path, texture);
             var importer = (TextureImporter)AssetImporter.GetAtPath(path);
             importer.alphaIsTransparency = true;
             importer.mipmapEnabled = false;

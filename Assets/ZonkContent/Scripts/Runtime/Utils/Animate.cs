@@ -34,34 +34,12 @@ namespace Zonk.Utils
 
     /// <summary>
     /// Простые анимации на UniTask без корутин. Отмена через CancellationToken оставляет объект там, где его застала
-    /// отмена. Готовые анимации (Move, Rotate, Scale, Pose, Jump) — собственные циклы без замыканий: на телефоне
-    /// и в браузере они не оставляют мусора для сборщика. RunAsync с делегатом — для редких особых случаев.
+    /// отмена. Все анимации (Move, Rotate, Scale, Pose, Jump, Hop) — один общий цикл без замыканий: на телефоне
+    /// и в браузере они не оставляют мусора для сборщика. Особое движение (тряска, покачивание) — свой цикл в месте
+    /// использования, тоже без делегата на каждый вызов.
     /// </summary>
     public static class Animate
     {
-        /// <summary>Вызывает step(t) каждый кадр, t от 0 до 1 после сглаживания. Последний вызов всегда с t = 1.</summary>
-        public static async UniTask RunAsync(float duration, Action<float> step, CancellationToken ct,
-            Func<float, float> ease = null)
-        {
-            ease = ease ?? AnimateEase.OutCubic;
-
-            if (duration <= 0f)
-            {
-                step(1f);
-                return;
-            }
-
-            var time = 0f;
-            while (time < duration)
-            {
-                step(ease(time / duration));
-                await UniTask.Yield(PlayerLoopTiming.Update, ct);
-                time += Time.deltaTime;
-            }
-
-            step(1f);
-        }
-
         private enum Channel
         {
             Position,
@@ -124,6 +102,14 @@ namespace Zonk.Utils
         {
             return PlayAsync(Channel.Jump, target, target.position, to, default, default, height, duration,
                 AnimateEase.InOutCubic, ct);
+        }
+
+        /// <summary>Подскок на месте: вверх на height и обратно, равномерно по времени.</summary>
+        public static UniTask HopAsync(Transform target, float height, float duration, CancellationToken ct)
+        {
+            var position = target.position;
+            return PlayAsync(Channel.Jump, target, position, position, default, default, height, duration,
+                AnimateEase.Linear, ct);
         }
 
         /// <summary>Общий цикл всех готовых анимаций: все данные в параметрах, поэтому без замыканий.</summary>

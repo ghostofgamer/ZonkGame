@@ -35,6 +35,14 @@ namespace Base.Platform.Stub
             return UniTask.FromResult(PurchaseResult.Ok(purchase));
         }
 
+        /// <summary>Заглушка помнит покупки только до перезапуска: сверять права по ней нельзя.</summary>
+        public bool ListsPermanentPurchases => false;
+
+        public UniTask<PurchaseList> GetPurchasesAsync(CancellationToken cancellationToken = default)
+        {
+            return UniTask.FromResult(new PurchaseList { Ok = true, Items = _pending.ToArray() });
+        }
+
         public UniTask<IReadOnlyList<PurchaseInfo>> GetPendingPurchasesAsync(CancellationToken cancellationToken = default)
         {
             return UniTask.FromResult<IReadOnlyList<PurchaseInfo>>(_pending.ToArray());

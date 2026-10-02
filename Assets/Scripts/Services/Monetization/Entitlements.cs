@@ -9,7 +9,7 @@ namespace Base.Services.Monetization
     public sealed class Entitlements : IEntitlements
     {
         private const string SaveKey = "entitlements";
-        private static readonly IReadOnlyList<string> None = new string[0];
+        private static readonly IReadOnlyList<string> None = Array.Empty<string>();
 
         private readonly ISaveStore _saves;
 

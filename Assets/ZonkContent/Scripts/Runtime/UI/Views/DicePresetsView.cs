@@ -41,8 +41,7 @@ namespace Zonk.UI.Views
             {
                 var index = i;
                 var button = _template.Spawn(_list);
-                var format = localization != null ? localization.Get("presets.slot") : "{0}";
-                button.SetText(string.Format(format, i + 1));
+                button.SetText(UiFormat.Format(localization, "presets.slot", i + 1));
                 button.OnClick(() => Select(index));
                 _buttons.Add(button);
             }

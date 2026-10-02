@@ -92,6 +92,12 @@ namespace Zonk.Configs
         [Tooltip("Доля вспышек с повтором (двойная молния)")]
         [Range(0f, 1f)] public float DoubleChance = 0.4f;
 
+        [Tooltip("Пауза перед повторной вспышкой, секунды")]
+        public float DoubleGap = 0.08f;
+
+        [Tooltip("Сила и длительность повторной вспышки относительно первой")]
+        [Range(0f, 1f)] public float DoubleStrength = 0.7f;
+
         [Tooltip("Задержка грома после вспышки, секунды (от и до)")]
         public Vector2 ThunderDelay = new Vector2(0.4f, 1.6f);
 
@@ -109,9 +115,9 @@ namespace Zonk.Configs
                 await context.Flash(FlashColor, FlashIntensity, FlashDuration, ct);
                 if (Random.value < DoubleChance)
                 {
-                    if (await UniTask.Delay(TimeSpan.FromSeconds(0.08f), cancellationToken: ct).SuppressCancellationThrow())
+                    if (await UniTask.Delay(TimeSpan.FromSeconds(DoubleGap), cancellationToken: ct).SuppressCancellationThrow())
                         return;
-                    await context.Flash(FlashColor, FlashIntensity * 0.7f, FlashDuration * 0.7f, ct);
+                    await context.Flash(FlashColor, FlashIntensity * DoubleStrength, FlashDuration * DoubleStrength, ct);
                 }
 
                 if (context.Sound == null)

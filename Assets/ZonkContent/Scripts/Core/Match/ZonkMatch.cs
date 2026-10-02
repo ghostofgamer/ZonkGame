@@ -27,6 +27,8 @@ namespace Zonk.Core.Match
         private readonly List<int> _handBuffer = new List<int>(DiceCount);
         private readonly HashSet<int> _keysBuffer = new HashSet<int>();
         private readonly bool[] _inHand = new bool[DiceCount];
+        private readonly List<KeepOption> _sharedOptions = new List<KeepOption>();
+        private readonly List<KeepOption> _optionPool = new List<KeepOption>();
         private readonly List<MatchModifier> _modifiers;
         private readonly ScoreCalculator[] _calculators;
         private readonly IReadOnlyList<MatchModifier>[] _playerModifiers;
@@ -71,7 +73,10 @@ namespace Zonk.Core.Match
                 _players.Add(new MatchPlayer(i, setup));
             }
 
-            CurrentPlayerIndex = Math.Max(0, Math.Min(settings.FirstPlayer, _players.Count - 1));
+            var first = settings.FirstPlayer;
+            for (var i = 0; i < _modifiers.Count; i++)
+                first = _modifiers[i].ChooseFirstPlayer(first, _players.Count);
+            CurrentPlayerIndex = Math.Max(0, Math.Min(first, _players.Count - 1));
             StartTurn();
         }
 
@@ -142,16 +147,21 @@ namespace Zonk.Core.Match
             if (Phase != MatchPhase.AwaitingRoll && Phase != MatchPhase.AwaitingDecision)
                 throw new InvalidOperationException($"Cannot roll in phase {Phase}");
 
+            // Список брошенных и копия граней уходят в итог (визуал держит их, пока проигрывает бросок),
+            // поэтому свои; для проверки на Зонк — общий рабочий массив.
             var rolled = new List<int>(DiceCount);
-            var rolledFaces = new List<int>(DiceCount);
+            var counts = _countsBuffer;
+            Array.Clear(counts, 0, counts.Length);
+            var dice = CurrentPlayer.Dice;
             for (var die = 0; die < DiceCount; die++)
             {
                 if (!_inHand[die])
                     continue;
 
-                _faces[die] = CurrentPlayer.Dice[die].Roll(_random);
+                var face = dice[die].Roll(_random);
+                _faces[die] = face;
                 rolled.Add(die);
-                rolledFaces.Add(_faces[die]);
+                counts[face]++;
             }
 
             var outcome = new RollOutcome
@@ -161,7 +171,7 @@ namespace Zonk.Core.Match
                 Faces = (int[])_faces.Clone(),
             };
 
-            if (Calculator.HasAnyScore(rolledFaces))
+            if (Calculator.HasAnyScoreCounts(counts))
             {
                 Phase = MatchPhase.AwaitingKeep;
                 return outcome;
@@ -204,8 +214,8 @@ namespace Zonk.Core.Match
             if (!score.IsValid)
                 throw new InvalidOperationException("Selected dice do not score");
 
-            foreach (var die in dice)
-                _inHand[die] = false;
+            for (var i = 0; i < dice.Count; i++)
+                _inHand[dice[i]] = false;
 
             TurnScore += score.Score;
 
@@ -276,8 +286,38 @@ namespace Zonk.Core.Match
         public IReadOnlyList<KeepOption> GetKeepOptions()
         {
             var options = new List<KeepOption>();
+            CollectKeepOptions(options, false);
+            return options;
+        }
+
+        /// <summary>
+        /// Те же варианты в общем буфере партии, без новых объектов. Список и варианты действительны только
+        /// до следующего вызова: кто хранит выбор дольше (решение ИИ), копирует кости.
+        /// </summary>
+        internal IReadOnlyList<KeepOption> GetKeepOptionsShared()
+        {
+            _sharedOptions.Clear();
+            CollectKeepOptions(_sharedOptions, true);
+            return _sharedOptions;
+        }
+
+        /// <summary>Отмечает кости, которые входят хотя бы в один вариант отложить (подсказка). Без новых объектов.</summary>
+        public void MarkScoringDice(bool[] scoring)
+        {
+            Array.Clear(scoring, 0, scoring.Length);
+            var options = GetKeepOptionsShared();
+            for (var i = 0; i < options.Count; i++)
+            {
+                var dice = options[i].Dice;
+                for (var d = 0; d < dice.Count; d++)
+                    scoring[dice[d]] = true;
+            }
+        }
+
+        private void CollectKeepOptions(List<KeepOption> options, bool reuse)
+        {
             if (Phase != MatchPhase.AwaitingKeep)
-                return options;
+                return;
 
             var hand = _handBuffer;
             hand.Clear();
@@ -315,21 +355,31 @@ namespace Zonk.Core.Match
                 if (!score.IsValid)
                     continue;
 
-                var dice = new List<int>(size);
+                var left = hand.Count - size;
+                if (left == 0 && Rules.HotDice)
+                    left = DiceCount;
+
+                List<int> dice;
+                if (reuse)
+                {
+                    if (options.Count == _optionPool.Count)
+                        _optionPool.Add(new KeepOption());
+                    var option = _optionPool[options.Count];
+                    dice = option.Reuse(score.Score, left);
+                    options.Add(option);
+                }
+                else
+                {
+                    dice = new List<int>(size);
+                    options.Add(new KeepOption(dice, score.Score, left));
+                }
+
                 for (var bit = 0; bit < hand.Count; bit++)
                 {
                     if ((mask & (1 << bit)) != 0)
                         dice.Add(hand[bit]);
                 }
-
-                var left = hand.Count - size;
-                if (left == 0 && Rules.HotDice)
-                    left = DiceCount;
-
-                options.Add(new KeepOption(dice, score.Score, left));
             }
-
-            return options;
         }
 
         private static int Pow7(int exponent)
@@ -356,8 +406,9 @@ namespace Zonk.Core.Match
             var penalty = 0;
             foreach (var modifier in _modifiers)
                 penalty += modifier.ZonkPenalty(TurnScore);
-            foreach (var modifier in _playerModifiers[CurrentPlayerIndex])
-                penalty += modifier.ZonkPenalty(TurnScore);
+            var own = _playerModifiers[CurrentPlayerIndex];
+            for (var i = 0; i < own.Count; i++)
+                penalty += own[i].ZonkPenalty(TurnScore);
 
             if (Rules.ThreeZonkPenalty > 0 && player.ZonkStreak >= 3)
             {

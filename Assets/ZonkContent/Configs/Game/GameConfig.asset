@@ -19,9 +19,11 @@ MonoBehaviour:
   Energy: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
   StandardDie: {fileID: 11400000, guid: 195c3bb8342a7674a92609dae87667df, type: 2}
   MaxSpecialDice: 6
-  OpponentMaxSpecialDice: 3
+  OpponentMaxSpecialDice: 5
   BossMinSpecialDice: 3
   DicePresetCount: 3
+  PlayerLevel: {fileID: 11400000, guid: da674cdec0e1ecc46bf394b3b0d43337, type: 2}
+  Chest: {fileID: 11400000, guid: ce2f9b025e42da24492f88b4123de92e, type: 2}
   MasteryLevels:
   - NameKey: mastery.1
     Points: 5000
@@ -71,10 +73,13 @@ MonoBehaviour:
   PlayerColors:
   - {r: 0.95, g: 0.75, b: 0.3, a: 1}
   - {r: 0.4, g: 0.75, b: 0.95, a: 1}
+  BossColor: {r: 0.95, g: 0.45, b: 0.35, a: 1}
+  DefaultAiThinkDelay: {x: 0.6, y: 1.4}
   BigBankScore: 1000
   BigKeepScore: 1000
   RiskyRollScore: 500
-  ShopLayoutVersion: 4
+  ShopLayoutVersion: 5
+  CampaignBalanceVersion: 4
   DefaultLighting: {fileID: 11400000, guid: 1c3bb0f081309b2498569ea277e1850a, type: 2}
   ToonStyle: {fileID: 11400000, guid: de4f477d923f9874ea936d2bb3617ea2, type: 2}
   DieSize: 0.24

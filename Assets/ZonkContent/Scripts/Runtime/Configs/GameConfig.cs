@@ -40,6 +40,13 @@ namespace Zonk.Configs
         [Tooltip("Сколько наборов костей можно сохранить и переключать одной кнопкой")]
         public int DicePresetCount = 3;
 
+        [Header("Уровень игрока")]
+        [Tooltip("Опыт за партии, награды за уровни, что открывается с уровнем")]
+        public PlayerLevelConfig PlayerLevel;
+
+        [Tooltip("Сундук за победы: таблица выпадения, вещи, гарантия легендарки")]
+        public ChestConfig Chest;
+
         [Header("Мастерство костей")]
         [Tooltip("Уровни мастерства особых костей по возрастанию очков")]
         public List<MasteryLevel> MasteryLevels = new List<MasteryLevel>();
@@ -92,6 +99,12 @@ namespace Zonk.Configs
 
         public Color[] PlayerColors = { new Color(0.95f, 0.75f, 0.3f), new Color(0.4f, 0.75f, 0.95f) };
 
+        [Tooltip("Цвет таблички босса вместо цвета второго игрока")]
+        public Color BossColor = new Color(0.95f, 0.45f, 0.35f);
+
+        [Tooltip("Пауза «на подумать» у соперника без профиля ИИ, секунды (от и до)")]
+        public Vector2 DefaultAiThinkDelay = new Vector2(0.6f, 1.4f);
+
         [Header("Реакции")]
         [Tooltip("Ход от стольких очков считается крупным")]
         public int BigBankScore = 1000;
@@ -104,6 +117,9 @@ namespace Zonk.Configs
 
         [Tooltip("Версия раскладки цен магазина, которую применил генератор. Руками не менять")]
         public int ShopLayoutVersion;
+
+        [Tooltip("Версия перенастройки кампании (ИИ, кости, цели соперников), которую применил генератор. Руками не менять")]
+        public int CampaignBalanceVersion;
 
         [Header("Освещение")]
         [Tooltip("Освещение локации без своего профиля")]

@@ -31,6 +31,15 @@ namespace Zonk.Core.Modifiers
         }
 
         /// <summary>
+        /// Кто ходит первым: proposed — выбор режима (жребий), playerCount — сколько игроков. По умолчанию не меняет.
+        /// Вызывается один раз в начале партии, только у общих правил.
+        /// </summary>
+        public virtual int ChooseFirstPlayer(int proposed, int playerCount)
+        {
+            return proposed;
+        }
+
+        /// <summary>
         /// Как правило видит игрок: ключ текста (Texts.csv), {0}, {1}… — значения DescriptionArgs. Строка в значениях,
         /// начинающаяся с «@», — тоже ключ текста (название комбинации, грани). Текст строится из чисел правила,
         /// поэтому всегда совпадает с тем, что действует в партии. null — правило без описания.
@@ -155,5 +164,21 @@ namespace Zonk.Core.Modifiers
 
         public override string DescriptionKey => "rule.minBank";
         public override object[] DescriptionArgs => new object[] { MinBankScore };
+    }
+
+    /// <summary>
+    /// Первым ходит соперник — последний игрок в списке (в режимах против соперника местный игрок первый в списке,
+    /// соперник — второй). Первый ход даёт около 56% побед при равной игре, поэтому это заметное, но честное
+    /// и видимое до партии преимущество босса. Только для режимов против соперника, не для игры вдвоём.
+    /// </summary>
+    [Serializable]
+    public sealed class OpponentStartsModifier : MatchModifier
+    {
+        public override int ChooseFirstPlayer(int proposed, int playerCount)
+        {
+            return playerCount - 1;
+        }
+
+        public override string DescriptionKey => "rule.opponentStarts";
     }
 }

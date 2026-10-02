@@ -28,6 +28,13 @@ namespace Base.Platform.VKPlay
             return UniTask.FromResult(PurchaseResult.Fail("not_integrated"));
         }
 
+        public bool ListsPermanentPurchases => false;
+
+        public UniTask<PurchaseList> GetPurchasesAsync(CancellationToken cancellationToken = default)
+        {
+            return UniTask.FromResult(PurchaseList.Failed);
+        }
+
         public UniTask<IReadOnlyList<PurchaseInfo>> GetPendingPurchasesAsync(CancellationToken cancellationToken = default)
         {
             return UniTask.FromResult(NoPurchases);

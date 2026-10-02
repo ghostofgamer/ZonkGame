@@ -532,7 +532,7 @@ namespace Zonk.Editor.Setup
 
             if (set.Config.NewStarRewards.Count == 0)
             {
-                set.Config.NewStarRewards.Add(new CurrencyReward { Currency = coins, Amount = 30 });
+                set.Config.NewStarRewards.Add(Gift(coins, 30));
                 EditorUtility.SetDirty(set.Config);
             }
 
@@ -549,7 +549,7 @@ namespace Zonk.Editor.Setup
                 set.Config.MasteryLevels.Add(MasteryLevelOf("mastery.1", 5000, new Color(0.85f, 0.52f, 0.25f), 1.8f, Gift(coins, 50)));
                 set.Config.MasteryLevels.Add(MasteryLevelOf("mastery.2", 25000, new Color(0.85f, 0.88f, 0.95f), 2.6f, Gift(coins, 150)));
                 set.Config.MasteryLevels.Add(MasteryLevelOf("mastery.3", 80000, new Color(1f, 0.8f, 0.25f), 3.6f, Gift(coins, 300),
-                    new CurrencyReward { Currency = energy, Amount = 3 }));
+                    Gift(energy, 3)));
                 EditorUtility.SetDirty(set.Config);
             }
 
@@ -644,6 +644,8 @@ namespace Zonk.Editor.Setup
 
             // Грозные версии боссов: после глав и костей соперников, до портретов (портрет — от босса).
             BuildDread();
+            // Главы 5–10 (соперники, боссы, грозные версии, локации со своим светом): до портретов.
+            BuildCampaignChapters(art);
             BuildPortraits(art);
             LinkDreadPortraits();
 
@@ -659,6 +661,9 @@ namespace Zonk.Editor.Setup
 
             // Цели партий кампании v3: от 4000 у первого соперника до 10000 у боссов, звёзды — в той же доле.
             RetuneTargets();
+
+            // Кампания v4: кривая сложности 10 глав (ИИ, кости, цели глав 1–4), один раз.
+            RetuneCampaignV4(set.Config);
 
             if (set.Config.Ui == null)
             {
@@ -681,19 +686,12 @@ namespace Zonk.Editor.Setup
                 return;
 
             if (boss.RollStyle == null || System.Array.IndexOf(generic, boss.RollStyle) >= 0)
-                boss.RollStyle = style;
-
-            var hasReward = false;
-            foreach (var existing in boss.FirstWinRewards)
             {
-                if (existing is ContentReward content && content.Item == reward)
-                    hasReward = true;
+                boss.RollStyle = style;
+                EditorUtility.SetDirty(boss);
             }
 
-            if (!hasReward)
-                boss.FirstWinRewards.Add(new ContentReward { Item = reward });
-
-            EditorUtility.SetDirty(boss);
+            EnsureContentReward(boss, reward);
         }
 
         /// <summary>
@@ -756,7 +754,7 @@ namespace Zonk.Editor.Setup
             Quest("of_a_kind", QuestPeriod.Daily, "quest.ofAKind", 1f, new ComboGoal { Target = 4, Category = ComboCategory.OfAKind },
                 Gift(coins, 60));
             Quest("plain_win", QuestPeriod.Daily, "quest.plainWin", 0.6f, new WinWithoutSpecialDiceGoal { Target = 1 },
-                Gift(coins, 100), new CurrencyReward { Currency = energy, Amount = 1 });
+                Gift(coins, 100), Gift(energy, 1));
             Quest("shop", QuestPeriod.Daily, "quest.shopAcquire", 0.4f,
                 new CustomEventGoal { Target = 1, Tag = Zonk.Progress.ShopService.AcquiredTag }, Gift(coins, 60));
             Quest("manual_roll", QuestPeriod.Daily, "quest.manualRoll", 0.6f,
@@ -770,17 +768,17 @@ namespace Zonk.Editor.Setup
 
             // Обязательные задания: реклама за награду в каждом наборе дня и недели.
             EnsureGuaranteed(Quest("watch_ads", QuestPeriod.Daily, "quest.watchAds", 1f, new WatchAdsGoal { Target = 2 },
-                Gift(coins, 80), new CurrencyReward { Currency = energy, Amount = 1 }));
+                Gift(coins, 80), Gift(energy, 1)));
             EnsureGuaranteed(Quest("watch_ads_week", QuestPeriod.Weekly, "quest.watchAds", 1f, new WatchAdsGoal { Target = 10 },
-                Gift(coins, 400), new CurrencyReward { Currency = energy, Amount = 5 }));
+                Gift(coins, 400), Gift(energy, 5)));
 
             Quest("visit_days", QuestPeriod.Weekly, "quest.visitDays", 1f, new VisitDaysGoal { Target = 5 },
-                Gift(coins, 300), new CurrencyReward { Currency = energy, Amount = 5 });
+                Gift(coins, 300), Gift(energy, 5));
             Quest("claim_dailies", QuestPeriod.Weekly, "quest.claimDailies", 1f, new ClaimDailyQuestsGoal { Target = 10 },
                 Gift(coins, 400));
             Quest("win_week", QuestPeriod.Weekly, "quest.win", 1f, new WinMatchesGoal { Target = 10 }, Gift(coins, 300));
             Quest("bosses", QuestPeriod.Weekly, "quest.bosses", 0.8f, new WinMatchesGoal { Target = 2, BossOnly = true },
-                Gift(coins, 300), new CurrencyReward { Currency = energy, Amount = 3 });
+                Gift(coins, 300), Gift(energy, 3));
             Quest("bank_week", QuestPeriod.Weekly, "quest.bank", 1f, new BankPointsGoal { Target = 20000 }, Gift(coins, 250));
             Quest("hot_dice_week", QuestPeriod.Weekly, "quest.hotDice", 1f, new HotDiceGoal { Target = 5 }, Gift(coins, 250));
         }
@@ -849,10 +847,6 @@ namespace Zonk.Editor.Setup
             EditorUtility.SetDirty(die);
         }
 
-        /// <summary>
-        /// Особые кости соперника. Ставятся, если у соперника пусто или стоит прежний набор генератора
-        /// (previous): ручной выбор в ассете не затирается.
-        /// </summary>
         /// <summary>Условия звёзд соперника; только если список ещё пуст (ручная настройка не затирается).</summary>
         private static void SetStars(OpponentConfig opponent, params StarCondition[] conditions)
         {
@@ -863,6 +857,10 @@ namespace Zonk.Editor.Setup
             EditorUtility.SetDirty(opponent);
         }
 
+        /// <summary>
+        /// Особые кости соперника. Ставятся, если у соперника пусто или стоит прежний набор генератора
+        /// (previous): ручной выбор в ассете не затирается.
+        /// </summary>
         private static void SetOpponentDice(OpponentConfig opponent, DieConfig[] previous, params DieConfig[] dice)
         {
             if (opponent == null)
@@ -1025,7 +1023,7 @@ namespace Zonk.Editor.Setup
 
         private static OpponentConfig Opponent(string id, AiProfileConfig ai, ReactionSetConfig reactions, Color color,
             GameObject accessory, int firstCoins, int repeatCoins, DieConfig rewardDie = null, bool boss = false,
-            MatchModifier rule = null, ContentConfig extraReward = null, DieConfig[] dice = null, CosmeticItemConfig cup = null)
+            MatchModifier rule = null, ContentConfig extraReward = null, CosmeticItemConfig cup = null)
         {
             return Asset<OpponentConfig>(ConfigsFolder + "/Opponents/Opp_" + id + ".asset", o =>
             {
@@ -1037,8 +1035,6 @@ namespace Zonk.Editor.Setup
                 o.Accessory = accessory;
                 o.IsBoss = boss;
                 o.Cup = cup;
-                if (dice != null)
-                    o.Dice = new List<DieConfig>(dice);
                 if (rule != null)
                 {
                     o.Modifiers.Add(rule);
@@ -1046,12 +1042,12 @@ namespace Zonk.Editor.Setup
                 }
 
                 var coins = AssetDatabase.LoadAssetAtPath<CurrencyConfig>(ConfigsFolder + "/Currencies/Coins.asset");
-                o.FirstWinRewards.Add(new CurrencyReward { Currency = coins, Amount = firstCoins });
+                o.FirstWinRewards.Add(Gift(coins, firstCoins));
                 if (rewardDie != null)
                     o.FirstWinRewards.Add(new ContentReward { Item = rewardDie });
                 if (extraReward != null)
                     o.FirstWinRewards.Add(new ContentReward { Item = extraReward });
-                o.RepeatWinRewards.Add(new CurrencyReward { Currency = coins, Amount = repeatCoins });
+                o.RepeatWinRewards.Add(Gift(coins, repeatCoins));
             });
         }
 

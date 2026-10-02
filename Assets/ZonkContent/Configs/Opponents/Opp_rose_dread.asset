@@ -1,0 +1,80 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f87d2b53912aca947b723c9fb666bc03, type: 3}
+  m_Name: Opp_rose_dread
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.OpponentConfig
+  Id: opp_rose_dread
+  NameKey: opp.rose_dread
+  TitleKey: opp.rose_dread.title
+  RuleKey: 
+  Portrait: {fileID: 21300000, guid: 93cfffff0d3c5fb4d826a17ec82d1986, type: 3}
+  BodyColor: {r: 0.45, g: 0.05, b: 0.2, a: 1}
+  Accessory: {fileID: 2827515006440756545, guid: 1aa3c401c6857e140ac2eb5a20c4cc17, type: 3}
+  IsBoss: 1
+  DreadOf: {fileID: 11400000, guid: ce670fe1654b29744ad26776084d965e, type: 2}
+  DreadUnlockStars: 3
+  Ai: {fileID: 11400000, guid: 9b4a3294963375b4a8ec29e18cb26386, type: 2}
+  Dice:
+  - {fileID: 11400000, guid: e71f1b038b70cf941b9a7bf2a6e1d519, type: 2}
+  - {fileID: 11400000, guid: e71f1b038b70cf941b9a7bf2a6e1d519, type: 2}
+  - {fileID: 11400000, guid: e71f1b038b70cf941b9a7bf2a6e1d519, type: 2}
+  - {fileID: 11400000, guid: e71f1b038b70cf941b9a7bf2a6e1d519, type: 2}
+  - {fileID: 11400000, guid: e71f1b038b70cf941b9a7bf2a6e1d519, type: 2}
+  - {fileID: 11400000, guid: e71f1b038b70cf941b9a7bf2a6e1d519, type: 2}
+  DiceSkin: {fileID: 0}
+  Cup: {fileID: 0}
+  TargetScore: 9000
+  StarConditions:
+  - rid: 1889488795864137986
+  - rid: 1889488795864137987
+  StakePayout: 1.1
+  Modifiers:
+  - rid: 1889488795864137988
+  Reactions: {fileID: 11400000, guid: 40486c28eab4d3343b3a340b589ac836, type: 2}
+  RollStyle: {fileID: 11400000, guid: a82837d5dd381b44f946c9367d6ab63b, type: 2}
+  EnergyCost: -1
+  FirstWinRewards:
+  - rid: 1889488795864137989
+  - rid: 1889488795864137990
+  RepeatWinRewards:
+  - rid: 1889488795864137991
+  references:
+    version: 2
+    RefIds:
+    - rid: 1889488795864137986
+      type: {class: MaxTurnsStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Turns: 15
+    - rid: 1889488795864137987
+      type: {class: WinByMarginStar, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Margin: 2500
+    - rid: 1889488795864137988
+      type: {class: SingleFaceModifier, ns: Zonk.Core.Modifiers, asm: Zonk.Core}
+      data:
+        Face: 1
+        Multiplier: 2
+    - rid: 1889488795864137989
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 800
+    - rid: 1889488795864137990
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: e04cfe8a374176e459e67b3b2f9e8d92, type: 2}
+        Amount: 5
+    - rid: 1889488795864137991
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 90

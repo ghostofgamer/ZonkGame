@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using Base.Platform;
+using Base.Services.Monetization;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using Zonk.Configs;
@@ -10,12 +12,16 @@ using Zonk.Core.Modifiers;
 using Zonk.MatchFlow;
 using Zonk.Progress;
 using Zonk.UI;
+using Zonk.UI.Windows;
 
 namespace Zonk.Table
 {
     /// <summary>Что нужно для партии режима-испытания.</summary>
     public sealed class ModeMatchSetup
     {
+        /// <summary>Режим для статистики: ID состояния стола (TableStateIds.Campaign, Tower, EndlessRun).</summary>
+        public string Mode;
+
         public OpponentConfig Opponent;
 
         /// <summary>Кости врага по слотам (null в списке — обычная). Список null — кости соперника из его конфига.</summary>
@@ -106,6 +112,7 @@ namespace Zonk.Table
 
             _platform.NotifyGameplayStart();
             var outcome = await _runner.RunAsync(settings, players, ct);
+            outcome.Mode = setup.Mode;
             _platform.NotifyGameplayStop();
 
             var won = outcome.Winner == 0 && !outcome.Surrendered;
@@ -137,6 +144,52 @@ namespace Zonk.Table
         private static IReadOnlyList<MatchModifier> List(IReadOnlyList<MatchModifier> modifiers)
         {
             return modifiers ?? System.Array.Empty<MatchModifier>();
+        }
+    }
+
+    /// <summary>Общие окна режимов-испытаний (башня, «Бесконечный забег»): лобби и этаж, шапка соперника, продолжение за рекламу.</summary>
+    public static class ModeWindows
+    {
+        /// <summary>Окно ChallengeWindow: показать и дождаться выбора.</summary>
+        public static async UniTask<ChallengeChoice> AskAsync(IUiService ui, string title, Sprite portrait, string body,
+            string primary, string secondary, string back, CancellationToken ct, TutorialDirector tutorial = null,
+            TutorialTrigger trigger = default)
+        {
+            var window = await ui.OpenAsync<ChallengeWindow>(ct, w => w.Setup(title, portrait, body, primary, secondary, back));
+            if (tutorial != null)
+                tutorial.Show(trigger);
+            try
+            {
+                return await window.WaitChoiceAsync(ct);
+            }
+            finally
+            {
+                if (tutorial != null)
+                    tutorial.Hide();
+                await ui.CloseAsync(window, CancellationToken.None);
+            }
+        }
+
+        /// <summary>Имя соперника жирным и его титул.</summary>
+        public static void AppendOpponent(StringBuilder body, OpponentConfig opponent, UiKit kit)
+        {
+            body.Append("<b>").Append(kit.T(opponent.NameKey)).Append("</b>");
+            if (!string.IsNullOrEmpty(opponent.TitleKey))
+                body.Append('\n').Append(kit.T(opponent.TitleKey));
+        }
+
+        /// <summary>Сердца кончились: спросить и показать рекламу. true — награда получена, режим даёт сердце сам.</summary>
+        public static async UniTask<bool> TryReviveAsync(bool canRevive, string placement, IUiService ui, IRewardService rewards,
+            UiKit kit, CancellationToken ct)
+        {
+            if (!canRevive || !rewards.CanOffer)
+                return false;
+
+            if (!await ConfirmWindow.AskAsync(ui, kit.T("run.reviveAsk"), ct))
+                return false;
+
+            var result = await rewards.RequestAsync(placement, ct);
+            return result.IsGranted();
         }
     }
 }

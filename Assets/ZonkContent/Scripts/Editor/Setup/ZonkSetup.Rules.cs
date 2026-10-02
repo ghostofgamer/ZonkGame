@@ -115,12 +115,8 @@ namespace Zonk.Editor.Setup
                     var column = (face - 1) % 3;
                     var row = (face - 1) / 3;
                     var pixels = atlas.GetPixels(column * cellWidth, row == 0 ? cellHeight : 0, cellWidth, cellHeight);
-                    var cell = new Texture2D(cellWidth, cellHeight, TextureFormat.RGBA32, false);
-                    cell.SetPixels(pixels);
-                    cell.Apply();
-                    File.WriteAllBytes(path, cell.EncodeToPNG());
-                    Object.DestroyImmediate(cell);
-                    AssetDatabase.ImportAsset(path);
+                    var cell = TextureFrom(cellWidth, cellHeight, pixels);
+                    SavePng(path, cell);
                 }
 
                 sprites[face - 1] = SpriteAt(path);
@@ -163,9 +159,7 @@ namespace Zonk.Editor.Setup
                 }
 
                 texture.Apply();
-                File.WriteAllBytes(path, texture.EncodeToPNG());
-                Object.DestroyImmediate(texture);
-                AssetDatabase.ImportAsset(path);
+                SavePng(path, texture);
             }
 
             return SpriteAt(path);
@@ -309,9 +303,7 @@ namespace Zonk.Editor.Setup
             var name = UiText("Name", row, ui.Font, 26, ui.Palette.Text);
             name.alignment = TextAlignmentOptions.Left;
             // Длинное название само уменьшается до 18 и переносится, а не вылезает за строку.
-            name.enableAutoSizing = true;
-            name.fontSizeMin = 18;
-            name.fontSizeMax = 26;
+            AutoSize(name, 18, 26);
             name.overflowMode = TextOverflowModes.Ellipsis;
             name.gameObject.AddComponent<LayoutElement>().flexibleWidth = 1;
 

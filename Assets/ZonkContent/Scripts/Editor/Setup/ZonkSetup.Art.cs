@@ -11,12 +11,8 @@ namespace Zonk.Editor.Setup
     {
         public readonly Dictionary<string, Material> Materials = new Dictionary<string, Material>();
         public Mesh DieMesh;
-        public GameObject Die;
         public GameObject CupLeather;
         public GameObject CupWood;
-
-        /// <summary>Стаканы из Tools/Blender/zonk_cups.py по имени модели (только те, что уже сгенерированы).</summary>
-        public readonly Dictionary<string, GameObject> Cups = new Dictionary<string, GameObject>();
 
         public GameObject Table;
         public GameObject Felt;
@@ -109,7 +105,7 @@ namespace Zonk.Editor.Setup
             Mat(art, "Red", new Color(0.7f, 0.12f, 0.1f), null, 0.3f);
 
             art.DieMesh = MeshOf(Models + "/Die.fbx");
-            art.Die = BuildDiePrefab(art);
+            BuildDiePrefab(art);
             art.CupLeather = BuildCupPrefab("Cup_Leather", Models + "/Cup_Leather.fbx", art["Cup_Leather"]);
             art.CupWood = BuildCupPrefab("Cup_Wood", Models + "/Cup_Wood.fbx", art["Cup_Wood"]);
             foreach (var (name, smoothness, metallic) in GeneratedCups)
@@ -123,7 +119,7 @@ namespace Zonk.Editor.Setup
                 ConfigureTexture(texturePath, CupTextureSize);
                 var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
                 var material = Mat(art, name, Color.white, texture, smoothness, metallic);
-                art.Cups[name] = BuildCupPrefab(name, path, material);
+                BuildCupPrefab(name, path, material);
             }
 
             BuildPlaceholders(art);
@@ -181,6 +177,7 @@ namespace Zonk.Editor.Setup
             return AssetDatabase.LoadAllAssetsAtPath(path).OfType<Mesh>().FirstOrDefault();
         }
 
+        /// <summary>Материал URP Lit (создаётся, если его нет); art — куда записать его по имени (null — никуда).</summary>
         private static Material Mat(ArtSet art, string name, Color color, Texture2D texture = null, float smoothness = 0.3f,
             float metallic = 0f, Color? emission = null)
         {
@@ -204,7 +201,8 @@ namespace Zonk.Editor.Setup
                 AssetDatabase.CreateAsset(material, path);
             }
 
-            art.Materials[name] = material;
+            if (art != null)
+                art.Materials[name] = material;
             return material;
         }
 

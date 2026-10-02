@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c74a2dad4468723469a6567bb8cc8987, type: 3}
+  m_Name: ach_chests_1
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.AchievementConfig
+  Id: ach_chests_1
+  NameKey: ach.chests
+  DescriptionKey: ach.chests.desc
+  Tier: 1
+  Order: 1700
+  Rarity: 0
+  Goal:
+    rid: 1889488795864138419
+  Target: 1
+  Rewards:
+  - rid: 1889488795864138420
+  references:
+    version: 2
+    RefIds:
+    - rid: 1889488795864138419
+      type: {class: ProgressGoal, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Stat: 4
+    - rid: 1889488795864138420
+      type: {class: CurrencyReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 100

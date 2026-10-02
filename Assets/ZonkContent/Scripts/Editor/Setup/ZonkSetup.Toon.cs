@@ -15,7 +15,7 @@ namespace Zonk.Editor.Setup
         public const string ToonShader = "Zonk/Toon";
 
         /// <summary>Светящиеся и фоновые материалы: на Toon не переводятся.</summary>
-        private static readonly string[] ToonSkip = { "Bulb", "Window", "Sky", "Sun", "Eyes", "Ring", "Candle" };
+        private static readonly string[] ToonSkip = { "Bulb", "Window", "Sky", "Sun", "Eyes", "Ring", "Candle", "Glow" };
 
         /// <summary>Большие поверхности: без контура и кромки (кромка на плоскости вдали — светлая полоса).</summary>
         private static readonly string[] ToonFlat = { "Felt", "Floor", "Wall", "Rug", "Sand", "Sea", "Deck", "Sail" };
@@ -75,10 +75,9 @@ namespace Zonk.Editor.Setup
             var from = toon ? litShader : toonShader;
             var to = toon ? toonShader : litShader;
             var count = 0;
-            foreach (var guid in AssetDatabase.FindAssets("t:Material", new[] { Root + "/Art" }))
+            foreach (var material in FindAll<Material>(Root + "/Art"))
             {
-                var material = AssetDatabase.LoadAssetAtPath<Material>(AssetDatabase.GUIDToAssetPath(guid));
-                if (material == null || material.shader != from || NameHas(material.name, ToonSkip))
+                if (material.shader != from || NameHas(material.name, ToonSkip))
                     continue;
                 if (material.HasProperty("_Surface") && material.GetFloat("_Surface") > 0.5f)
                     continue;

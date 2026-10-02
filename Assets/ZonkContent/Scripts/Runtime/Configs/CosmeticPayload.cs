@@ -58,4 +58,11 @@ namespace Zonk.Configs
     {
         public RollStyleConfig Style;
     }
+
+    /// <summary>Картинка интерфейса: аватар игрока, рамка вокруг аватара. В сцене стола ничего не меняет.</summary>
+    [Serializable]
+    public sealed class SpritePayload : CosmeticPayload
+    {
+        public Sprite Sprite;
+    }
 }

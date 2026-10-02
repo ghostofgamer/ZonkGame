@@ -57,6 +57,8 @@ namespace Zonk.Core.Match
     /// <summary>Вариант, какие кости отложить. Для ИИ и подсказок.</summary>
     public sealed class KeepOption
     {
+        private readonly List<int> _reusableDice;
+
         public KeepOption(IReadOnlyList<int> dice, int score, int diceLeft)
         {
             Dice = dice;
@@ -64,10 +66,26 @@ namespace Zonk.Core.Match
             DiceLeft = diceLeft;
         }
 
+        /// <summary>Вариант из общего буфера партии (ZonkMatch.GetKeepOptionsShared): заполняется заново.</summary>
+        internal KeepOption()
+        {
+            _reusableDice = new List<int>(ZonkMatch.DiceCount);
+            Dice = _reusableDice;
+        }
+
         public IReadOnlyList<int> Dice { get; }
-        public int Score { get; }
+        public int Score { get; private set; }
 
         /// <summary>Сколько костей останется для следующего броска (с учётом горячих костей).</summary>
-        public int DiceLeft { get; }
+        public int DiceLeft { get; private set; }
+
+        /// <summary>Заполнить вариант из буфера заново: возвращает очищенный список костей.</summary>
+        internal List<int> Reuse(int score, int diceLeft)
+        {
+            Score = score;
+            DiceLeft = diceLeft;
+            _reusableDice.Clear();
+            return _reusableDice;
+        }
     }
 }

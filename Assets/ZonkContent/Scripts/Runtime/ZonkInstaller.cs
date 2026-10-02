@@ -62,6 +62,11 @@ namespace Zonk
             Container.Bind<IGameClock>().To<SystemGameClock>().AsSingle();
             Container.Bind<IQuestService>().To<QuestService>().AsSingle();
             Container.Bind<IDieMastery>().To<DieMastery>().AsSingle();
+            Container.Bind<IPlayerLevel>().To<PlayerLevel>().AsSingle();
+            Container.Bind<IPlayerRecords>().To<PlayerRecords>().AsSingle();
+            Container.Bind<IChestService>().To<ChestService>().AsSingle();
+            Container.Bind<ISeasonPass>().To<SeasonPass>().AsSingle();
+            Container.Bind<IAchievements>().To<Achievements>().AsSingle();
             Container.Bind<MenuAdRewards>().AsSingle();
             Container.Bind<PlayerStats>().AsSingle();
             Container.Bind<EndlessRunProgress>().AsSingle();
@@ -85,28 +90,33 @@ namespace Zonk
             foreach (var product in products)
                 known.Add(product.Id);
 
-            if (_content != null)
+            foreach (var item in _content.Items)
             {
-                foreach (var item in _content.Items)
+                // Платная дорожка сезона — постоянный товар; право = ID товара (SeasonPass.HasPass).
+                if (item is SeasonConfig season)
                 {
-                    if (item is CoinPackConfig pack)
-                    {
-                        if (!string.IsNullOrEmpty(pack.ProductId) && known.Add(pack.ProductId))
-                            products.Add(new ProductDefinition(pack.ProductId, ProductKind.Consumable));
-                        continue;
-                    }
+                    if (!string.IsNullOrEmpty(season.PassProductId) && known.Add(season.PassProductId))
+                        products.Add(new ProductDefinition(season.PassProductId, ProductKind.Permanent));
+                    continue;
+                }
 
-                    var price = Pricing.PriceOf(item);
-                    if (price == null)
-                        continue;
+                if (item is CoinPackConfig pack)
+                {
+                    if (!string.IsNullOrEmpty(pack.ProductId) && known.Add(pack.ProductId))
+                        products.Add(new ProductDefinition(pack.ProductId, ProductKind.Consumable));
+                    continue;
+                }
 
-                    foreach (var option in price.Options)
+                var price = Pricing.PriceOf(item);
+                if (price == null)
+                    continue;
+
+                foreach (var option in price.Options)
+                {
+                    if (option is PurchasePriceOption purchase && !string.IsNullOrEmpty(purchase.ProductId) &&
+                        known.Add(purchase.ProductId))
                     {
-                        if (option is PurchasePriceOption purchase && !string.IsNullOrEmpty(purchase.ProductId) &&
-                            known.Add(purchase.ProductId))
-                        {
-                            products.Add(new ProductDefinition(purchase.ProductId, ProductKind.Permanent));
-                        }
+                        products.Add(new ProductDefinition(purchase.ProductId, ProductKind.Permanent));
                     }
                 }
             }

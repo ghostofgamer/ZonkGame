@@ -92,25 +92,30 @@ namespace Zonk.Configs
 
         public RollParams Pick(System.Random random)
         {
-            return new RollParams
-            {
-                ShakeDuration = Range(ShakeDuration, random),
-                ShakeAmplitude = Range(ShakeAmplitude, random),
-                ShakeFrequency = Range(ShakeFrequency, random),
-                ShakeTilt = Range(ShakeTilt, random),
-                WindUpDistance = Range(WindUpDistance, random),
-                WindUpLift = Range(WindUpLift, random),
-                WindUpTilt = Range(WindUpTilt, random),
-                WindUpDuration = Range(WindUpDuration, random),
-                WindUpHold = Range(WindUpHold, random),
-                SwingDuration = Range(SwingDuration, random),
-                FollowThrough = Range(FollowThrough, random),
-                PourAngle = Range(PourAngle, random),
-                DirectionJitter = (float)(random.NextDouble() * 2 - 1) * DirectionJitter,
-                ThrowSpeed = Range(ThrowSpeed, random),
-                SpinSpeed = Range(SpinSpeed, random),
-                Spread = Range(Spread, random),
-            };
+            var result = new RollParams();
+            Pick(random, result);
+            return result;
+        }
+
+        /// <summary>Заполнить готовый объект: бросок за броском без новых объектов.</summary>
+        public void Pick(System.Random random, RollParams result)
+        {
+            result.ShakeDuration = Range(ShakeDuration, random);
+            result.ShakeAmplitude = Range(ShakeAmplitude, random);
+            result.ShakeFrequency = Range(ShakeFrequency, random);
+            result.ShakeTilt = Range(ShakeTilt, random);
+            result.WindUpDistance = Range(WindUpDistance, random);
+            result.WindUpLift = Range(WindUpLift, random);
+            result.WindUpTilt = Range(WindUpTilt, random);
+            result.WindUpDuration = Range(WindUpDuration, random);
+            result.WindUpHold = Range(WindUpHold, random);
+            result.SwingDuration = Range(SwingDuration, random);
+            result.FollowThrough = Range(FollowThrough, random);
+            result.PourAngle = Range(PourAngle, random);
+            result.DirectionJitter = (float)(random.NextDouble() * 2 - 1) * DirectionJitter;
+            result.ThrowSpeed = Range(ThrowSpeed, random);
+            result.SpinSpeed = Range(SpinSpeed, random);
+            result.Spread = Range(Spread, random);
         }
 
         private static float Range(Vector2 range, System.Random random)

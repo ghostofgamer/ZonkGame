@@ -19,8 +19,7 @@ namespace Zonk.Editor
         [MenuItem("Zonk/Content/Rebuild UI Windows", priority = 12)]
         public static void Rebuild()
         {
-            var guid = AssetDatabase.FindAssets("t:" + nameof(UiConfig), new[] { ContentDatabaseBuilder.GameFolder }).FirstOrDefault();
-            var config = guid != null ? AssetDatabase.LoadAssetAtPath<UiConfig>(AssetDatabase.GUIDToAssetPath(guid)) : null;
+            var config = ContentDatabaseBuilder.FindFirst<UiConfig>();
             if (config == null)
                 return;
 

@@ -22,7 +22,7 @@ namespace Zonk.Editor.Setup
         {
             "LoadingScreen", "RulesWindow", "MainMenuWindow", "SettingsWindow", "ConfirmWindow", "StoryWindow", "ResultsWindow",
             "HotSeatSetupWindow", "CampaignWindow", "ShopWindow", "MatchHudWindow", "QuestsWindow", "LeaderboardWindow", "TutorialTipWindow", "LanguageWindow",
-            "ChallengeWindow", "PerkChoiceWindow",
+            "ChallengeWindow", "PerkChoiceWindow", "ProfileWindow", "ChestWindow", "SeasonWindow",
         };
 
         private static UiConfig _ui;
@@ -54,6 +54,9 @@ namespace Zonk.Editor.Setup
             WindowPrefab<LanguageWindow>("LanguageWindow", popupIn, popupOut, true, BuildLanguage);
             WindowPrefab<ChallengeWindow>("ChallengeWindow", popupIn, popupOut, true, BuildChallenge);
             WindowPrefab<PerkChoiceWindow>("PerkChoiceWindow", popupIn, popupOut, true, BuildPerkChoice);
+            WindowPrefab<ProfileWindow>("ProfileWindow", popupIn, popupOut, true, BuildProfile);
+            WindowPrefab<ChestWindow>("ChestWindow", popupIn, popupOut, true, BuildChestWindow);
+            WindowPrefab<SeasonWindow>("SeasonWindow", popupIn, popupOut, true, BuildSeasonWindow);
         }
 
         private static void WindowPrefab<T>(string name, UiTransitionConfig show, UiTransitionConfig hide, bool popup,
@@ -157,9 +160,7 @@ namespace Zonk.Editor.Setup
             var panel = CenterPanel(root, new Vector2(780f, 380f));
             var column = Column(panel, 24, 32);
             var text = Text("Text", column, _ui.Font, 32, _ui.Palette.Text);
-            text.enableAutoSizing = true;
-            text.fontSizeMin = 20;
-            text.fontSizeMax = 32;
+            AutoSize(text, 20, 32);
             Height(text, 170);
             var row = Row(column, 24);
             Height(row, 80);
@@ -187,9 +188,7 @@ namespace Zonk.Editor.Setup
             Anchor(speaker.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -40f), new Vector2(-80f, 56f));
             var text = Text("Text", panel, _ui.Font, 30, _ui.Palette.Text);
             text.alignment = TextAlignmentOptions.TopLeft;
-            text.enableAutoSizing = true;
-            text.fontSizeMin = 20;
-            text.fontSizeMax = 30;
+            AutoSize(text, 20, 30);
             Anchor(text.rectTransform, Vector2.zero, Vector2.one, new Vector2(0f, 10f), new Vector2(-80f, -200f));
 
             var buttons = Row(panel, 20);
@@ -213,9 +212,7 @@ namespace Zonk.Editor.Setup
             var lines = Column(column, 6, 0);
             lines.name = "Lines";
             var lineTemplate = Text("LineTemplate", lines, _ui.Font, 28, _ui.Palette.Text);
-            lineTemplate.enableAutoSizing = true;
-            lineTemplate.fontSizeMin = 18;
-            lineTemplate.fontSizeMax = 28;
+            AutoSize(lineTemplate, 18, 28);
             Height(lineTemplate, 50);
 
             // Звёзды за соперника: копия детали Parts/Stars.
@@ -329,9 +326,7 @@ namespace Zonk.Editor.Setup
             Corner(portrait.rectTransform, new Vector2(1f, 1f), new Vector2(180f, 180f), new Vector2(-16f, -16f));
             var info = Text("InfoText", infoPanel, _ui.Font, 26, _ui.Palette.Text);
             info.alignment = TextAlignmentOptions.TopLeft;
-            info.enableAutoSizing = true;
-            info.fontSizeMin = 16;
-            info.fontSizeMax = 26;
+            AutoSize(info, 16, 26);
             Anchor(info.rectTransform, Vector2.zero, Vector2.one, new Vector2(-98f, 75f), new Vector2(-236f, -190f));
 
             var conditions = UiRect("StarConditions", infoPanel);
@@ -354,9 +349,7 @@ namespace Zonk.Editor.Setup
             Height(diceHeader, 48);
             var myDiceLabel = Text("MyDiceLabel", diceHeader, _ui.Font, 22, _ui.Palette.TextMuted);
             myDiceLabel.alignment = TextAlignmentOptions.Left;
-            myDiceLabel.enableAutoSizing = true;
-            myDiceLabel.fontSizeMin = 16;
-            myDiceLabel.fontSizeMax = 22;
+            AutoSize(myDiceLabel, 16, 22);
             Width(myDiceLabel, -1, 1);
             var presetsRow = Row(diceHeader, 8);
             presetsRow.name = "Presets";
@@ -372,9 +365,7 @@ namespace Zonk.Editor.Setup
             Height(stakeRow, 56);
             var stakeLabel = Text("StakeLabel", stakeRow, _ui.Font, 22, _ui.Palette.TextMuted);
             stakeLabel.alignment = TextAlignmentOptions.Left;
-            stakeLabel.enableAutoSizing = true;
-            stakeLabel.fontSizeMin = 16;
-            stakeLabel.fontSizeMax = 22;
+            AutoSize(stakeLabel, 16, 22);
             Width(stakeLabel, 200, 0);
             var stakeList = Row(stakeRow, 8);
             stakeList.name = "StakeOptions";
@@ -446,13 +437,11 @@ namespace Zonk.Editor.Setup
 
             var turn = Text("Turn", root, _ui.BoldFont, 32, _ui.Palette.Text);
             Corner(turn.rectTransform, new Vector2(0.5f, 1f), new Vector2(700f, 110f), new Vector2(0f, -20f));
-            turn.outlineColor = new Color(0f, 0f, 0f, 0.8f);
-            turn.outlineWidth = 0.2f;
+            DarkOutline(turn);
 
             var hint = Text("Hint", root, _ui.Font, 30, _ui.Palette.Text);
             Corner(hint.rectTransform, new Vector2(0.5f, 0f), new Vector2(1100f, 60f), new Vector2(0f, 130f));
-            hint.outlineColor = new Color(0f, 0f, 0f, 0.8f);
-            hint.outlineWidth = 0.2f;
+            DarkOutline(hint);
 
             var buttons = Row(root, 24);
             Corner(buttons, new Vector2(0.5f, 0f), new Vector2(780f, 96f), new Vector2(0f, 24f));
@@ -550,9 +539,7 @@ namespace Zonk.Editor.Setup
             Corner(panel, new Vector2(0.5f, 1f), new Vector2(1180f, 170f), new Vector2(0f, -150f));
             var text = Text("Text", panel, _ui.Font, 28, _ui.Palette.Text);
             text.alignment = TextAlignmentOptions.Left;
-            text.enableAutoSizing = true;
-            text.fontSizeMin = 18;
-            text.fontSizeMax = 28;
+            AutoSize(text, 18, 28);
             Anchor(text.rectTransform, Vector2.zero, Vector2.one, new Vector2(-120f, 0f), new Vector2(-280f, -24f));
             var ok = ButtonView("Ok", panel, 26, _ui.Palette.ButtonAccent);
             Corner((RectTransform)ok.transform, new Vector2(1f, 0.5f), new Vector2(200f, 72f), new Vector2(-20f, 0f));
@@ -582,9 +569,7 @@ namespace Zonk.Editor.Setup
             Height(list, 520);
 
             var me = Text("Me", column, _ui.BoldFont, 28, _ui.Palette.Gold);
-            me.enableAutoSizing = true;
-            me.fontSizeMin = 18;
-            me.fontSizeMax = 28;
+            AutoSize(me, 18, 28);
             Height(me, 50);
 
             var buttons = Row(column, 24);
@@ -606,9 +591,7 @@ namespace Zonk.Editor.Setup
 
             var title = Text("Title", row, _ui.BoldFont, 28, _ui.Palette.Text);
             title.alignment = TextAlignmentOptions.Left;
-            title.enableAutoSizing = true;
-            title.fontSizeMin = 18;
-            title.fontSizeMax = 28;
+            AutoSize(title, 18, 28);
             Anchor(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(-180f, -44f), new Vector2(-400f, 56f));
 
             var bar = Box("Bar", row, new Color(0f, 0f, 0f, 0.45f));
@@ -617,14 +600,11 @@ namespace Zonk.Editor.Setup
             Stretch(fill);
             var progress = Text("Progress", bar, _ui.BoldFont, 20, _ui.Palette.Text);
             Stretch(progress.rectTransform);
-            progress.outlineColor = new Color(0f, 0f, 0f, 0.8f);
-            progress.outlineWidth = 0.2f;
+            DarkOutline(progress);
 
             var reward = Text("Reward", row, _ui.Font, 22, _ui.Palette.Gold);
             reward.alignment = TextAlignmentOptions.Left;
-            reward.enableAutoSizing = true;
-            reward.fontSizeMin = 16;
-            reward.fontSizeMax = 22;
+            AutoSize(reward, 16, 22);
             Anchor(reward.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(-180f, -128f), new Vector2(-400f, 32f));
 
             var claim = ButtonView("Claim", row, 26, _ui.Palette.ButtonAccent);
@@ -652,9 +632,7 @@ namespace Zonk.Editor.Setup
             var column = Column(panel, 2, 10);
             column.offsetMin = new Vector2(116f, 0f);
             var playerName = Text("Name", column, _ui.BoldFont, 28, _ui.Palette.Text);
-            playerName.enableAutoSizing = true;
-            playerName.fontSizeMin = 18;
-            playerName.fontSizeMax = 28;
+            AutoSize(playerName, 18, 28);
             Height(playerName, 40);
             var score = Text("Score", column, _ui.BoldFont, 40, _ui.Palette.Gold);
             Height(score, 56);
@@ -675,12 +653,8 @@ namespace Zonk.Editor.Setup
             Stretch(row);
             var coins = Text("Coins", row, _ui.BoldFont, 26, _ui.Palette.Gold);
             var energy = Text("Energy", row, _ui.BoldFont, 26, _ui.Palette.Good);
-            foreach (var text in new[] { coins, energy })
-            {
-                text.enableAutoSizing = true;
-                text.fontSizeMin = 16;
-                text.fontSizeMax = 26;
-            }
+            AutoSize(coins, 16, 26);
+            AutoSize(energy, 16, 26);
 
             panel.gameObject.AddComponent<WalletView>().EditorSetup(coins, energy);
             return panel;
@@ -713,9 +687,7 @@ namespace Zonk.Editor.Setup
             button.colors = colors;
 
             var label = Text("Label", rect, _ui.BoldFont, fontSize, _ui.Palette.Text);
-            label.enableAutoSizing = true;
-            label.fontSizeMin = Mathf.Min(16f, fontSize);
-            label.fontSizeMax = fontSize;
+            AutoSize(label, Mathf.Min(16f, fontSize), fontSize);
             Anchor(label.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, new Vector2(-16f, -8f));
 
             var view = rect.gameObject.AddComponent<UiButtonView>();
@@ -807,14 +779,25 @@ namespace Zonk.Editor.Setup
             return rect;
         }
 
-        private static RectTransform VerticalList(string name, RectTransform parent, float spacing, out RectTransform content)
+        /// <summary>Прокручиваемая область: подложка, ScrollRect, окно с маской и пустое содержимое (раскладку задаёт вызывающий).</summary>
+        private static RectTransform ScrollBox(string name, RectTransform parent, out ScrollRect scroll, out RectTransform content)
         {
             var root = Box(name, parent, new Color(1f, 1f, 1f, 0.03f));
-            var scroll = root.gameObject.AddComponent<ScrollRect>();
+            scroll = root.gameObject.AddComponent<ScrollRect>();
             var viewport = UiRect("Viewport", root);
             Stretch(viewport);
             viewport.gameObject.AddComponent<RectMask2D>();
             content = UiRect("Content", viewport);
+            scroll.content = content;
+            scroll.viewport = viewport;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 40f;
+            return root;
+        }
+
+        private static RectTransform VerticalList(string name, RectTransform parent, float spacing, out RectTransform content)
+        {
+            var root = ScrollBox(name, parent, out var scroll, out content);
             content.anchorMin = new Vector2(0f, 1f);
             content.anchorMax = new Vector2(1f, 1f);
             content.pivot = new Vector2(0.5f, 1f);
@@ -826,22 +809,13 @@ namespace Zonk.Editor.Setup
             layout.childControlHeight = true;
             layout.childForceExpandHeight = false;
             content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-            scroll.content = content;
-            scroll.viewport = viewport;
             scroll.horizontal = false;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 40f;
             return root;
         }
 
         private static RectTransform HorizontalList(string name, RectTransform parent, float spacing, out RectTransform content)
         {
-            var root = Box(name, parent, new Color(1f, 1f, 1f, 0.03f));
-            var scroll = root.gameObject.AddComponent<ScrollRect>();
-            var viewport = UiRect("Viewport", root);
-            Stretch(viewport);
-            viewport.gameObject.AddComponent<RectMask2D>();
-            content = UiRect("Content", viewport);
+            var root = ScrollBox(name, parent, out var scroll, out content);
             content.anchorMin = new Vector2(0f, 0f);
             content.anchorMax = new Vector2(0f, 1f);
             content.pivot = new Vector2(0f, 0.5f);
@@ -855,19 +829,19 @@ namespace Zonk.Editor.Setup
             layout.childForceExpandWidth = false;
             layout.childForceExpandHeight = true;
             content.gameObject.AddComponent<ContentSizeFitter>().horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-            scroll.content = content;
-            scroll.viewport = viewport;
             scroll.vertical = false;
-            scroll.movementType = ScrollRect.MovementType.Clamped;
-            scroll.scrollSensitivity = 40f;
             return root;
+        }
+
+        private static LayoutElement LayoutOf(Component component)
+        {
+            var layout = component.GetComponent<LayoutElement>();
+            return layout != null ? layout : component.gameObject.AddComponent<LayoutElement>();
         }
 
         private static void Height(Component component, float height)
         {
-            var layout = component.GetComponent<LayoutElement>();
-            if (layout == null)
-                layout = component.gameObject.AddComponent<LayoutElement>();
+            var layout = LayoutOf(component);
             layout.minHeight = height;
             layout.preferredHeight = height;
         }
@@ -875,9 +849,7 @@ namespace Zonk.Editor.Setup
         /// <summary>Ширина в строке: width ≥ 0 — фиксированная, flexible — доля свободного места.</summary>
         private static void Width(Component component, float width, float flexible)
         {
-            var layout = component.GetComponent<LayoutElement>();
-            if (layout == null)
-                layout = component.gameObject.AddComponent<LayoutElement>();
+            var layout = LayoutOf(component);
             if (width >= 0f)
             {
                 layout.minWidth = width;

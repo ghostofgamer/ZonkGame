@@ -87,16 +87,17 @@ namespace Zonk.Presentation
         {
             var basePosition = transform.position;
             var baseRotation = transform.rotation;
-            await Animate.RunAsync(duration, t =>
+            // Свой цикл, а не Animate.RunAsync с замыканием: тряска на каждый бросок не создаёт объектов.
+            for (var time = 0f; time < duration; time += Time.deltaTime)
             {
-                var phase = t * duration * frequency + seed;
-                var fade = Mathf.Sin(t * Mathf.PI);
+                var phase = time * frequency + seed;
+                var fade = Mathf.Sin(time / duration * Mathf.PI);
                 var offset = new Vector3(Mathf.Sin(phase), Mathf.Abs(Mathf.Sin(phase * 1.3f)) * 0.6f, Mathf.Cos(phase * 0.9f)) *
                              (amplitude * fade);
-                transform.position = basePosition + offset;
-                transform.rotation = baseRotation * Quaternion.Euler(Mathf.Sin(phase * 1.1f) * tilt * fade, 0f,
-                    Mathf.Cos(phase + seed) * tilt * fade);
-            }, ct, AnimateEase.Linear);
+                transform.SetPositionAndRotation(basePosition + offset, baseRotation * Quaternion.Euler(
+                    Mathf.Sin(phase * 1.1f) * tilt * fade, 0f, Mathf.Cos(phase + seed) * tilt * fade));
+                await UniTask.Yield(PlayerLoopTiming.Update, ct);
+            }
 
             transform.SetPositionAndRotation(basePosition, baseRotation);
         }

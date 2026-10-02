@@ -31,6 +31,15 @@ namespace Base.Platform
         public static PurchaseResult Fail(string error) => new PurchaseResult { Success = false, Error = error };
     }
 
+    /// <summary>Список покупок с площадки для сверки прав. Ok = false: площадка не ответила, права не трогать.</summary>
+    public sealed class PurchaseList
+    {
+        public static readonly PurchaseList Failed = new PurchaseList { Ok = false, Items = new PurchaseInfo[0] };
+
+        public bool Ok;
+        public IReadOnlyList<PurchaseInfo> Items;
+    }
+
     /// <summary>Внутриигровые покупки.</summary>
     public interface IPurchaseService
     {
@@ -43,6 +52,15 @@ namespace Base.Platform
 
         /// <summary>Купленные, но ещё не подтверждённые покупки. Проверять при старте.</summary>
         UniTask<IReadOnlyList<PurchaseInfo>> GetPendingPurchasesAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Площадка отдаёт постоянные покупки в списке всегда (их не подтверждают), поэтому по списку можно сверять права:
+        /// право есть, а покупки в ответе нет — право снимается (защита от правки сохранения). false — сверки нет.
+        /// </summary>
+        bool ListsPermanentPurchases { get; }
+
+        /// <summary>Все неподтверждённые покупки (вместе с постоянными) и ответила ли площадка.</summary>
+        UniTask<PurchaseList> GetPurchasesAsync(CancellationToken cancellationToken = default);
 
         /// <summary>Подтвердить покупку после выдачи товара.</summary>
         UniTask ConsumeAsync(string purchaseToken, CancellationToken cancellationToken = default);

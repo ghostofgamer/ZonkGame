@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d372713fc896e014cb44bc21c6c3703a, type: 3}
+  m_Name: Reactions_fortuna
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.ReactionSetConfig
+  Id: reactions_fortuna
+  NameKey: reactions.fortuna
+  Entries:
+  - Event: 0
+    Gesture: 7
+    LineKeys:
+    - line.fortuna.start
+    Chance: 1
+  - Event: 1
+    Gesture: 4
+    LineKeys:
+    - line.fortuna.zonk
+    Chance: 0.9
+  - Event: 2
+    Gesture: 5
+    LineKeys:
+    - line.fortuna.otherZonk
+    Chance: 0.8
+  - Event: 12
+    Gesture: 8
+    LineKeys:
+    - line.fortuna.otherBig
+    Chance: 0.8
+  - Event: 13
+    Gesture: 8
+    LineKeys:
+    - line.fortuna.otherBig
+    Chance: 1
+  - Event: 7
+    Gesture: 5
+    LineKeys:
+    - line.fortuna.won
+    Chance: 1
+  - Event: 8
+    Gesture: 3
+    LineKeys:
+    - line.fortuna.lost
+    Chance: 1
+  - Event: 10
+    Gesture: 1
+    LineKeys: []
+    Chance: 0.5

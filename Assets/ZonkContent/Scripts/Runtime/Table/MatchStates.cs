@@ -29,12 +29,24 @@ namespace Zonk.Table
         private readonly IUiService _ui;
         private readonly IQuestService _quests;
         private readonly IDieMastery _mastery;
+        private readonly IPlayerLevel _level;
+        private readonly IPlayerRecords _records;
+        private readonly IChestService _chests;
+        private readonly ISeasonPass _season;
+        private readonly IAchievements _achievements;
+        private bool _chestEarned;
         private readonly CurrencyConfig _coinsCurrency;
 
         public MatchAftermath(UiKit kit, TableView table, MatchPresenter presenter, RewardGranter granter,
             IRewardService rewards, IInterstitialService interstitials, ISaveStore saves, IUiService ui, IQuestService quests,
-            IDieMastery mastery, GameConfig config)
+            IDieMastery mastery, GameConfig config, IPlayerLevel level, IPlayerRecords records, IChestService chests, ISeasonPass season,
+            IAchievements achievements)
         {
+            _achievements = achievements;
+            _season = season;
+            _chests = chests;
+            _records = records;
+            _level = level;
             _coinsCurrency = config != null ? config.Coins : null;
             _quests = quests;
             _mastery = mastery;
@@ -76,6 +88,9 @@ namespace Zonk.Table
 
             await _presenter.ShowResultAsync(localWon || !vsAi, ct);
 
+            // Опыт игрока — за любую партию против соперника (за проигрыш тоже), не за игру вдвоём.
+            var xp = vsAi ? RecordLocalMatch(outcome, participants, localWon) : default(XpGain?);
+
             var granted = localWon && rewards != null ? _granter.Grant(rewards) : new List<GrantedReward>();
             // Уже выданное вне наград режима (выигрыш ставки): показывается, но не удваивается рекламой.
             if (alreadyGranted != null)
@@ -87,6 +102,8 @@ namespace Zonk.Table
             var screen = await _ui.OpenAsync<ResultsWindow>(ct, w => w.Setup(match, title, color, granted, canDouble, canAgain, notes, againText));
             screen.PlayCoinsGained(granted, _coinsCurrency);
             screen.ShowStars(starMask, starCount);
+            if (xp.HasValue)
+                screen.ShowXp(xp.Value, _level);
             try
             {
                 while (true)
@@ -122,9 +139,43 @@ namespace Zonk.Table
             return choice;
         }
 
-        /// <summary>Сообщения после партии: выполненные задания и новые уровни мастерства костей.</summary>
+        /// <summary>Сообщения после партии: новый уровень игрока, выполненные задания, новые уровни мастерства костей.</summary>
         private async UniTask ShowProgressNoticesAsync(CancellationToken ct)
         {
+            if (_achievements != null)
+            {
+                _achievements.Check();
+                foreach (var unlock in _achievements.TakeUnlocked())
+                {
+                    _table.Sound.Play(Sfx.Coin);
+                    var text = _kit.T("achievement.unlocked", RewardNames.AchievementTitle(unlock.Achievement, _kit.T));
+                    var rewards = RewardNames.Granted(unlock.Rewards, _kit.T);
+                    if (!string.IsNullOrEmpty(rewards))
+                        text += "\n" + rewards;
+                    await Toast.ShowAsync(_kit, _table.UiRoot, text, UiColors.Gold, 1.6f, ct);
+                }
+            }
+
+            if (_chestEarned)
+            {
+                _chestEarned = false;
+                _table.Sound.Play(Sfx.Coin);
+                await Toast.ShowAsync(_kit, _table.UiRoot, _kit.T("chest.earned"), UiColors.Gold, 1.2f, ct);
+            }
+
+            if (_level != null)
+            {
+                foreach (var levelUp in _level.TakeLevelUps())
+                {
+                    _table.Sound.Play(Sfx.Coin);
+                    var text = _kit.T("level.up", levelUp.Level);
+                    var rewards = RewardNames.Granted(levelUp.Rewards, _kit.T);
+                    if (!string.IsNullOrEmpty(rewards))
+                        text += "\n" + rewards;
+                    await Toast.ShowAsync(_kit, _table.UiRoot, text, UiColors.Gold, 1.6f, ct);
+                }
+            }
+
             foreach (var quest in _quests.TakeCompleted())
             {
                 _table.Sound.Play(Sfx.Coin);
@@ -140,6 +191,35 @@ namespace Zonk.Table
                     _kit.T("mastery.levelUp", _kit.T(levelUp.Die.NameKey), info != null ? _kit.T(info.NameKey) : levelUp.Level.ToString()),
                     info != null ? info.Color : UiColors.Gold, 1.2f, ct);
             }
+        }
+
+        /// <summary>Партия местного игрока против соперника: статистика и опыт (победа или проигрыш, очки, босс).</summary>
+        private XpGain? RecordLocalMatch(MatchOutcome outcome, IReadOnlyList<MatchParticipant> participants, bool localWon)
+        {
+            var local = -1;
+            var vsBoss = false;
+            for (var i = 0; i < participants.Count; i++)
+            {
+                if (participants[i].Controller == ControllerKind.Local && local < 0)
+                    local = i;
+                if (participants[i].Opponent != null && participants[i].Opponent.IsBoss)
+                    vsBoss = true;
+            }
+
+            if (local < 0)
+                return null;
+
+            if (_records != null)
+                _records.RecordMatch(outcome.Mode, localWon, outcome.Surrendered, vsBoss, participants[local].Dice, outcome.Seconds);
+            if (localWon && _chests != null && _chests.AddWin())
+                _chestEarned = true;
+
+            var score = outcome.Match != null && local < outcome.Match.Players.Count ? outcome.Match.Players[local].Score : 0;
+            var xp = _level != null ? _level.AddMatch(localWon, outcome.Surrendered, score, vsBoss) : (XpGain?)null;
+            // Очки сезона — тот же опыт.
+            if (xp.HasValue && _season != null)
+                _season.AddPoints(xp.Value.Total);
+            return xp;
         }
 
         private static bool HasCurrency(IReadOnlyList<Reward> rewards)
@@ -169,8 +249,6 @@ namespace Zonk.Table
     public sealed class HotSeatState : ITableState
     {
         private readonly IQuestService _quests;
-        private readonly UiKit _kit;
-        private readonly TableView _table;
         private readonly HotSeatSettings _settings;
         private readonly GameConfig _config;
         private readonly ContentDatabase _content;
@@ -182,13 +260,11 @@ namespace Zonk.Table
         private readonly IPlatformService _platform;
         private readonly IUiService _ui;
 
-        public HotSeatState(UiKit kit, TableView table, HotSeatSettings settings, GameConfig config, ContentDatabase content,
+        public HotSeatState(HotSeatSettings settings, GameConfig config, ContentDatabase content,
             IInventory inventory, OwnedContent owned, ParticipantFactory participants, MatchRunner runner,
             MatchAftermath aftermath, IPlatformService platform, IUiService ui, IQuestService quests)
         {
             _quests = quests;
-            _kit = kit;
-            _table = table;
             _settings = settings;
             _config = config;
             _content = content;
@@ -271,7 +347,6 @@ namespace Zonk.Table
     /// </summary>
     public sealed class CampaignState : ITableState
     {
-        private readonly IQuestService _quests;
         private readonly RewardGranter _granter;
         private readonly PlayerStats _stats;
         private readonly UiKit _kit;
@@ -279,44 +354,31 @@ namespace Zonk.Table
         private readonly ICampaignProgress _progress;
         private readonly IWallet _wallet;
         private readonly GameConfig _config;
-        private readonly ContentDatabase _content;
-        private readonly IInventory _inventory;
         private readonly ILoadout _loadout;
         private readonly OwnedContent _owned;
-        private readonly ParticipantFactory _participants;
-        private readonly MatchRunner _runner;
+        private readonly ModeMatch _match;
         private readonly MatchAftermath _aftermath;
         private readonly StageDresser _dresser;
-        private readonly IRewardService _rewards;
-        private readonly IPlatformService _platform;
         private readonly EnergyGate _energy;
         private readonly IUiService _ui;
 
         public CampaignState(UiKit kit, TableView table, ICampaignProgress progress, IWallet wallet, GameConfig config,
-            ContentDatabase content, IInventory inventory, ILoadout loadout, OwnedContent owned,
-            ParticipantFactory participants, MatchRunner runner, MatchAftermath aftermath, StageDresser dresser,
-            IRewardService rewards, IPlatformService platform, IUiService ui, IQuestService quests, RewardGranter granter,
-            PlayerStats stats, EnergyGate energy)
+            ILoadout loadout, OwnedContent owned, ModeMatch match, MatchAftermath aftermath, StageDresser dresser,
+            IUiService ui, RewardGranter granter, PlayerStats stats, EnergyGate energy)
         {
             _energy = energy;
             _stats = stats;
             _granter = granter;
-            _quests = quests;
             _kit = kit;
             _table = table;
             _progress = progress;
             _wallet = wallet;
             _config = config;
-            _content = content;
-            _inventory = inventory;
             _loadout = loadout;
             _owned = owned;
-            _participants = participants;
-            _runner = runner;
+            _match = match;
             _aftermath = aftermath;
             _dresser = dresser;
-            _rewards = rewards;
-            _platform = platform;
             _ui = ui;
         }
 
@@ -359,15 +421,14 @@ namespace Zonk.Table
                 if (!await PayEnergyAsync(opponent, ct))
                     continue;
 
-                while (await PlayAsync(chapter, opponent, allowSpecial, stake, ct) && await PayEnergyAsync(opponent, ct))
+                while (await PlayAsync(chapter, opponent, stake, ct) && await PayEnergyAsync(opponent, ct))
                 {
                 }
             }
         }
 
         /// <summary>Партия с соперником. true: игрок хочет ещё раз с тем же соперником.</summary>
-        private async UniTask<bool> PlayAsync(ChapterConfig chapter, OpponentConfig opponent, bool allowSpecial, int stake,
-            CancellationToken ct)
+        private async UniTask<bool> PlayAsync(ChapterConfig chapter, OpponentConfig opponent, int stake, CancellationToken ct)
         {
             // Ставка списывается до партии; не хватает монет (потратил между партиями) — играем без ставки.
             if (stake > 0 && (_config.Coins == null || !_wallet.TrySpend(_config.Coins, stake)))
@@ -379,38 +440,19 @@ namespace Zonk.Table
             // Локация главы — до партии: стаканы и свет партии уже в ней.
             await _dresser.OverrideAsync(chapter.Environment, ct);
 
-            var me = _participants.LocalPlayer(_kit.T("campaign.you"), allowSpecial);
-            var enemy = _participants.Opponent(opponent, _kit.T(opponent.NameKey));
-            var players = new List<MatchParticipant> { me, enemy };
-
+            // Цель — у соперника своя или режима; правила соперника — на обоих (ModeMatch: участники, партия, отчёт заданиям).
             var mode = _config.CampaignMode;
-            var rules = mode != null && mode.Rules != null ? mode.Rules.ToRuleSet(opponent.TargetFor(mode.Rules.TargetScore)) : Core.Rules.RuleSet.CreateClassic();
-            var settings = new MatchSettings
+            var result = await _match.PlayAsync(new ModeMatchSetup
             {
-                Rules = rules,
-                Players = new List<PlayerSetup>
-                {
-                    new PlayerSetup(me.Name, ParticipantFactory.Specs(me.Dice)),
-                    new PlayerSetup(enemy.Name, ParticipantFactory.Specs(enemy.Dice)),
-                },
-                Modifiers = new List<Core.Modifiers.MatchModifier>(opponent.Modifiers),
-                Seed = SplitMixRandom.NewSeed(),
-                FirstPlayer = Random.Range(0, 2),
-            };
-
-            _platform.NotifyGameplayStart();
-            var outcome = await _runner.RunAsync(settings, players, ct);
-            _platform.NotifyGameplayStop();
-
-            var won = outcome.Winner == 0;
-            _quests.Report(new QuestEvent
-            {
-                Kind = QuestEventKind.MatchFinished,
-                Won = won,
-                Surrendered = outcome.Surrendered,
-                VsBoss = opponent.IsBoss,
-                Dice = me.Dice,
-            });
+                Mode = TableStateIds.Campaign,
+                Opponent = opponent,
+                Target = opponent.TargetScore,
+                SharedRules = opponent.Modifiers,
+            }, ct);
+            var outcome = result.Outcome;
+            var players = result.Players;
+            var me = players[0];
+            var won = result.Won;
             var firstWin = won && _progress.MarkBeaten(opponent);
             var rewards = new List<Reward>();
             if (won)

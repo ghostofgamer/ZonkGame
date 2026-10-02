@@ -37,36 +37,55 @@ namespace Zonk.Progress
         public bool Sound
         {
             get => Data.Sound;
-            set => Set(() => Data.Sound = value);
+            set
+            {
+                Data.Sound = value;
+                Saved();
+            }
         }
 
         public bool Music
         {
             get => Data.Music;
-            set => Set(() => Data.Music = value);
+            set
+            {
+                Data.Music = value;
+                Saved();
+            }
         }
 
         public int Speed
         {
             get => Data.Speed < 1 ? 1 : Data.Speed;
-            set => Set(() => Data.Speed = value < 1 ? 1 : value > 3 ? 3 : value);
+            set
+            {
+                Data.Speed = value < 1 ? 1 : value > 3 ? 3 : value;
+                Saved();
+            }
         }
 
         public bool Vibration
         {
             get => Data.Vibration;
-            set => Set(() => Data.Vibration = value);
+            set
+            {
+                Data.Vibration = value;
+                Saved();
+            }
         }
 
         public string Language
         {
             get => Data.Language;
-            set => Set(() => Data.Language = value);
+            set
+            {
+                Data.Language = value;
+                Saved();
+            }
         }
 
-        private void Set(Action change)
+        private void Saved()
         {
-            change();
             _saves.RequestSave();
             Changed?.Invoke();
         }

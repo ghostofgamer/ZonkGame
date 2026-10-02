@@ -111,8 +111,6 @@ namespace Zonk.Editor.Setup
             });
         }
 
-        private static StarsView StarsPart() => StarsGameObjectPart().GetComponent<StarsView>();
-
         /// <summary>Строка соперника: фон-кнопка, портрет, имя, пометка (босс, закрыт), звёзды.</summary>
         private static OpponentRowView OpponentRowPart()
         {
@@ -135,9 +133,7 @@ namespace Zonk.Editor.Setup
 
                 var name = Text("Name", root, _ui.BoldFont, 26, _ui.Palette.Text);
                 name.alignment = TextAlignmentOptions.Left;
-                name.enableAutoSizing = true;
-                name.fontSizeMin = 16;
-                name.fontSizeMax = 26;
+                AutoSize(name, 16, 26);
                 Anchor(name.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 1f), new Vector2(-69f, -2f), new Vector2(-322f, -6f));
 
                 var status = Text("Status", root, _ui.Font, 18, _ui.Palette.TextMuted);
@@ -168,9 +164,7 @@ namespace Zonk.Editor.Setup
                 Corner(star.rectTransform, new Vector2(0f, 0.5f), new Vector2(32f, 32f), new Vector2(0f, 0f));
                 var text = Text("Text", root, _ui.Font, 22, _ui.Palette.TextMuted);
                 text.alignment = TextAlignmentOptions.Left;
-                text.enableAutoSizing = true;
-                text.fontSizeMin = 14;
-                text.fontSizeMax = 22;
+                AutoSize(text, 14, 22);
                 Anchor(text.rectTransform, Vector2.zero, Vector2.one, new Vector2(22f, 0f), new Vector2(-44f, 0f));
 
                 var view = root.gameObject.AddComponent<StarConditionRowView>();
@@ -203,21 +197,15 @@ namespace Zonk.Editor.Setup
                 Corner(icon.rectTransform, new Vector2(0.5f, 1f), new Vector2(96f, 96f), new Vector2(0f, -10f));
 
                 var name = Text("Name", root, _ui.BoldFont, 22, _ui.Palette.Text);
-                name.enableAutoSizing = true;
-                name.fontSizeMin = 14;
-                name.fontSizeMax = 22;
+                AutoSize(name, 14, 22);
                 Anchor(name.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 96f), new Vector2(-16f, 52f));
 
                 var price = Text("Price", root, _ui.BoldFont, 20, _ui.Palette.Gold);
-                price.enableAutoSizing = true;
-                price.fontSizeMin = 13;
-                price.fontSizeMax = 20;
+                AutoSize(price, 13, 20);
                 Anchor(price.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 56f), new Vector2(-16f, 32f));
 
                 var state = Text("State", root, _ui.Font, 18, _ui.Palette.TextMuted);
-                state.enableAutoSizing = true;
-                state.fontSizeMin = 12;
-                state.fontSizeMax = 18;
+                AutoSize(state, 12, 18);
                 Anchor(state.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 22f), new Vector2(-16f, 30f));
 
                 var view = root.gameObject.AddComponent<ShopCardView>();
@@ -248,9 +236,7 @@ namespace Zonk.Editor.Setup
                 Width(rank, 80, 0);
                 var name = Text("Name", root, _ui.Font, 26, _ui.Palette.Text);
                 name.alignment = TextAlignmentOptions.Left;
-                name.enableAutoSizing = true;
-                name.fontSizeMin = 16;
-                name.fontSizeMax = 26;
+                AutoSize(name, 16, 26);
                 Width(name, -1, 1);
                 var score = Text("Score", root, _ui.BoldFont, 26, _ui.Palette.Text);
                 score.alignment = TextAlignmentOptions.Right;
@@ -286,9 +272,7 @@ namespace Zonk.Editor.Setup
 
                 var name = Text("Name", root, _ui.BoldFont, 28, _ui.Palette.Text);
                 name.alignment = TextAlignmentOptions.Left;
-                name.enableAutoSizing = true;
-                name.fontSizeMin = 16;
-                name.fontSizeMax = 28;
+                AutoSize(name, 16, 28);
                 Anchor(name.rectTransform, Vector2.zero, Vector2.one, new Vector2(52f, 0f), new Vector2(-124f, -12f));
 
                 var view = root.gameObject.AddComponent<LanguageButtonView>();
@@ -375,23 +359,10 @@ namespace Zonk.Editor.Setup
                     pixels[y * size + x] = color;
                 }
 
-                var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
-                texture.SetPixels(pixels);
-                texture.Apply();
-                File.WriteAllBytes(path, texture.EncodeToPNG());
-                Object.DestroyImmediate(texture);
-                AssetDatabase.ImportAsset(path);
+                SavePng(path, TextureFrom(size, size, pixels));
             }
 
-            if (AssetImporter.GetAtPath(path) is TextureImporter importer && importer.textureType != TextureImporterType.Sprite)
-            {
-                importer.textureType = TextureImporterType.Sprite;
-                importer.alphaIsTransparency = true;
-                importer.mipmapEnabled = false;
-                importer.SaveAndReimport();
-            }
-
-            return AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            return SpriteAt(path);
         }
     }
 }

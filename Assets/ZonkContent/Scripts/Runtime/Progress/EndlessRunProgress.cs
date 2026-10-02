@@ -90,6 +90,9 @@ namespace Zonk.Progress
         public IReadOnlyList<RunOfferSave> Offers => Data.Offers;
         public IReadOnlyList<RunComboSave> Combos => Data.Combos;
 
+        /// <summary>ID особых костей игрока в забеге по слотам, пустая строка — обычная.</summary>
+        public IReadOnlyList<string> DiceIds => Data.Dice;
+
         /// <summary>Новый забег: кости — набор игрока (dice, null — обычная), сердца, этаж 1. Прежний забег заканчивается.</summary>
         public void StartNew(IReadOnlyList<DieConfig> dice, ulong seed)
         {

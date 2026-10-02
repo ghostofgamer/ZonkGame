@@ -63,8 +63,8 @@ namespace Zonk.Progress
         {
             if (slot != null && slot.MultiSelect)
             {
-                var set = GetEquippedSet(slot);
-                return set.Count > 0 ? set[0] : null;
+                FillEquippedSet(slot, _setBuffer);
+                return _setBuffer.Count > 0 ? _setBuffer[0] : null;
             }
 
             if (slot == null)
@@ -116,8 +116,18 @@ namespace Zonk.Progress
         public IReadOnlyList<CosmeticItemConfig> GetEquippedSet(CosmeticSlotConfig slot)
         {
             var result = new List<CosmeticItemConfig>();
+            FillEquippedSet(slot, result);
+            return result;
+        }
+
+        // Рабочий список для GetEquipped, IsEquipped и Toggle: их зовут при каждой отрисовке магазина и сборке участника.
+        private readonly List<CosmeticItemConfig> _setBuffer = new List<CosmeticItemConfig>();
+
+        private void FillEquippedSet(CosmeticSlotConfig slot, List<CosmeticItemConfig> result)
+        {
+            result.Clear();
             if (slot == null)
-                return result;
+                return;
 
             var entry = MultiEntry(slot, false);
             if (entry != null)
@@ -132,7 +142,6 @@ namespace Zonk.Progress
 
             if (result.Count == 0 && slot.DefaultItem != null)
                 result.Add(slot.DefaultItem);
-            return result;
         }
 
         public bool IsEquipped(CosmeticItemConfig item)
@@ -143,13 +152,8 @@ namespace Zonk.Progress
             if (!item.Slot.MultiSelect)
                 return GetEquipped(item.Slot) == item;
 
-            foreach (var equipped in GetEquippedSet(item.Slot))
-            {
-                if (equipped == item)
-                    return true;
-            }
-
-            return false;
+            FillEquippedSet(item.Slot, _setBuffer);
+            return _setBuffer.Contains(item);
         }
 
         public void Toggle(CosmeticItemConfig item)
@@ -158,10 +162,10 @@ namespace Zonk.Progress
                 return;
 
             // Хранимый набор начинается с фактического: если он пуст, в нём базовый предмет слота.
-            var current = GetEquippedSet(item.Slot);
+            FillEquippedSet(item.Slot, _setBuffer);
             var entry = MultiEntry(item.Slot, true);
             entry.Items.Clear();
-            foreach (var equipped in current)
+            foreach (var equipped in _setBuffer)
                 entry.Items.Add(equipped.Id);
 
             if (entry.Items.Contains(item.Id))
@@ -267,20 +271,19 @@ namespace Zonk.Progress
         {
             var result = new List<DieConfig>(ZonkMatch.DiceCount);
             var special = 0;
-            var used = new HashSet<DieConfig>();
             for (var i = 0; i < ZonkMatch.DiceCount; i++)
             {
                 var id = ids != null && i < ids.Count ? ids[i] : null;
                 var die = content.Get<DieConfig>(id);
 
                 if (die == null || !inventory.IsOwned(die) ||
-                    (die.IsSpecial && (!allowSpecial || special >= config.MaxSpecialDice || used.Contains(die))))
+                    (die.IsSpecial && (!allowSpecial || special >= config.MaxSpecialDice || result.Contains(die))))
                 {
                     die = config.StandardDie;
                 }
 
-                // Особая кость занимает только один слот: одинаковые особые кости не складывают перекос.
-                if (die != null && die.IsSpecial && used.Add(die))
+                // Особая кость занимает только один слот (повтор выше заменён обычной): одинаковые особые не складывают перекос.
+                if (die != null && die.IsSpecial)
                     special++;
 
                 result.Add(die);

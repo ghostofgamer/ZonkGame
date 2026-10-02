@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using TMPro;
@@ -24,6 +25,11 @@ namespace Zonk.UI.Windows
         Leaderboards,
         Tower,
         EndlessRun,
+
+        /// <summary>Профиль: статистика (нажатие на уровень игрока).</summary>
+        Profile,
+        Chest,
+        Season,
     }
 
     /// <summary>
@@ -55,16 +61,33 @@ namespace Zonk.UI.Windows
         [Tooltip("«Бесконечный забег» (пусто — кнопки нет: старый префаб)")]
         [SerializeField] private UiButtonView _endlessRun;
 
+        [Tooltip("Уровень игрока (вложенный префаб Parts/PlayerLevel). Пусто — не показывается")]
+        [SerializeField] private PlayerLevelView _playerLevel;
+
+        [Tooltip("Аватар игрока с рамкой (вложенный префаб Parts/PlayerAvatar). Нажатие — профиль. Пусто — не показывается")]
+        [SerializeField] private PlayerAvatarView _avatar;
+
+        [Tooltip("Сундук: сколько готово или побед до следующего (вложенная кнопка). Пусто — не показывается")]
+        [SerializeField] private UiButtonView _chest;
+
+        [Tooltip("Сезонный путь (вложенная кнопка). Пусто — не показывается")]
+        [SerializeField] private UiButtonView _season;
+
         private readonly Choice<MainMenuChoice> _choice = new Choice<MainMenuChoice>();
         private IQuestService _questService;
         private MenuAdRewards _adRewards;
-        private readonly System.Collections.Generic.List<(MenuAdOffer offer, UiButtonView button)> _adButtons =
-            new System.Collections.Generic.List<(MenuAdOffer, UiButtonView)>();
+        private readonly List<(MenuAdOffer offer, UiButtonView button)> _adButtons = new List<(MenuAdOffer, UiButtonView)>();
+
+        // Что сейчас написано на кнопках рекламы: текст пересобирается, только если поменялось состояние.
+        private readonly List<int> _adShownState = new List<int>();
         private ContentDatabase _content;
         private IInventory _inventory;
         private UiKit _kit;
         private ShopService _shopService;
         private PlayerStats _stats;
+        private IPlayerLevel _level;
+        private IChestService _chests;
+        private ISeasonPass _seasonPass;
         private bool _busy;
 
         /// <summary>Набор, который предлагает кнопка особого предложения.</summary>
@@ -74,8 +97,10 @@ namespace Zonk.UI.Windows
         public void EditorSetup(TMP_Text title, UiButtonView campaign, UiButtonView hotSeat, UiButtonView shop,
             UiButtonView settings, UiButtonView rules, UiButtonView quests, GameObject questsBadge, RectTransform adOffers,
             UiButtonView adOfferTemplate, UiButtonView offer, UiButtonView leaderboards, UiButtonView tower = null,
-            UiButtonView endlessRun = null)
+            UiButtonView endlessRun = null, PlayerLevelView playerLevel = null, PlayerAvatarView avatar = null)
         {
+            _avatar = avatar;
+            _playerLevel = playerLevel;
             _tower = tower;
             _endlessRun = endlessRun;
             _leaderboards = leaderboards;
@@ -95,8 +120,12 @@ namespace Zonk.UI.Windows
 
         [Inject]
         public void Construct(IQuestService quests, MenuAdRewards adRewards, ContentDatabase content, IInventory inventory, UiKit kit,
-            ShopService shop, PlayerStats stats)
+            ShopService shop, PlayerStats stats, [InjectOptional] IPlayerLevel level,
+            [InjectOptional] IChestService chests, [InjectOptional] ISeasonPass seasonPass)
         {
+            _chests = chests;
+            _seasonPass = seasonPass;
+            _level = level;
             _stats = stats;
             _shopService = shop;
             _questService = quests;
@@ -120,9 +149,17 @@ namespace Zonk.UI.Windows
             if (_leaderboards != null)
                 _leaderboards.OnClick(() => _choice.Set(MainMenuChoice.Leaderboards));
             if (_tower != null)
-                _tower.OnClick(() => _choice.Set(MainMenuChoice.Tower));
+                _tower.OnClick(() => Pick(MainMenuChoice.Tower, GameFeature.Tower));
             if (_endlessRun != null)
-                _endlessRun.OnClick(() => _choice.Set(MainMenuChoice.EndlessRun));
+                _endlessRun.OnClick(() => Pick(MainMenuChoice.EndlessRun, GameFeature.EndlessRun));
+            if (_playerLevel != null)
+                _playerLevel.Clicked += () => _choice.Set(MainMenuChoice.Profile);
+            if (_avatar != null)
+                _avatar.Clicked += () => _choice.Set(MainMenuChoice.Profile);
+            if (_chest != null)
+                _chest.OnClick(() => _choice.Set(MainMenuChoice.Chest));
+            if (_season != null)
+                _season.OnClick(() => _choice.Set(MainMenuChoice.Season));
         }
 
         protected override void OnShowing()
@@ -134,10 +171,29 @@ namespace Zonk.UI.Windows
             _settings.SetText(T("menu.settings"));
             if (_quests != null)
                 _quests.SetText(T("menu.quests"));
-            if (_tower != null)
-                _tower.SetText(T("mode.tower"));
-            if (_endlessRun != null)
-                _endlessRun.SetText(T("mode.endlessRun"));
+            SetModeText(_tower, "mode.tower", GameFeature.Tower);
+            SetModeText(_endlessRun, "mode.endlessRun", GameFeature.EndlessRun);
+            if (_playerLevel != null)
+            {
+                _playerLevel.gameObject.SetActive(_level != null);
+                _playerLevel.Show(_level);
+            }
+
+            if (_chest != null)
+            {
+                var hasChests = _chests != null && _chests.IsEnabled;
+                _chest.SetVisible(hasChests);
+                if (hasChests)
+                    _chest.SetText(_chests.Ready > 0 ? T("chest.menuReady", _chests.Ready) : T("chest.menuProgress", _chests.Wins, _chests.WinsPerChest));
+            }
+
+            if (_season != null)
+            {
+                var season = _seasonPass != null ? _seasonPass.Current : null;
+                _season.SetVisible(season != null);
+                if (season != null)
+                    _season.SetText(T("season.menu", T(season.NameKey), _seasonPass.Step));
+            }
             if (_questsBadge != null)
                 _questsBadge.SetActive(_questService != null && _questService.HasClaimable);
 
@@ -170,6 +226,29 @@ namespace Zonk.UI.Windows
                 if (!_busy)
                     RefreshAdCoins();
             }
+        }
+
+        /// <summary>Режим открыт — выбор; закрыт — подсказка, с какого уровня.</summary>
+        private void Pick(MainMenuChoice choice, GameFeature feature)
+        {
+            if (_level == null || _level.IsUnlocked(feature))
+            {
+                _choice.Set(choice);
+                return;
+            }
+
+            Toast.ShowAsync(_kit, transform, T("level.locked", _level.UnlockLevel(feature)), UiColors.Bad, 0.9f,
+                this.GetCancellationTokenOnDestroy()).Forget();
+        }
+
+        /// <summary>Подпись кнопки режима; закрытый — с уровнем, с которого откроется.</summary>
+        private void SetModeText(UiButtonView button, string key, GameFeature feature)
+        {
+            if (button == null)
+                return;
+
+            var locked = _level != null && !_level.IsUnlocked(feature);
+            button.SetText(locked ? T("level.lockedButton", T(key), _level.UnlockLevel(feature)) : T(key));
         }
 
         public UniTask<MainMenuChoice> WaitChoiceAsync(CancellationToken ct)
@@ -212,9 +291,6 @@ namespace Zonk.UI.Windows
 
             RefreshAdCoins();
         }
-
-        // Что сейчас написано на кнопках рекламы: текст пересобирается, только если поменялось состояние.
-        private readonly System.Collections.Generic.List<int> _adShownState = new System.Collections.Generic.List<int>();
 
         private void RefreshAdCoins()
         {

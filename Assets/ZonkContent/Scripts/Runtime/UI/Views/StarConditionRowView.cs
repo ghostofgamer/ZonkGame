@@ -29,19 +29,8 @@ namespace Zonk.UI.Views
                 _text.color = got ? UiColors.Gold : UiColors.TextMuted;
             }
 
-            if (_star == null)
-                return;
-
-            var sprite = ui != null ? (got ? ui.StarGold : ui.StarGray) : null;
-            if (sprite != null)
-            {
-                _star.sprite = sprite;
-                _star.color = Color.white;
-            }
-            else
-            {
-                _star.color = got ? UiColors.Gold : new Color(0.6f, 0.58f, 0.55f, 0.8f);
-            }
+            if (_star != null)
+                StarsView.Paint(_star, got, ui);
         }
     }
 }

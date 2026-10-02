@@ -35,17 +35,22 @@ namespace Zonk.UI.Views
                 if (!visible)
                     continue;
 
-                var got = (mask & (1 << i)) != 0;
-                var sprite = ui != null ? (got ? ui.StarGold : ui.StarGray) : null;
-                if (sprite != null)
-                {
-                    star.sprite = sprite;
-                    star.color = Color.white;
-                }
-                else
-                {
-                    star.color = got ? UiColors.Gold : new Color(0.6f, 0.58f, 0.55f, 0.8f);
-                }
+                Paint(star, (mask & (1 << i)) != 0, ui);
+            }
+        }
+
+        /// <summary>Звезда картинкой: UiConfig.StarGold или StarGray, пока спрайтов нет — цветом (золотой / серый).</summary>
+        public static void Paint(Image star, bool got, UiConfig ui)
+        {
+            var sprite = ui != null ? (got ? ui.StarGold : ui.StarGray) : null;
+            if (sprite != null)
+            {
+                star.sprite = sprite;
+                star.color = Color.white;
+            }
+            else
+            {
+                star.color = got ? UiColors.Gold : new Color(0.6f, 0.58f, 0.55f, 0.8f);
             }
         }
     }

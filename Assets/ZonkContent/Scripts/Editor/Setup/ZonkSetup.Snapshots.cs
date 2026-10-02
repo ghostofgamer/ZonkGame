@@ -95,11 +95,8 @@ namespace Zonk.Editor.Setup
             if (!HasSnapshot(windowName))
                 return false;
 
-            if (IsLocked(assetPath))
-            {
-                Debug.Log($"[Zonk] {assetPath} is locked ({LockLabel}): kept as is");
+            if (SkipIfLocked(assetPath))
                 return true;
-            }
 
             File.Copy(SnapshotPath(windowName), assetPath, true);
             AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);

@@ -44,7 +44,9 @@ namespace Zonk.Core.Ai
             if (match.Phase != MatchPhase.AwaitingKeep)
                 throw new InvalidOperationException($"AI decides only after a roll, phase is {match.Phase}");
 
-            var options = match.GetKeepOptions();
+            // Варианты из общего буфера партии (без новых объектов на каждое решение); выбранные кости копируются:
+            // решение живёт дольше буфера (ИИ в игре показывает выбор, пока идёт анимация).
+            var options = match.GetKeepOptionsShared();
             var context = new AiContext(match);
 
             var option = profile.MistakeChance > 0 && random.NextDouble() < profile.MistakeChance
@@ -53,7 +55,15 @@ namespace Zonk.Core.Ai
 
             var turnScore = match.TurnScore + option.Score;
             var bank = ShouldBank(match, profile, context, turnScore, option.DiceLeft, random);
-            return new TurnDecision(option.Dice, bank);
+            return new TurnDecision(CopyDice(option.Dice), bank);
+        }
+
+        private static int[] CopyDice(IReadOnlyList<int> dice)
+        {
+            var copy = new int[dice.Count];
+            for (var i = 0; i < copy.Length; i++)
+                copy[i] = dice[i];
+            return copy;
         }
 
         private static bool ShouldBank(ZonkMatch match, AiProfile profile, AiContext context, int turnScore, int diceLeft,

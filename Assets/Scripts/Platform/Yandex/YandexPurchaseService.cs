@@ -75,16 +75,25 @@ namespace Base.Platform.Yandex
             }
         }
 
+        /// <summary>Постоянные покупки Яндекс отдаёт в getPurchases всегда (их не подтверждают).</summary>
+        public bool ListsPermanentPurchases => true;
+
         public async UniTask<IReadOnlyList<PurchaseInfo>> GetPendingPurchasesAsync(CancellationToken cancellationToken = default)
         {
+            var list = await GetPurchasesAsync(cancellationToken);
+            return list.Items;
+        }
+
+        public async UniTask<PurchaseList> GetPurchasesAsync(CancellationToken cancellationToken = default)
+        {
             if (!await EnsurePaymentsAsync(cancellationToken))
-                return NoPurchases;
+                return PurchaseList.Failed;
 
             try
             {
                 var purchases = await YandexBridge.GetPurchasesAsync(cancellationToken);
                 if (purchases.items == null)
-                    return NoPurchases;
+                    return new PurchaseList { Ok = true, Items = NoPurchases };
 
                 var result = new List<PurchaseInfo>(purchases.items.Length);
                 foreach (var item in purchases.items)
@@ -96,12 +105,12 @@ namespace Base.Platform.Yandex
                     });
                 }
 
-                return result;
+                return new PurchaseList { Ok = true, Items = result };
             }
             catch (YandexBridgeException e)
             {
                 Debug.LogWarning($"[Yandex] GetPurchases failed: {e.Message}");
-                return NoPurchases;
+                return PurchaseList.Failed;
             }
         }
 

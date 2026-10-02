@@ -29,8 +29,9 @@ namespace Zonk.Core.Ai
         public override KeepOption Choose(AiContext context, IReadOnlyList<KeepOption> options, IRandom random)
         {
             KeepOption best = null;
-            foreach (var option in options)
+            for (var i = 0; i < options.Count; i++)
             {
+                var option = options[i];
                 if (best == null || option.Score > best.Score ||
                     (option.Score == best.Score && option.DiceLeft > best.DiceLeft))
                 {
@@ -56,8 +57,9 @@ namespace Zonk.Core.Ai
         {
             KeepOption best = null;
             var bestValue = double.MinValue;
-            foreach (var option in options)
+            for (var i = 0; i < options.Count; i++)
             {
+                var option = options[i];
                 var value = option.Score + DieValue * option.DiceLeft;
                 if (value > bestValue)
                 {

@@ -22,18 +22,20 @@ MonoBehaviour:
   IsBoss: 0
   DreadOf: {fileID: 0}
   DreadUnlockStars: 3
-  Ai: {fileID: 11400000, guid: 9b4a3294963375b4a8ec29e18cb26386, type: 2}
+  Ai: {fileID: 11400000, guid: 0cb08a7a725a0174ebcc0379a7e05d46, type: 2}
   Dice:
-  - {fileID: 11400000, guid: db28c967133efcc4c9ab1fab49f4f19e, type: 2}
   - {fileID: 11400000, guid: e71f1b038b70cf941b9a7bf2a6e1d519, type: 2}
+  - {fileID: 11400000, guid: e71f1b038b70cf941b9a7bf2a6e1d519, type: 2}
+  - {fileID: 11400000, guid: db28c967133efcc4c9ab1fab49f4f19e, type: 2}
+  - {fileID: 11400000, guid: db28c967133efcc4c9ab1fab49f4f19e, type: 2}
   - {fileID: 11400000, guid: 5d99a9cbded23d447b3705e2805736e3, type: 2}
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
-  TargetScore: 8000
+  TargetScore: 7000
   StarConditions:
   - rid: 4243792294545719557
   - rid: 4243792294545719558
-  StakePayout: 1
+  StakePayout: 0.65
   Modifiers: []
   Reactions: {fileID: 11400000, guid: 096e3e429b23d4c498ffca9732e7ea3b, type: 2}
   RollStyle: {fileID: 0}
@@ -58,7 +60,7 @@ MonoBehaviour:
     - rid: 4243792294545719557
       type: {class: MaxTurnsStar, ns: Zonk.Configs, asm: Zonk}
       data:
-        Turns: 13
+        Turns: 12
     - rid: 4243792294545719558
       type: {class: NoSpecialDiceStar, ns: Zonk.Configs, asm: Zonk}
       data: 

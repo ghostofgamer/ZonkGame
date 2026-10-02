@@ -26,6 +26,9 @@ namespace Zonk.Analytics
     ///       └ first | return        первый запуск или повторный
     ///           ├ platform: rustore
     ///           └ language: ru
+    /// progress                      прогресс игрока
+    ///   └ player_level
+    ///       └ level: 7                новый уровень игрока (сколько игроков дошло до каждого)
     /// ads                           (дальше) реклама
     ///   ├ rewarded
     ///   │   └ request | shown | completed | closed | failed | no_ad
@@ -42,17 +45,20 @@ namespace Zonk.Analytics
         public const string TestFolder = "test";
         public const string SessionFolder = "session";
         public const string AdsFolder = "ads";
+        public const string ProgressFolder = "progress";
 
         private readonly IAnalytics _analytics;
         private readonly ISaveStore _saves;
         private readonly IPlatformService _platform;
         private readonly ILocalization _localization;
         private readonly AnalyticsConfig _config;
+        private readonly IPlayerLevel _level;
         private readonly CancellationTokenSource _cts = new CancellationTokenSource();
 
         public GameAnalytics(IAnalytics analytics, ISaveStore saves, IPlatformService platform, ILocalization localization,
-            GameConfig config)
+            GameConfig config, [InjectOptional] IPlayerLevel level)
         {
+            _level = level;
             _analytics = analytics;
             _saves = saves;
             _platform = platform;
@@ -62,13 +68,22 @@ namespace Zonk.Analytics
 
         public void Initialize()
         {
+            if (_level != null)
+                _level.LevelReached += OnLevelReached;
             SendGameStartAsync(_cts.Token).Forget();
         }
 
         public void Dispose()
         {
+            if (_level != null)
+                _level.LevelReached -= OnLevelReached;
             _cts.Cancel();
             _cts.Dispose();
+        }
+
+        private void OnLevelReached(int level)
+        {
+            _analytics.Event(ProgressFolder).Path("player_level").Param("level", level).Send();
         }
 
         private string Platform => _platform != null ? _platform.Platform.ToString().ToLowerInvariant() : "unknown";

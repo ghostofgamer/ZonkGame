@@ -76,10 +76,9 @@ namespace Zonk.Editor.Setup
             var settings = AddressableSettings();
             var group = AddressableGroup(settings, CosmeticsGroup);
             var moved = 0;
-            foreach (var guid in AssetDatabase.FindAssets("t:" + nameof(CosmeticItemConfig), new[] { ConfigsFolder }))
+            foreach (var item in FindAll<CosmeticItemConfig>(ConfigsFolder))
             {
-                var item = AssetDatabase.LoadAssetAtPath<CosmeticItemConfig>(AssetDatabase.GUIDToAssetPath(guid));
-                if (item == null || !(item.Payload is PrefabPayload payload) || payload.Prefab == null)
+                if (!(item.Payload is PrefabPayload payload) || payload.Prefab == null)
                     continue;
 
                 payload.Asset = MakeAddressable(settings, group, payload.Prefab);

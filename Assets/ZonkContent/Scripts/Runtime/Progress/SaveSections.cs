@@ -23,6 +23,11 @@ namespace Zonk.Progress
         public const string Analytics = "zonk_analytics";
         public const string EndlessRun = "zonk_endless_run";
         public const string Tower = "zonk_tower";
+        public const string PlayerLevel = "zonk_player_level";
+        public const string Records = "zonk_records";
+        public const string Chest = "zonk_chest";
+        public const string Season = "zonk_season";
+        public const string Achievements = "zonk_achievements";
     }
 
     [Serializable]

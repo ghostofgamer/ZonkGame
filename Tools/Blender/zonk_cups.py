@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Стаканы для игры «Зонк»: семь разных по форме, одной высоты (0.9), с полостью под кости.
+Стаканы для игры «Зонк»: десять разных по форме, одной высоты (0.9), с полостью под кости.
 
     Cup_Goblet   кубок: чаша на ножке, золото, гравировка, камни
     Cup_Bone     костяной: бугристый, кольца-позвонки, когти-ножки, трещины
@@ -9,11 +9,16 @@
     Cup_Coconut  кокос: скорлупа с неровным срезом, белая мякоть по краю, верёвка
     Cup_Copper   корабельная медная кружка: шов и пояса на заклёпках, вмятины, патина
     Cup_Stone    каменный восьмигранник: руны, отбитые углы и край, мох
+    Cup_Horn     изогнутый рог на кованой подставке (кольцо и три ножки), серебряная оковка с гравировкой
+    Cup_Wicker   плетёная корзинка из лозы: 12 стоек, ряды «над-под», плетёный обод
+    Cup_Crystal  шестигранный аметист: каменное основание, светлые руны, золотой обод, друзы у основания
 
 Запуск (фоном):
     blender --background --factory-startup --python Tools/Blender/zonk_cups.py
     blender --background --factory-startup --python Tools/Blender/zonk_cups.py -- --render <папка>
-Второй вариант ещё рендерит превью всех стаканов в ряд (с костью для масштаба).
+    blender --background --factory-startup --python Tools/Blender/zonk_cups.py -- --only Cup_Horn,Cup_Wicker,Cup_Crystal
+--render ещё рендерит превью стаканов в ряд (с костью для масштаба). --only — собрать и выгрузить только
+перечисленные (остальные FBX и PNG не перезаписываются).
 
 Результат: Assets/ZonkContent/Art/Models/Cups/<Имя>.fbx и Art/Textures/Cups/<Имя>.png.
 В FBX у стакана два пустых объекта: "Mouth" (горло, верх обода) и "Inside" (внутренность для костей):
@@ -144,6 +149,7 @@ class Cup:
         self.patches = []        # цвета однотонных плашек
         self.metallic = 0.0
         self.roughness = 0.6
+        self.bottom_center = (0.0, 0.0)   # центр наружного донышка (у изогнутого рога смещён)
 
     # Отклонение радиуса и опускание обода — переопределяются у конкретного стакана.
     def dr(self, theta, z, inner):
@@ -235,7 +241,7 @@ def build_mesh(cup):
             zz = compress_top(z, cup.rim_drop(a)) if z > 0.02 else z
             verts.append((rr * math.cos(a), rr * math.sin(a), zz))
     c_bot = len(verts)
-    verts.append((0.0, 0.0, 0.0))
+    verts.append((cup.bottom_center[0], cup.bottom_center[1], 0.0))
     c_floor = len(verts)
     verts.append((0.0, 0.0, prof[-1][1]))
 
@@ -326,8 +332,8 @@ def surface_point(cup, theta, z, lift=0.0):
     return Vector((r * math.cos(theta), r * math.sin(theta), z)), Vector((math.cos(theta), math.sin(theta), 0.0))
 
 
-def add_tube(bm, path, radii, sides=6):
-    """Трубка по точкам пути с радиусами (ножки-когти). Концы закрыты."""
+def add_tube(bm, path, radii, sides=6, caps=True):
+    """Трубка по точкам пути с радиусами (ножки-когти). Концы закрыты (caps)."""
     rings = []
     for k, (p, rad) in enumerate(zip(path, radii)):
         t = (path[min(k + 1, len(path) - 1)] - path[max(k - 1, 0)]).normalized()
@@ -339,8 +345,9 @@ def add_tube(bm, path, radii, sides=6):
     for r0, r1 in zip(rings, rings[1:]):
         for s in range(sides):
             bm.faces.new((r0[s], r0[(s + 1) % sides], r1[(s + 1) % sides], r1[s]))
-    bm.faces.new(list(reversed(rings[0])))
-    bm.faces.new(rings[-1])
+    if caps:
+        bm.faces.new(list(reversed(rings[0])))
+        bm.faces.new(rings[-1])
 
 
 # ---------------------------------------------------------------------------
@@ -1032,7 +1039,252 @@ def make_stone():
     return cup
 
 
-CUPS = [make_goblet, make_bone, make_clay, make_barrel, make_coconut, make_copper, make_stone]
+# ---------------------------------------------------------------------------
+# 8. Рог на подставке
+# ---------------------------------------------------------------------------
+
+def make_horn():
+    # Рог изогнут: ось смещается в сторону книзу (s(z)), острый кончик упирается в пол, рог держит
+    # кованая подставка — кольцо и три ножки. Полость — только в широкой верхней части.
+    def shift(z):
+        return 0.27 * max(0.0, 1.0 - z / 0.72) ** 2
+
+    outer = join(
+        [(0.025, 0.0), (0.05, 0.05)],
+        catmull([(0.05, 0.05), (0.10, 0.14), (0.15, 0.26), (0.21, 0.40), (0.27, 0.55), (0.32, 0.70), (0.355, 0.82),
+                 (0.365, 0.875)], 2),
+    )
+    rim = [(0.372, 0.886), (0.368, 0.898), (0.356, 0.9), (0.346, 0.893)]
+    inner = catmull([(0.342, 0.875), (0.325, 0.78), (0.29, 0.68), (0.25, 0.60), (0.19, 0.53), (0.12, 0.497), (0.08, 0.49)], 2)
+    cup = Cup("Cup_Horn", outer, rim, inner)
+    cup.roughness = 0.4
+    cup.patches = [col(0.22, 0.21, 0.23)]
+    cup.bottom_center = (shift(0.0), 0.0)
+    cup.dr = lambda theta, z, inner: shift(z) * math.cos(theta) + (0.0 if inner else 0.003 * math.sin(z * 70.0))
+
+    def stand(c, bm):
+        zr = 0.42
+        cx = shift(zr)
+        ring_r = c.outer_radius(0.0, zr) - cx + 0.02
+        path = [Vector((cx + ring_r * math.cos(2 * math.pi * k / 16), ring_r * math.sin(2 * math.pi * k / 16), zr)) for k in range(17)]
+        add_tube(bm, path, [0.016] * len(path), sides=5, caps=False)
+        for k in range(3):
+            a = 2 * math.pi * k / 3 + math.pi / 3
+            d = Vector((math.cos(a), math.sin(a), 0))
+            top = Vector((cx, 0, zr)) + d * ring_r
+            knee = Vector((cx, 0, 0.18)) + d * (ring_r + 0.07)
+            foot = Vector((cx, 0, 0.012)) + d * (ring_r + 0.12)
+            pts, radii = [], []
+            for s in range(6):
+                t = s / 5
+                pts.append(top * (1 - t) ** 2 + knee * 2 * t * (1 - t) + foot * t * t)
+                radii.append(0.016 - 0.004 * t)
+            add_tube(bm, pts, radii, sides=5)
+            add_dome(bm, foot + Vector((0, 0, 0.002)), Vector((0, 0, 1)), 0.03, 0.014, segs=6)   # шар-лапка: низ ровно на полу
+        return 0
+
+    cup.extras = [stand]
+
+    def texture(f, side_v):
+        r = np.random.default_rng(71)
+        ivory = col(0.93, 0.86, 0.68)
+        amber = col(0.72, 0.48, 0.22)
+        dark = col(0.22, 0.13, 0.07)
+        n1 = zm.periodic_noise(r, TEX, TEX, 30.0)
+        streak = zm.periodic_noise(r, TEX, TEX, 2.0, scale_v=60.0)
+        # к кончику темнее: слоновая кость → янтарь → почти чёрный
+        t = 1 - zm.smoothstep(0.05, 0.85, f.z)
+        img = lerp(ivory, amber, np.clip(t * 1.4 + 0.08 * n1, 0, 1))
+        img = lerp(img, dark, zm.smoothstep(0.55, 1.0, t))
+        img = img * (1.0 + 0.03 * np.clip(streak, -1, 2))[..., None]
+        # кольца роста
+        img = lerp(img, amber * 0.75, f.outer * zm.smoothstep(0.9, 0.98, np.abs(np.sin(f.z * 45.0))) * 0.5)
+        # серебряная оковка у края с гравировкой
+        band = f.outer * zm.smoothstep(0.835, 0.84, f.z)
+        silver = lerp(col(0.82, 0.83, 0.86), col(0.5, 0.52, 0.56), np.clip(0.4 + 0.2 * n1, 0, 1))
+        img = lerp(img, silver, band)
+        wave = np.abs(np.sin(f.theta * 10 + 3.0 * np.sin(f.z * 90.0)))
+        img = lerp(img, col(0.3, 0.3, 0.33), band * (1 - zm.smoothstep(0.0, 0.14, wave)) * 0.7)
+        img = lerp(img, col(0.3, 0.3, 0.33), f.outer * (1 - zm.smoothstep(0.002, 0.005, np.abs(f.z - 0.84))))
+        img = np.where((f.inner | f.floor)[..., None], lerp(amber, dark, np.clip(f.depth * 0.8, 0, 1)), img)
+        img = lerp(img, silver, f.side * zm.smoothstep(H - 0.03, H - 0.005, f.z))
+        return inside_shade(f, img, 0.4)
+
+    cup.texture = texture
+    return cup
+
+
+# ---------------------------------------------------------------------------
+# 9. Плетёный
+# ---------------------------------------------------------------------------
+
+def make_wicker():
+    # Корзинка из лозы: 12 стоек, между ними прутья рядами «над-под» (ряды сдвинуты через один),
+    # толстый плетёный обод. Рельеф плетения — небольшой, основное — в текстуре.
+    stakes, row_h = 12, 0.045
+
+    def body(z):
+        return 0.27 + 0.07 * z / H
+
+    zs = [0.04 + row_h * k for k in range(19)]
+    outer = [(0.24, 0.0), (0.26, 0.015)] + [(body(z), z) for z in zs]
+    rim = [(0.372, 0.868), (0.386, 0.882), (0.378, 0.897), (0.358, 0.9), (0.342, 0.89)]
+    inner = [(0.322, 0.87), (0.312, 0.66), (0.296, 0.42), (0.282, 0.20), (0.272, 0.095), (0.25, 0.08), (0.12, 0.075), (0.05, 0.075)]
+    cup = Cup("Cup_Wicker", [(r, z) for r, z in outer], rim, inner)
+    # simplify убрал бы ряды плетения — профиль наружу задаём без упрощения
+    cup.profile = join(outer, rim, simplify(inner))
+    cup.rim_index = len(outer) + len(rim) // 2 - 1
+    cup.floor = cup.profile[-1][1]
+    cup.seg = 36
+    cup.smooth_angle = 60.0
+    cup.roughness = 0.85
+
+    def dr(theta, z, inner):
+        if inner:
+            return 0.0
+        if z > 0.86:
+            return 0.006 * math.sin(24 * theta + z * 200.0)   # коса обода
+        if z < 0.03:
+            return 0.0
+        band = int((z - 0.04) / row_h + 0.5)
+        return 0.006 * math.cos(stakes * theta + math.pi * (band % 2))
+
+    cup.dr = dr
+
+    def texture(f, side_v):
+        r = np.random.default_rng(83)
+        straw = col(0.82, 0.64, 0.34)
+        straw_d = col(0.52, 0.36, 0.16)
+        gap = col(0.18, 0.11, 0.05)
+        n1 = zm.periodic_noise(r, TEX, TEX, 20.0)
+        fib = zm.periodic_noise(r, TEX, TEX, 1.0, scale_v=15.0)
+        band = np.floor((f.z - 0.04) / row_h + 0.5)
+        pos_in_band = ((f.z - 0.04) / row_h + 0.5) % 1.0
+        # прут ряда то снаружи (над стойкой), то уходит за стойку; поперёк прута — круглый (светлее посередине)
+        over = 0.5 + 0.5 * np.cos(stakes * f.theta + np.pi * (band % 2))
+        round_ = np.sin(np.pi * np.clip(pos_in_band, 0, 1)) ** 0.6
+        img = lerp(straw_d, straw, np.clip(0.15 + 0.55 * round_ * (0.45 + 0.55 * over) + 0.05 * n1, 0, 1))
+        img = img * (1.0 + 0.04 * np.clip(fib, -1, 2))[..., None]
+        # там, где прут уходит назад, видна вертикальная стойка
+        stake_pos = (f.theta / (2 * np.pi) * stakes) % 1.0
+        stake_dist = np.abs(stake_pos - np.where(band % 2 == 0, 0.5, 0.0))
+        stake_dist = np.minimum(stake_dist, 1 - stake_dist)
+        stake = (1 - zm.smoothstep(0.08, 0.12, stake_dist)) * (1 - over)
+        stake_col = lerp(straw_d, straw * 0.95, 0.5 + 0.5 * np.cos(np.pi * stake_dist / 0.12))
+        img = lerp(img, stake_col, stake * f.side * (f.z > 0.03) * (f.z < 0.86))
+        # тонкие тёмные щели между рядами
+        row_gap = 1 - zm.smoothstep(0.0, 0.06, np.minimum(pos_in_band, 1 - pos_in_band))
+        img = lerp(img, gap, row_gap * f.side * (f.z > 0.03) * (f.z < 0.86) * 0.7)
+        # коса обода: косые полосы
+        braid = 0.5 + 0.5 * np.sin(24 * f.theta + f.z * 200.0)
+        img = np.where((f.side & (f.z > 0.86))[..., None], lerp(straw_d, straw, braid), img)
+        # донышко: спицы и спираль
+        spokes = 0.5 + 0.5 * np.cos(f.theta * stakes)
+        spiral = 0.5 + 0.5 * np.sin(f.r * 120.0 + f.theta)
+        disc = lerp(straw_d, straw, np.clip(0.3 + 0.4 * spiral * spokes + 0.2 * spiral, 0, 1))
+        img = np.where((f.bottom | f.floor)[..., None], disc, img)
+        return inside_shade(f, img, 0.55)
+
+    cup.texture = texture
+    return cup
+
+
+# ---------------------------------------------------------------------------
+# 10. Кристальный
+# ---------------------------------------------------------------------------
+
+def make_crystal():
+    # Шестигранный аметист: каменное основание, грани расходятся вверх, светлые руны на гранях, золотой обод,
+    # у основания — щётка кристаллов-друз.
+    outer = join(
+        [(0.27, 0.0), (0.30, 0.01), (0.31, 0.05), (0.29, 0.085)],
+        [(0.29 + 0.07 * (z - 0.1) / 0.76, z) for z in [0.1 + 0.076 * k for k in range(11)]],
+    )
+    rim = [(0.37, 0.88), (0.372, 0.894), (0.362, 0.9), (0.33, 0.9), (0.322, 0.892)]
+    inner = [(0.318, 0.87), (0.30, 0.6), (0.276, 0.3), (0.26, 0.12), (0.245, 0.095), (0.22, 0.088), (0.08, 0.088)]
+    cup = Cup("Cup_Crystal", outer, rim, inner)
+    cup.facets = 6
+    cup.seg = 36
+    cup.smooth_angle = 25.0
+    cup.roughness = 0.25
+    cup.patches = [col(0.62, 0.36, 0.85), col(0.80, 0.62, 0.98)]
+
+    def druse(c, bm):
+        r = np.random.default_rng(97)
+        for k in range(9):
+            a = 2 * math.pi * k / 9 + float(r.uniform(-0.2, 0.2))
+            z0 = float(r.uniform(0.02, 0.12))
+            base, nrm = surface_point(c, a, z0 + 0.06, -0.02)
+            d = (nrm + Vector((0, 0, float(r.uniform(0.6, 1.2))))).normalized()
+            length = float(r.uniform(0.12, 0.22))
+            w = float(r.uniform(0.028, 0.04))
+            add_tube(bm, [base, base + d * length * 0.75, base + d * length], [w, w * 0.9, 0.002], sides=6)
+        return 0
+
+    def druse_light(c, bm):
+        r = np.random.default_rng(101)
+        for k in range(5):
+            a = 2 * math.pi * k / 5 + 0.35
+            base, nrm = surface_point(c, a, 0.05, -0.015)
+            d = (nrm * 1.2 + Vector((0, 0, 1))).normalized()
+            length = float(r.uniform(0.08, 0.13))
+            add_tube(bm, [base, base + d * length * 0.7, base + d * length], [0.022, 0.02, 0.002], sides=6)
+        return 1
+
+    cup.extras = [druse, druse_light]
+
+    def texture(f, side_v):
+        r = np.random.default_rng(89)
+        violet = col(0.48, 0.24, 0.70)
+        violet_d = col(0.24, 0.10, 0.40)
+        lilac = col(0.86, 0.72, 1.0)
+        rock = col(0.36, 0.33, 0.32)
+        n1 = zm.periodic_noise(r, TEX, TEX, 30.0)
+        n2 = zm.periodic_noise(r, TEX, TEX, 4.0)
+        img = lerp(violet_d, violet, np.clip(0.3 + 0.5 * zm.smoothstep(0.1, 0.85, f.z) + 0.04 * n1, 0, 1))
+        # грани: светлый блик у одного края грани, рёбра светлые
+        stp = 2 * np.pi / 6
+        m = (f.theta - stp / 2) % stp
+        img = lerp(img, lilac, (m / stp) ** 3 * f.outer * 0.45)
+        dc = np.minimum(m, stp - m)
+        img = lerp(img, lilac, (1 - zm.smoothstep(0.0, 0.035, dc)) * f.outer * 0.7)
+        # прожилки
+        img = lerp(img, lilac, zm.smoothstep(2.2, 2.6, n2 + 0.5 * n1) * 0.25)
+        # каменное основание
+        img = lerp(img, rock * (1.0 + 0.1 * n2)[..., None], (1 - zm.smoothstep(0.07, 0.1, f.z)) * f.outer)
+        # руны: по одной на грань, светлые
+        runes = np.zeros((TEX, TEX), dtype=np.float32)
+        v0 = f.v_of(cup, side_v, 0.4, False) * TEX
+        v1 = f.v_of(cup, side_v, 0.62, False) * TEX
+        for k in range(6):
+            cx = ((k + 0.5) / 6.0) * TEX
+            hw = TEX / 6 * 0.2
+            pts = [(cx + r.uniform(-hw, hw), r.uniform(v0, v1)) for _ in range(4)]
+            strokes = [(pts[0], pts[1]), (pts[1], pts[2]), (pts[2], pts[3]), ((cx, v0), (cx, v1))]
+            for (x0, y0), (x1, y1) in strokes:
+                steps = int(max(abs(x1 - x0), abs(y1 - y0)))
+                for s in range(steps + 1):
+                    t = s / max(steps, 1)
+                    x, y = x0 + (x1 - x0) * t, y0 + (y1 - y0) * t
+                    for dy in range(-2, 3):
+                        for dx in range(-2, 3):
+                            yy, xx = int(y) + dy, (int(x) + dx) % TEX
+                            if 0 <= yy < TEX:
+                                runes[yy, xx] = max(runes[yy, xx], 1.0 - math.hypot(dx, dy) / 3.0)
+        img = lerp(img, col(0.97, 0.92, 1.0), runes * f.outer * 0.95)
+        # золотой обод
+        img = lerp(img, col(0.98, 0.78, 0.35), f.side * zm.smoothstep(H - 0.03, H - 0.018, f.z))
+        img = np.where(f.inner[..., None], lerp(violet, violet_d, f.depth), img)
+        img = np.where(f.floor[..., None], violet_d, img)
+        img = np.where(f.bottom[..., None], rock, img)
+        return inside_shade(f, img, 0.35)
+
+    cup.texture = texture
+    return cup
+
+
+CUPS = [make_goblet, make_bone, make_clay, make_barrel, make_coconut, make_copper, make_stone,
+        make_horn, make_wicker, make_crystal]
 
 
 # ---------------------------------------------------------------------------
@@ -1133,7 +1385,7 @@ def render(out_dir, objs):
     cam = bpy.data.objects.new("Cam", cam_data)
     scene.collection.objects.link(cam)
     scene.camera = cam
-    width = len(objs) * spacing
+    width = max(len(objs), 6) * spacing   # при --only с парой стаканов камера не подходит вплотную
     for name, elev, dist_k in (("cups_side.png", 8, 1.45), ("cups_top.png", 42, 1.5)):
         e = math.radians(elev)
         dist = width * dist_k
@@ -1148,6 +1400,7 @@ def render(out_dir, objs):
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     render_dir = argv[argv.index("--render") + 1] if "--render" in argv else None
+    only = set(argv[argv.index("--only") + 1].split(",")) if "--only" in argv else None
 
     zm.reset_scene()
     os.makedirs(MODELS_DIR, exist_ok=True)
@@ -1156,6 +1409,8 @@ def main():
     print("Стаканы:")
     for make in CUPS:
         cup = make()
+        if only is not None and cup.name not in only:
+            continue
         obj = build(cup)
         all_ok &= check(cup, obj)
         export(obj)

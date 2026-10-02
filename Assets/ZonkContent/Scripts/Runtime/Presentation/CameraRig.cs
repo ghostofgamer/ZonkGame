@@ -34,10 +34,6 @@ namespace Zonk.Presentation
         }
 #endif
 
-        /// <summary>
-        /// Угол обзора камеры задан по вертикали. На экране уже, чем 16:9 (квадрат, телефон вертикально),
-        /// по бокам обрезался бы стол, поэтому вертикальный угол растёт так, чтобы по ширине было видно столько же.
-        /// </summary>
         private float _appliedFov = -1f;
 
         private void LateUpdate()
@@ -51,6 +47,10 @@ namespace Zonk.Presentation
             }
         }
 
+        /// <summary>
+        /// Угол обзора камеры задан по вертикали. На экране уже, чем 16:9 (квадрат, телефон вертикально),
+        /// по бокам обрезался бы стол, поэтому вертикальный угол растёт так, чтобы по ширине было видно столько же.
+        /// </summary>
         public static float FitFov(float verticalFov, float aspect, float designAspect)
         {
             if (aspect >= designAspect || aspect <= 0f)
@@ -107,14 +107,25 @@ namespace Zonk.Presentation
             var fromPosition = transform.position;
             var fromRotation = transform.rotation;
             var fromFov = _designFov;
+            var target = shot.transform;
             var toFov = shot.FieldOfView;
 
-            await Animate.RunAsync(duration, t =>
+            // Свой цикл вместо Animate.RunAsync с замыканием: перелёты камеры идут несколько раз за ход.
+            // Отменённый перелёт (его перебил новый) просто останавливается там, где был.
+            for (var time = 0f; time < duration; time += Time.deltaTime)
             {
-                transform.position = Vector3.LerpUnclamped(fromPosition, shot.transform.position, t);
-                transform.rotation = Quaternion.SlerpUnclamped(fromRotation, shot.transform.rotation, t);
+                var t = AnimateEase.InOutCubic(time / duration);
+                transform.SetPositionAndRotation(Vector3.LerpUnclamped(fromPosition, target.position, t),
+                    Quaternion.SlerpUnclamped(fromRotation, target.rotation, t));
                 _designFov = Mathf.LerpUnclamped(fromFov, toFov, t);
-            }, token, AnimateEase.InOutCubic).SuppressCancellationThrow();
+
+                await UniTask.Yield(PlayerLoopTiming.Update);
+                if (token.IsCancellationRequested)
+                    return;
+            }
+
+            transform.SetPositionAndRotation(target.position, target.rotation);
+            _designFov = toFov;
         }
 
         public void Shake(float amplitude, float duration)
@@ -127,13 +138,16 @@ namespace Zonk.Presentation
         private async UniTaskVoid ShakeAsync(float amplitude, float duration, CancellationToken ct)
         {
             var cameraTransform = _camera.transform;
-            await Animate.RunAsync(duration, t =>
+            for (var time = 0f; time < duration; time += Time.deltaTime)
             {
-                var strength = amplitude * (1f - t);
-                cameraTransform.localPosition = Random.insideUnitSphere * strength;
-            }, ct, AnimateEase.Linear).SuppressCancellationThrow();
+                cameraTransform.localPosition = Random.insideUnitSphere * (amplitude * (1f - time / duration));
+                await UniTask.Yield(PlayerLoopTiming.Update);
+                if (ct.IsCancellationRequested || cameraTransform == null)
+                    break;
+            }
 
-            cameraTransform.localPosition = Vector3.zero;
+            if (cameraTransform != null)
+                cameraTransform.localPosition = Vector3.zero;
         }
 
         private static void Cancel(ref CancellationTokenSource source)

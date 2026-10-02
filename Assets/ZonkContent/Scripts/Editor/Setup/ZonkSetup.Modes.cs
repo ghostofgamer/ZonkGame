@@ -36,7 +36,7 @@ namespace Zonk.Editor.Setup
                 r.AiMid = AiAt("balanced");
                 r.AiLate = AiAt("expert");
                 foreach (var id in new[] { "worn", "middle", "bone", "fives", "even", "odd", "edges", "sixes", "lucky", "sharper" })
-                    AddIfFound(r.SpecialDice, AssetDatabase.LoadAssetAtPath<DieConfig>(ConfigsFolder + "/Dice/Die_" + id + ".asset"));
+                    AddIfFound(r.SpecialDice, DieAt(id));
 
                 r.RulePool = new List<MatchModifier>
                 {
@@ -131,6 +131,11 @@ namespace Zonk.Editor.Setup
         private static OpponentConfig OpponentAt(string id)
         {
             return AssetDatabase.LoadAssetAtPath<OpponentConfig>(ConfigsFolder + "/Opponents/Opp_" + id + ".asset");
+        }
+
+        private static DieConfig DieAt(string id)
+        {
+            return AssetDatabase.LoadAssetAtPath<DieConfig>(ConfigsFolder + "/Dice/Die_" + id + ".asset");
         }
 
         private static AiProfileConfig AiAt(string id)

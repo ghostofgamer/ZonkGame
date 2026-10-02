@@ -27,13 +27,18 @@ namespace Zonk.Core.Rules
     /// Подсчёт очков по набору правил. Отложенные кости должны целиком разложиться на комбинации,
     /// из всех раскладок выбирается самая дорогая. Модификаторы партии применяются к каждой комбинации.
     /// Результаты кэшируются: разных наборов из шести костей меньше тысячи.
+    /// Вызывается на каждый бросок и выбор кости (а в симуляторе баланса — миллионы раз), поэтому повторный
+    /// подсчёт того же набора не создаёт объектов: обход списков циклом for (foreach по интерфейсу выделяет память),
+    /// рабочий массив граней — поле.
     /// </summary>
     public sealed class ScoreCalculator
     {
         private readonly IReadOnlyList<ScoringRule> _rules;
         private readonly IReadOnlyList<MatchModifier> _modifiers;
         private readonly Dictionary<int, ScoreResult> _cache = new Dictionary<int, ScoreResult>();
+        private readonly Dictionary<int, bool> _anyScoreCache = new Dictionary<int, bool>();
         private readonly List<ScoringCombo> _buffer = new List<ScoringCombo>();
+        private readonly int[] _counts = new int[7];
 
         public ScoreCalculator(IReadOnlyList<ScoringRule> rules, IReadOnlyList<MatchModifier> modifiers = null)
         {
@@ -44,7 +49,8 @@ namespace Zonk.Core.Rules
         /// <summary>Очки за набор граней, который игрок откладывает целиком.</summary>
         public ScoreResult EvaluateFaces(IReadOnlyList<int> faces)
         {
-            return EvaluateCounts(Count(faces));
+            CountInto(faces, _counts);
+            return EvaluateCounts(_counts);
         }
 
         /// <summary>counts[грань] = число костей, индекс 0 не используется.</summary>
@@ -65,36 +71,54 @@ namespace Zonk.Core.Rules
         /// <summary>Есть ли в броске хоть одна комбинация. Нет = Зонк.</summary>
         public bool HasAnyScore(IReadOnlyList<int> faces)
         {
-            var counts = Count(faces);
-            foreach (var rule in _rules)
-            {
-                _buffer.Clear();
-                rule.FindCombos(counts, _buffer);
-                // Комбинация считается, только если после правил партии она чего-то стоит:
-                // при «одиночные пятёрки ничего не стоят» бросок с одной пятёркой — Зонк.
-                foreach (var combo in _buffer)
-                {
-                    if (ApplyModifiers(combo) > 0)
-                        return true;
-                }
-
-
-            }
-
-            return false;
+            CountInto(faces, _counts);
+            return HasAnyScoreCounts(_counts);
         }
 
-        public static int[] Count(IReadOnlyList<int> faces)
+        /// <summary>То же по числу костей каждой грани (counts[грань], индекс 0 не используется).</summary>
+        public bool HasAnyScoreCounts(int[] counts)
         {
-            var counts = new int[7];
-            foreach (var face in faces)
+            var key = Encode(counts);
+            if (key == 0)
+                return false;
+
+            if (_anyScoreCache.TryGetValue(key, out var cached))
+                return cached;
+
+            var result = FindAnyScore(counts);
+            _anyScoreCache[key] = result;
+            return result;
+        }
+
+        /// <summary>Число костей каждой грани в готовый массив из 7 элементов (он очищается).</summary>
+        public static void CountInto(IReadOnlyList<int> faces, int[] counts)
+        {
+            Array.Clear(counts, 0, counts.Length);
+            for (var i = 0; i < faces.Count; i++)
             {
+                var face = faces[i];
                 if (face < 1 || face > 6)
                     throw new ArgumentOutOfRangeException(nameof(faces), $"Face {face} is out of 1..6");
                 counts[face]++;
             }
+        }
 
-            return counts;
+        private bool FindAnyScore(int[] counts)
+        {
+            for (var r = 0; r < _rules.Count; r++)
+            {
+                _buffer.Clear();
+                _rules[r].FindCombos(counts, _buffer);
+                // Комбинация считается, только если после правил партии она чего-то стоит:
+                // при «одиночные пятёрки ничего не стоят» бросок с одной пятёркой — Зонк.
+                for (var c = 0; c < _buffer.Count; c++)
+                {
+                    if (ApplyModifiers(_buffer[c]) > 0)
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         private ScoreResult Solve(int[] counts)
@@ -111,9 +135,10 @@ namespace Zonk.Core.Rules
                 }
             }
 
+            // Только при промахе кэша: результат хранится, поэтому свой список, а не общий буфер.
             var combos = new List<ScoringCombo>();
-            foreach (var rule in _rules)
-                rule.FindCombos(counts, combos);
+            for (var r = 0; r < _rules.Count; r++)
+                _rules[r].FindCombos(counts, combos);
 
             var bestScore = -1;
             IReadOnlyList<ScoringCombo> bestCombos = null;
@@ -165,8 +190,8 @@ namespace Zonk.Core.Rules
         private int ApplyModifiers(ScoringCombo combo)
         {
             var score = combo.Score;
-            foreach (var modifier in _modifiers)
-                score = modifier.ModifyComboScore(combo, score);
+            for (var i = 0; i < _modifiers.Count; i++)
+                score = _modifiers[i].ModifyComboScore(combo, score);
             return score;
         }
 

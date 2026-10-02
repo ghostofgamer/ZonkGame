@@ -45,10 +45,14 @@ namespace Zonk.Editor
 
             EditorGUI.indentLevel++;
             row.y += line + Gap;
-            DrawCoins(ref row, options);
-            DrawAds(ref row, options);
-            DrawPurchase(ref row, options, property);
-            DrawProgress(ref row, options);
+            DrawOption(ref row, options, typeof(CurrencyPriceOption), "За монеты",
+                () => new CurrencyPriceOption { Currency = DefaultCoins(), Amount = 1000 }, DrawCoinsValue);
+            DrawOption(ref row, options, typeof(RewardedAdPriceOption), "За рекламу (раз)",
+                () => new RewardedAdPriceOption { AdsRequired = 4 }, (rect, element) => DrawField(rect, element, "AdsRequired"));
+            DrawOption(ref row, options, typeof(PurchasePriceOption), "За деньги (ID товара)",
+                () => new PurchasePriceOption { ProductId = OwnerId(property) }, (rect, element) => DrawProductValue(rect, element, property));
+            DrawOption(ref row, options, typeof(ProgressPriceOption), "Награда кампании (подсказка)",
+                () => new ProgressPriceOption(), (rect, element) => DrawField(rect, element, "HintKey"));
             EditorGUI.indentLevel--;
 
             if (HasOther(options))
@@ -58,79 +62,46 @@ namespace Zonk.Editor
             }
         }
 
-        private static void DrawCoins(ref Rect row, SerializedProperty options)
+        /// <summary>
+        /// Строка одного вида цены: галочка добавляет вариант (create) или убирает его, справа — его значение (drawValue).
+        /// </summary>
+        private static void DrawOption(ref Rect row, SerializedProperty options, Type type, string label,
+            Func<PriceOption> create, Action<Rect, SerializedProperty> drawValue)
         {
-            var element = Find(options, typeof(CurrencyPriceOption));
-            if (Toggle(ref row, "За монеты", element, out var valueRect) != (element != null))
+            var element = Find(options, type);
+            if (Toggle(ref row, label, element, out var valueRect) != (element != null))
             {
                 if (element == null)
-                    Add(options, new CurrencyPriceOption { Currency = DefaultCoins(), Amount = 1000 });
+                    Add(options, create());
                 else
                     Remove(options, element);
                 return;
             }
 
             if (element != null)
-            {
-                var half = valueRect.width * 0.5f;
-                EditorGUI.PropertyField(new Rect(valueRect.x, valueRect.y, half - 4f, valueRect.height),
-                    element.FindPropertyRelative("Amount"), GUIContent.none);
-                EditorGUI.PropertyField(new Rect(valueRect.x + half, valueRect.y, half, valueRect.height),
-                    element.FindPropertyRelative("Currency"), GUIContent.none);
-            }
+                drawValue(valueRect, element);
         }
 
-        private static void DrawAds(ref Rect row, SerializedProperty options)
+        private static void DrawCoinsValue(Rect valueRect, SerializedProperty element)
         {
-            var element = Find(options, typeof(RewardedAdPriceOption));
-            if (Toggle(ref row, "За рекламу (раз)", element, out var valueRect) != (element != null))
-            {
-                if (element == null)
-                    Add(options, new RewardedAdPriceOption { AdsRequired = 4 });
-                else
-                    Remove(options, element);
-                return;
-            }
-
-            if (element != null)
-                EditorGUI.PropertyField(valueRect, element.FindPropertyRelative("AdsRequired"), GUIContent.none);
+            var half = valueRect.width * 0.5f;
+            EditorGUI.PropertyField(new Rect(valueRect.x, valueRect.y, half - 4f, valueRect.height),
+                element.FindPropertyRelative("Amount"), GUIContent.none);
+            EditorGUI.PropertyField(new Rect(valueRect.x + half, valueRect.y, half, valueRect.height),
+                element.FindPropertyRelative("Currency"), GUIContent.none);
         }
 
-        private static void DrawPurchase(ref Rect row, SerializedProperty options, SerializedProperty price)
+        private static void DrawProductValue(Rect valueRect, SerializedProperty element, SerializedProperty price)
         {
-            var element = Find(options, typeof(PurchasePriceOption));
-            if (Toggle(ref row, "За деньги (ID товара)", element, out var valueRect) != (element != null))
-            {
-                if (element == null)
-                    Add(options, new PurchasePriceOption { ProductId = OwnerId(price) });
-                else
-                    Remove(options, element);
-                return;
-            }
-
-            if (element != null)
-            {
-                var product = element.FindPropertyRelative("ProductId");
-                if (string.IsNullOrEmpty(product.stringValue))
-                    product.stringValue = OwnerId(price);
-                EditorGUI.PropertyField(valueRect, product, GUIContent.none);
-            }
+            var product = element.FindPropertyRelative("ProductId");
+            if (string.IsNullOrEmpty(product.stringValue))
+                product.stringValue = OwnerId(price);
+            EditorGUI.PropertyField(valueRect, product, GUIContent.none);
         }
 
-        private static void DrawProgress(ref Rect row, SerializedProperty options)
+        private static void DrawField(Rect valueRect, SerializedProperty element, string field)
         {
-            var element = Find(options, typeof(ProgressPriceOption));
-            if (Toggle(ref row, "Награда кампании (подсказка)", element, out var valueRect) != (element != null))
-            {
-                if (element == null)
-                    Add(options, new ProgressPriceOption());
-                else
-                    Remove(options, element);
-                return;
-            }
-
-            if (element != null)
-                EditorGUI.PropertyField(valueRect, element.FindPropertyRelative("HintKey"), GUIContent.none);
+            EditorGUI.PropertyField(valueRect, element.FindPropertyRelative(field), GUIContent.none);
         }
 
         /// <summary>Строка с галочкой: слева галочка с подписью, справа место под значение. Возвращает новое состояние.</summary>

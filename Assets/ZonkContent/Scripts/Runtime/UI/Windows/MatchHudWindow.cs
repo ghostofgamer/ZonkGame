@@ -46,11 +46,8 @@ namespace Zonk.UI.Windows
         private int _headMode = -1;
         private string _turnPrefix;
         private string _turnSuffix;
-        private int _turnShown;
-        private int _turnTarget;
-        private int _turnFrom;
-        private float _countTime = -1f;
-        private float _punchTime = -1f;
+        private readonly CountingNumber _turnScore = new CountingNumber();
+        private readonly NumberTemplate _bankText = new NumberTemplate();
 
         public event Action<PhraseConfig> PhraseChosen;
         public event Action SurrenderRequested;
@@ -60,6 +57,7 @@ namespace Zonk.UI.Windows
         {
             _kit = kit;
             _feel = config != null && config.Feel != null ? config.Feel : MatchFeelConfig.Fallback;
+            _turnScore.Configure(_feel.TurnCountDuration, _feel.CountPunch, _feel.CountPunchDuration);
         }
 
 #if UNITY_EDITOR
@@ -77,9 +75,6 @@ namespace Zonk.UI.Windows
             _phraseTemplate = phraseTemplate;
         }
 #endif
-
-        /// <summary>Холст, в котором окно лежит: для облачков реплик и надписей поверх стола.</summary>
-        public RectTransform CanvasRoot => (RectTransform)transform.parent;
 
         private void Awake()
         {
@@ -134,72 +129,30 @@ namespace Zonk.UI.Windows
                 _headMode = mode;
                 _headTarget = match.Rules.TargetScore;
                 var head = T("match.target", match.Rules.TargetScore);
-                _countTime = -1f;
-                if (mode == 1)
-                    _turn.text = head + "\n" + T("match.finalRound");
-                else if (mode == 2)
-                    _turn.text = head;
+                if (mode == 0)
+                {
+                    NumberTemplate.Split(T("match.turnScore"), out var prefix, out _turnSuffix);
+                    _turnPrefix = head + "\n" + prefix;
+                    _turnScore.Jump(match.TurnScore);
+                    NumberText.Set(_turn, _turnPrefix, match.TurnScore, _turnSuffix);
+                }
                 else
                 {
-                    var template = T("match.turnScore");
-                    var at = template.IndexOf("{0}", StringComparison.Ordinal);
-                    _turnPrefix = head + "\n" + (at >= 0 ? template.Substring(0, at) : template + " ");
-                    _turnSuffix = at >= 0 ? template.Substring(at + 3) : null;
-                    _turnShown = _turnTarget = match.TurnScore;
-                    NumberText.Set(_turn, _turnPrefix, _turnShown, _turnSuffix);
+                    // Накрутка очков хода больше не пишет в строку: в ней теперь «последний круг» или итог.
+                    _turnScore.Jump(_turnScore.Target);
+                    _turn.text = mode == 1 ? head + "\n" + T("match.finalRound") : head;
                 }
             }
 
-            if (mode == 0)
-                SetTurnScore(match.TurnScore);
-        }
-
-        /// <summary>Очки хода: рост накручивается с подпрыгиванием, сброс (новый ход, Зонк) — сразу.</summary>
-        private void SetTurnScore(int score)
-        {
-            if (score == _turnTarget)
-                return;
-
-            _turnTarget = score;
-            if (score > _turnShown && _feel.TurnCountDuration > 0f && isActiveAndEnabled)
-            {
-                _turnFrom = _turnShown;
-                _countTime = 0f;
-                _punchTime = 0f;
-                return;
-            }
-
-            _countTime = -1f;
-            _turnShown = score;
-            NumberText.Set(_turn, _turnPrefix, _turnShown, _turnSuffix);
+            // Очки хода: рост накручивается с подпрыгиванием, сброс (новый ход, Зонк) — сразу.
+            if (mode == 0 && _turnScore.SetTarget(match.TurnScore, isActiveAndEnabled))
+                NumberText.Set(_turn, _turnPrefix, match.TurnScore, _turnSuffix);
         }
 
         private void Update()
         {
-            var dt = Time.deltaTime;
-            if (_countTime >= 0f)
-            {
-                _countTime += dt / _feel.TurnCountDuration;
-                var t = Mathf.Clamp01(_countTime);
-                var value = Mathf.RoundToInt(Mathf.Lerp(_turnFrom, _turnTarget, 1f - (1f - t) * (1f - t)));
-                if (value != _turnShown)
-                {
-                    _turnShown = value;
-                    NumberText.Set(_turn, _turnPrefix, _turnShown, _turnSuffix);
-                }
-
-                if (t >= 1f)
-                    _countTime = -1f;
-            }
-
-            if (_punchTime >= 0f)
-            {
-                _punchTime += dt / Mathf.Max(0.01f, _feel.CountPunchDuration);
-                var p = Mathf.Clamp01(_punchTime);
-                _turn.rectTransform.localScale = Vector3.one * (1f + (_feel.CountPunch - 1f) * Mathf.Sin(p * Mathf.PI));
-                if (p >= 1f)
-                    _punchTime = -1f;
-            }
+            if (_turnScore.Tick(Time.deltaTime, _turn.rectTransform))
+                NumberText.Set(_turn, _turnPrefix, _turnScore.Shown, _turnSuffix);
         }
 
         /// <summary>
@@ -337,7 +290,8 @@ namespace Zonk.UI.Windows
             var (canRoll, canBank, bankScore) = _actionState();
             _roll.Interactable = canRoll;
             _bank.Interactable = canBank;
-            _bank.SetText(T("match.bankScore", bankScore));
+            // Меняется на каждый выбор кости: число без сборки строки, текст — только если очки изменились.
+            _bankText.Set(_bank.Label, T("match.bankScore"), bankScore);
         }
 
         public void HideButtons()

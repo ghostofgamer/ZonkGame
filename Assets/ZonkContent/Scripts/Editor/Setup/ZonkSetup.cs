@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
+using Zonk.Configs;
 using Object = UnityEngine.Object;
 
 namespace Zonk.Editor.Setup
@@ -75,9 +77,16 @@ namespace Zonk.Editor.Setup
 
             var art = BuildArt();
             var content = BuildContent(art);
+            BuildPlayerLevel(content.Config);
+            BuildAppearance(content.Config);
+            BuildMeta(content.Config);
+            BuildShopExpansion(content.Config);
             MigratePrefabPayloads();
             ApplyToonMaterials(content.Config);
             BuildWindows(content.Ui);
+            AddPlayerLevelToWindows();
+            AddAvatarToMainMenu();
+            AddMetaButtonsToMainMenu();
             AssetDatabase.SaveAssets();
             ContentDatabaseBuilder.Rebuild();
             UiWindowRegistry.Rebuild();
@@ -118,10 +127,56 @@ namespace Zonk.Editor.Setup
                 return;
             }
 
-            var parent = Path.GetDirectoryName(path)?.Replace('\\', '/');
+            var parent = ParentFolder(path);
             if (!string.IsNullOrEmpty(parent))
                 EnsureFolder(parent);
             AssetDatabase.CreateFolder(parent, Path.GetFileName(path));
+        }
+
+        private static string ParentFolder(string path) => Path.GetDirectoryName(path)?.Replace('\\', '/');
+
+        /// <summary>Все ассеты типа T в папке (незагрузившиеся пропускаются), в порядке AssetDatabase.FindAssets.</summary>
+        public static List<T> FindAll<T>(string folder) where T : Object
+        {
+            var result = new List<T>();
+            foreach (var guid in AssetDatabase.FindAssets("t:" + typeof(T).Name, new[] { folder }))
+            {
+                var asset = AssetDatabase.LoadAssetAtPath<T>(AssetDatabase.GUIDToAssetPath(guid));
+                if (asset != null)
+                    result.Add(asset);
+            }
+
+            return result;
+        }
+
+        /// <summary>Контент из конфигов по ID (без ID пропускается): для таблиц перенастройки.</summary>
+        private static Dictionary<string, T> ContentById<T>() where T : ContentConfig
+        {
+            var result = new Dictionary<string, T>();
+            foreach (var asset in FindAll<T>(ConfigsFolder))
+            {
+                if (!string.IsNullOrEmpty(asset.Id))
+                    result[asset.Id] = asset;
+            }
+
+            return result;
+        }
+
+        /// <summary>Записать текстуру в PNG, уничтожить её и импортировать файл.</summary>
+        private static void SavePng(string path, Texture2D texture)
+        {
+            File.WriteAllBytes(path, texture.EncodeToPNG());
+            Object.DestroyImmediate(texture);
+            AssetDatabase.ImportAsset(path);
+        }
+
+        /// <summary>Текстура RGBA32 без мип-уровней из готовых пикселей.</summary>
+        private static Texture2D TextureFrom(int width, int height, Color[] pixels)
+        {
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            texture.SetPixels(pixels);
+            texture.Apply();
+            return texture;
         }
 
         /// <summary>Загружает ассет или создаёт новый с начальной настройкой. Существующий не меняется.</summary>
@@ -131,7 +186,7 @@ namespace Zonk.Editor.Setup
             if (existing != null)
                 return existing;
 
-            EnsureFolder(Path.GetDirectoryName(path)?.Replace('\\', '/'));
+            EnsureFolder(ParentFolder(path));
             var asset = ScriptableObject.CreateInstance<T>();
             init(asset);
             AssetDatabase.CreateAsset(asset, path);
@@ -145,7 +200,7 @@ namespace Zonk.Editor.Setup
             if (existing != null)
                 return existing;
 
-            EnsureFolder(Path.GetDirectoryName(path)?.Replace('\\', '/'));
+            EnsureFolder(ParentFolder(path));
             var go = build();
             try
             {

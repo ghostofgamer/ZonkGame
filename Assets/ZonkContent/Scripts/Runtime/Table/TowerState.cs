@@ -104,18 +104,8 @@ namespace Zonk.Table
                 primary = cost > 0 ? T("tower.startCost", from, cost) : T("tower.start", from);
             }
 
-            var window = await _ui.OpenAsync<ChallengeWindow>(ct,
-                w => w.Setup(T("mode.tower"), null, body.ToString(), primary, null, T("ui.back")));
-            _tutorial.Show(TutorialTrigger.Tower);
-            try
-            {
-                return await window.WaitChoiceAsync(ct);
-            }
-            finally
-            {
-                _tutorial.Hide();
-                await _ui.CloseAsync(window, CancellationToken.None);
-            }
+            return await ModeWindows.AskAsync(_ui, T("mode.tower"), null, body.ToString(), primary, null, T("ui.back"), ct,
+                _tutorial, TutorialTrigger.Tower);
         }
 
         private async UniTask PlayAttemptAsync(CancellationToken ct)
@@ -148,6 +138,7 @@ namespace Zonk.Table
 
                 var result = await _match.PlayAsync(new ModeMatchSetup
                 {
+                    Mode = TableStateIds.Tower,
                     Opponent = floor.Opponent,
                     Target = floor.Target,
                     SharedRules = rules,
@@ -199,9 +190,7 @@ namespace Zonk.Table
         {
             var opponent = floor.Opponent;
             var body = new StringBuilder();
-            body.Append("<b>").Append(T(opponent.NameKey)).Append("</b>");
-            if (!string.IsNullOrEmpty(opponent.TitleKey))
-                body.Append('\n').Append(T(opponent.TitleKey));
+            ModeWindows.AppendOpponent(body, opponent, _kit);
             body.Append("\n\n").Append(T("run.target", floor.Target));
             body.Append('\n').Append(T("run.hearts", _tower.Hearts));
 
@@ -215,16 +204,7 @@ namespace Zonk.Table
 
             var guardian = opponent.IsBoss;
             var title = T(guardian ? "tower.floorGuardian" : "tower.floor", index + 1, _tower.FloorCount);
-            var window = await _ui.OpenAsync<ChallengeWindow>(ct,
-                w => w.Setup(title, opponent.Portrait, body.ToString(), T("run.fight"), null, T("run.toMenu")));
-            try
-            {
-                return await window.WaitChoiceAsync(ct);
-            }
-            finally
-            {
-                await _ui.CloseAsync(window, CancellationToken.None);
-            }
+            return await ModeWindows.AskAsync(_ui, title, opponent.Portrait, body.ToString(), T("run.fight"), null, T("run.toMenu"), ct);
         }
 
         private string RewardsText(IReadOnlyList<Reward> rewards)
@@ -248,14 +228,7 @@ namespace Zonk.Table
 
         private async UniTask<bool> TryReviveAsync(CancellationToken ct)
         {
-            if (!_tower.CanRevive || !_rewards.CanOffer)
-                return false;
-
-            if (!await ConfirmWindow.AskAsync(_ui, T("run.reviveAsk"), ct))
-                return false;
-
-            var result = await _rewards.RequestAsync(RevivePlacement, ct);
-            if (!result.IsGranted())
+            if (!await ModeWindows.TryReviveAsync(_tower.CanRevive, RevivePlacement, _ui, _rewards, _kit, ct))
                 return false;
 
             _tower.Revive();

@@ -27,11 +27,10 @@ namespace Zonk.Editor.Setup
         private static void BuildPortraits(ArtSet art)
         {
             EnsureFolder(PortraitsFolder);
-            foreach (var guid in AssetDatabase.FindAssets("t:OpponentConfig", new[] { ConfigsFolder }))
+            foreach (var opponent in FindAll<OpponentConfig>(ConfigsFolder))
             {
-                var opponent = AssetDatabase.LoadAssetAtPath<OpponentConfig>(AssetDatabase.GUIDToAssetPath(guid));
                 // Грозная версия берёт портрет своего босса (LinkDreadPortraits), свой не рисуется.
-                if (opponent == null || opponent.Portrait != null || string.IsNullOrEmpty(opponent.Id) || opponent.DreadOf != null)
+                if (opponent.Portrait != null || string.IsNullOrEmpty(opponent.Id) || opponent.DreadOf != null)
                     continue;
 
                 var headwear = opponent.Accessory == null ? Headwear.None
@@ -43,10 +42,7 @@ namespace Zonk.Editor.Setup
                 var path = PortraitsFolder + "/Portrait_" + opponent.Id + ".png";
                 if (!File.Exists(path))
                 {
-                    var texture = PaintPortrait(opponent.BodyColor, headwear, opponent.IsBoss, opponent.Id.GetHashCode());
-                    File.WriteAllBytes(path, texture.EncodeToPNG());
-                    Object.DestroyImmediate(texture);
-                    AssetDatabase.ImportAsset(path);
+                    SavePng(path, PaintPortrait(opponent.BodyColor, headwear, opponent.IsBoss, opponent.Id.GetHashCode()));
                 }
 
                 if (AssetImporter.GetAtPath(path) is TextureImporter importer && importer.textureType != TextureImporterType.Sprite)
@@ -90,23 +86,10 @@ namespace Zonk.Editor.Setup
                     pixels[y * size + x] = color;
                 }
 
-                var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
-                texture.SetPixels(pixels);
-                texture.Apply();
-                File.WriteAllBytes(path, texture.EncodeToPNG());
-                Object.DestroyImmediate(texture);
-                AssetDatabase.ImportAsset(path);
+                SavePng(path, TextureFrom(size, size, pixels));
             }
 
-            if (AssetImporter.GetAtPath(path) is TextureImporter importer && importer.textureType != TextureImporterType.Sprite)
-            {
-                importer.textureType = TextureImporterType.Sprite;
-                importer.alphaIsTransparency = true;
-                importer.mipmapEnabled = false;
-                importer.SaveAndReimport();
-            }
-
-            ui.CoinSprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            ui.CoinSprite = SpriteAt(path);
             EditorUtility.SetDirty(ui);
         }
 
@@ -134,22 +117,10 @@ namespace Zonk.Editor.Setup
                     pixels[y * size + x] = new Color(1f, 1f, 1f, inside);
                 }
 
-                var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
-                texture.SetPixels(pixels);
-                texture.Apply();
-                File.WriteAllBytes(texturePath, texture.EncodeToPNG());
-                Object.DestroyImmediate(texture);
-                AssetDatabase.ImportAsset(texturePath);
+                SavePng(texturePath, TextureFrom(size, size, pixels));
             }
 
-            if (AssetImporter.GetAtPath(texturePath) is TextureImporter importer && importer.textureType != TextureImporterType.Sprite)
-            {
-                importer.textureType = TextureImporterType.Sprite;
-                importer.alphaIsTransparency = true;
-                importer.mipmapEnabled = false;
-                importer.SaveAndReimport();
-            }
-
+            var starSprite = SpriteAt(texturePath);
             var assetPath = folder + "/Icons.asset";
             var icons = AssetDatabase.LoadAssetAtPath<TMPro.TMP_SpriteAsset>(assetPath);
 
@@ -167,7 +138,6 @@ namespace Zonk.Editor.Setup
                 return;
 
             var starTexture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
-            var starSprite = AssetDatabase.LoadAssetAtPath<Sprite>(texturePath);
             if (icons == null)
             {
                 icons = ScriptableObject.CreateInstance<TMPro.TMP_SpriteAsset>();
@@ -290,10 +260,7 @@ namespace Zonk.Editor.Setup
                 pixels[y * size + x] = color;
             }
 
-            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
-            texture.SetPixels(pixels);
-            texture.Apply();
-            return texture;
+            return TextureFrom(size, size, pixels);
         }
 
         /// <summary>Покрытие точки эллипсом 0..1 с мягким краем в 1.5 пикселя.</summary>

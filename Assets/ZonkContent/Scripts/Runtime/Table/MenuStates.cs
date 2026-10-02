@@ -135,35 +135,11 @@ namespace Zonk.Table
                 case MainMenuChoice.Leaderboards: return TableStateIds.Leaderboards;
                 case MainMenuChoice.Tower: return TableStateIds.Tower;
                 case MainMenuChoice.EndlessRun: return TableStateIds.EndlessRun;
+                case MainMenuChoice.Profile: return TableStateIds.Profile;
+                case MainMenuChoice.Chest: return TableStateIds.Chest;
+                case MainMenuChoice.Season: return TableStateIds.Season;
                 default: return TableStateIds.Settings;
             }
-        }
-    }
-
-    public sealed class SettingsState : ITableState
-    {
-        private readonly IUiService _ui;
-
-        public SettingsState(IUiService ui)
-        {
-            _ui = ui;
-        }
-
-        public string Id => TableStateIds.Settings;
-
-        public async UniTask<string> RunAsync(CancellationToken ct)
-        {
-            var window = await _ui.OpenAsync<SettingsWindow>(ct);
-            try
-            {
-                await window.WaitCloseRequestAsync(ct);
-            }
-            finally
-            {
-                await _ui.CloseAsync(window, CancellationToken.None);
-            }
-
-            return TableStateIds.Menu;
         }
     }
 
@@ -232,21 +208,24 @@ namespace Zonk.Table
         }
     }
 
-    /// <summary>Книга правил поверх стола. Закрытие по кнопке окна, затем обратно в меню.</summary>
-    public sealed class RulesState : ITableState
+    /// <summary>
+    /// Окно поверх стола, которое закрывается кнопкой окна (WaitCloseRequestAsync), затем обратно в меню.
+    /// Новое такое окно — наследник с ID состояния и строка в TableInstaller.
+    /// </summary>
+    public abstract class ModalWindowState<TWindow> : ITableState where TWindow : UiWindow
     {
         private readonly IUiService _ui;
 
-        public RulesState(IUiService ui)
+        protected ModalWindowState(IUiService ui)
         {
             _ui = ui;
         }
 
-        public string Id => TableStateIds.Rules;
+        public abstract string Id { get; }
 
         public async UniTask<string> RunAsync(CancellationToken ct)
         {
-            var window = await _ui.OpenAsync<Zonk.UI.Rules.RulesWindow>(ct);
+            var window = await _ui.OpenAsync<TWindow>(ct);
             try
             {
                 await window.WaitCloseRequestAsync(ct);
@@ -260,59 +239,72 @@ namespace Zonk.Table
         }
     }
 
-    /// <summary>Задания дня и недели поверх стола. Закрытие по кнопке окна, затем обратно в меню.</summary>
-    public sealed class QuestsState : ITableState
+    public sealed class SettingsState : ModalWindowState<SettingsWindow>
     {
-        private readonly IUiService _ui;
-
-        public QuestsState(IUiService ui)
+        public SettingsState(IUiService ui) : base(ui)
         {
-            _ui = ui;
         }
 
-        public string Id => TableStateIds.Quests;
-
-        public async UniTask<string> RunAsync(CancellationToken ct)
-        {
-            var window = await _ui.OpenAsync<QuestsWindow>(ct);
-            try
-            {
-                await window.WaitCloseRequestAsync(ct);
-            }
-            finally
-            {
-                await _ui.CloseAsync(window, CancellationToken.None);
-            }
-
-            return TableStateIds.Menu;
-        }
+        public override string Id => TableStateIds.Settings;
     }
 
-    /// <summary>Рекорды (таблицы лидеров) поверх стола. Закрытие по кнопке окна, затем обратно в меню.</summary>
-    public sealed class LeaderboardsState : ITableState
+    /// <summary>Книга правил поверх стола.</summary>
+    public sealed class RulesState : ModalWindowState<Zonk.UI.Rules.RulesWindow>
     {
-        private readonly IUiService _ui;
-
-        public LeaderboardsState(IUiService ui)
+        public RulesState(IUiService ui) : base(ui)
         {
-            _ui = ui;
         }
 
-        public string Id => TableStateIds.Leaderboards;
+        public override string Id => TableStateIds.Rules;
+    }
 
-        public async UniTask<string> RunAsync(CancellationToken ct)
+    /// <summary>Задания дня и недели поверх стола.</summary>
+    public sealed class QuestsState : ModalWindowState<QuestsWindow>
+    {
+        public QuestsState(IUiService ui) : base(ui)
         {
-            var window = await _ui.OpenAsync<LeaderboardWindow>(ct);
-            try
-            {
-                await window.WaitCloseRequestAsync(ct);
-            }
-            finally
-            {
-                await _ui.CloseAsync(window, CancellationToken.None);
-            }
-
-            return TableStateIds.Menu;
         }
+
+        public override string Id => TableStateIds.Quests;
+    }
+
+    /// <summary>Рекорды (таблицы лидеров) поверх стола.</summary>
+    public sealed class LeaderboardsState : ModalWindowState<LeaderboardWindow>
+    {
+        public LeaderboardsState(IUiService ui) : base(ui)
+        {
+        }
+
+        public override string Id => TableStateIds.Leaderboards;
+    }
+
+    /// <summary>Открытие сундуков поверх стола.</summary>
+    public sealed class ChestState : ModalWindowState<ChestWindow>
+    {
+        public ChestState(IUiService ui) : base(ui)
+        {
+        }
+
+        public override string Id => TableStateIds.Chest;
+    }
+
+    /// <summary>Сезонный путь поверх стола.</summary>
+    public sealed class SeasonState : ModalWindowState<SeasonWindow>
+    {
+        public SeasonState(IUiService ui) : base(ui)
+        {
+        }
+
+        public override string Id => TableStateIds.Season;
+    }
+
+    /// <summary>Профиль игрока (статистика) поверх стола.</summary>
+    public sealed class ProfileState : ModalWindowState<ProfileWindow>
+    {
+        public ProfileState(IUiService ui) : base(ui)
+        {
+        }
+
+        public override string Id => TableStateIds.Profile;
     }
 }

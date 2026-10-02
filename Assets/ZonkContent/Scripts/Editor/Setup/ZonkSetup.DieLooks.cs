@@ -134,13 +134,11 @@ namespace Zonk.Editor.Setup
                         atlas.LoadImage(File.ReadAllBytes(Textures + "/Die_Classic.png"));
                     }
 
-                    File.WriteAllBytes(texturePath, Paint(atlas, look).EncodeToPNG());
-                    AssetDatabase.ImportAsset(texturePath);
+                    SavePng(texturePath, Paint(atlas, look));
                 }
 
                 var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
-                var art = new ArtSet();
-                materials[look.Name] = Mat(art, "DieLook_" + look.Name, Color.white, texture, look.Smoothness, look.Metallic,
+                materials[look.Name] = Mat(null, "DieLook_" + look.Name, Color.white, texture, look.Smoothness, look.Metallic,
                     Color.black);
             }
 
@@ -177,14 +175,12 @@ namespace Zonk.Editor.Setup
                 var pips = Mathf.Abs(body.grayscale - levelColor.grayscale) < 0.3f ? levelColor * 0.35f : levelColor;
                 pips.a = 1f;
                 var painted = Paint(atlas, look, pips, level >= 2 ? levelColor : (Color?)null, 2);
-                File.WriteAllBytes(texturePath, painted.EncodeToPNG());
-                UnityEngine.Object.DestroyImmediate(painted);
                 UnityEngine.Object.DestroyImmediate(atlas);
-                AssetDatabase.ImportAsset(texturePath);
+                SavePng(texturePath, painted);
             }
 
             var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
-            return Mat(new ArtSet(), "DieLook_" + lookName + "_M" + level, Color.white, texture,
+            return Mat(null, "DieLook_" + lookName + "_M" + level, Color.white, texture,
                 Mathf.Min(1f, look.Smoothness + 0.05f * level), look.Metallic, Color.black);
         }
 
@@ -232,10 +228,7 @@ namespace Zonk.Editor.Setup
                 result[oy * width + ox] = color;
             }
 
-            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
-            texture.SetPixels(result);
-            texture.Apply();
-            return texture;
+            return TextureFrom(width, height, result);
         }
 
         /// <summary>Плавный шум 0..1 по решётке с хешем: одинаковый при каждом запуске генератора.</summary>

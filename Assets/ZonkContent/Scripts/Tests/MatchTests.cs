@@ -43,6 +43,25 @@ namespace Zonk.Tests
         }
 
         [Test]
+        public void OpponentStartsRuleGivesFirstTurnToLastPlayer()
+        {
+            foreach (var proposed in new[] { 0, 1 })
+            {
+                var settings = TwoPlayers(PlayerSetup.StandardDice(), PlayerSetup.StandardDice());
+                settings.FirstPlayer = proposed;
+                settings.Modifiers.Add(new OpponentStartsModifier());
+
+                Assert.That(new ZonkMatch(settings).CurrentPlayerIndex, Is.EqualTo(1));
+            }
+
+            // Без правила — как выбрал режим.
+            var plain = TwoPlayers(PlayerSetup.StandardDice(), PlayerSetup.StandardDice());
+            plain.FirstPlayer = 0;
+            Assert.That(new ZonkMatch(plain).CurrentPlayerIndex, Is.EqualTo(0));
+            Assert.That(new OpponentStartsModifier().DescriptionKey, Is.EqualTo("rule.opponentStarts"));
+        }
+
+        [Test]
         public void ZonkPassesTurn()
         {
             var match = new ZonkMatch(TwoPlayers(ForcedDice(2, 3, 4, 6, 6, 2), PlayerSetup.StandardDice()));

@@ -150,9 +150,9 @@ namespace Zonk.MatchFlow
                 _onThinking?.Invoke();
             await Delay(Mathf.Lerp(_thinkDelay.x, _thinkDelay.y, (float)_random.NextDouble()), ct);
 
-            foreach (var slot in decision.Keep)
+            for (var i = 0; i < decision.Keep.Count; i++)
             {
-                _dice.Select(slot, true);
+                _dice.Select(decision.Keep[i], true);
                 await Delay(0.18f, ct);
             }
 

@@ -41,6 +41,10 @@ namespace Base.Services.Saves
         /// <summary>Разделы, которые игра уже запросила. Сериализуются при каждой записи.</summary>
         private readonly Dictionary<string, object> _cache = new Dictionary<string, object>();
 
+        /// <summary>Что уходит в облако; заполняется заново при каждой записи.</summary>
+        private readonly SaveEnvelope _envelope = new SaveEnvelope { format = EnvelopeFormat };
+        private readonly Dictionary<string, SaveSection> _written = new Dictionary<string, SaveSection>();
+
         private readonly UniTaskCompletionSource _loaded = new UniTaskCompletionSource();
         private bool _loading;
         private bool _saving;
@@ -296,27 +300,29 @@ namespace Base.Services.Saves
             return json;
         }
 
+        /// <summary>Конверт и записи разделов переиспользуются между записями: новые только строки JSON.</summary>
         private string Serialize()
         {
-            var envelope = new SaveEnvelope { format = EnvelopeFormat, sections = new List<SaveSection>() };
+            var sections = _envelope.sections;
+            sections.Clear();
 
             foreach (var pair in _raw)
             {
                 if (!_cache.ContainsKey(pair.Key))
-                    envelope.sections.Add(pair.Value);
+                    sections.Add(pair.Value);
             }
 
             foreach (var pair in _cache)
             {
-                envelope.sections.Add(new SaveSection
-                {
-                    key = pair.Key,
-                    version = GetVersion(pair.Key),
-                    json = JsonUtility.ToJson(pair.Value),
-                });
+                if (!_written.TryGetValue(pair.Key, out var section))
+                    _written[pair.Key] = section = new SaveSection { key = pair.Key };
+
+                section.version = GetVersion(pair.Key);
+                section.json = JsonUtility.ToJson(pair.Value);
+                sections.Add(section);
             }
 
-            return JsonUtility.ToJson(envelope);
+            return JsonUtility.ToJson(_envelope);
         }
 
         private async UniTaskVoid DelayedSaveAsync()

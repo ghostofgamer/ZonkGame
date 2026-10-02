@@ -25,6 +25,10 @@ MonoBehaviour:
     Good: {r: 0.45, g: 0.85, b: 0.45, a: 1}
     Bad: {r: 0.95, g: 0.4, b: 0.35, a: 1}
     Gold: {r: 1, g: 0.82, b: 0.35, a: 1}
+    RarityCommon: {r: 0.62, g: 0.6, b: 0.56, a: 1}
+    RarityRare: {r: 0.35, g: 0.62, b: 1, a: 1}
+    RarityLegendary: {r: 1, g: 0.72, b: 0.18, a: 1}
+    Locked: {r: 0.32, g: 0.32, b: 0.32, a: 1}
     Bank: {r: 0.2, g: 0.62, b: 0.34, a: 1}
   ScreenShow: {fileID: 11400000, guid: ddf820628384a6141a1a11e815091e51, type: 2}
   ScreenHide: {fileID: 11400000, guid: 1e70acc510d03d6418ab16dfe377ffd8, type: 2}
@@ -60,22 +64,25 @@ MonoBehaviour:
   Icons: {fileID: 11400000, guid: f3c70694e163cf6469a5c71b2d8178ff, type: 2}
   RulesBook: {fileID: 11400000, guid: e4f21271dbfdde646814a4e67f6f177c, type: 2}
   Windows:
-  - {fileID: 1968985677484455675, guid: e8fcc54f8b1f51246a51dd63012b61b2, type: 3}
-  - {fileID: 35882371347669888, guid: 33165e7024256084cbb56e48afd1d2b0, type: 3}
-  - {fileID: 8924947577244831845, guid: 0ea78a2c7ca6a79429e9e56d187d690c, type: 3}
-  - {fileID: 8661893978131257481, guid: ffea2856776510a4d8332c7f7e8d73dd, type: 3}
-  - {fileID: 893135128419633011, guid: 9d20860f37571f94b93068c8a6ddeb3e, type: 3}
-  - {fileID: 5402298325237561760, guid: 99c20248c227a71458c422cc29c1460e, type: 3}
-  - {fileID: 2340177349110924228, guid: 48d118db3a7981c4abb471405ab48cd0, type: 3}
-  - {fileID: 8376188825256789270, guid: fdf7757f220565d4abda108c373ecab2, type: 3}
-  - {fileID: 5399438106663355528, guid: 9105b4e88ff0341498cf0c125bae7439, type: 3}
-  - {fileID: 6196322606805795484, guid: 4131e19d64ca29140b00516b7711563b, type: 3}
-  - {fileID: 2629457953996452792, guid: 04b9b2b29b031f4468a3f95e80d3f4fa, type: 3}
-  - {fileID: 1487022865573846046, guid: 989bba3fabf76814a8b057e386d5e6f5, type: 3}
-  - {fileID: 4756619654766627505, guid: d3bd25cd22bda004aacc09a18a5e40cb, type: 3}
-  - {fileID: 957181823282755996, guid: 27bd5ecdfacc5894f85ab9f2af78132b, type: 3}
-  - {fileID: 4545046198483403499, guid: aeaeb81377299864f992d91e8551370d, type: 3}
-  - {fileID: 427583249421636608, guid: 59624b69c20927e42b38b3cd25a06709, type: 3}
+  - {fileID: 5451079893975309892, guid: e8fcc54f8b1f51246a51dd63012b61b2, type: 3}
+  - {fileID: 7820517554387506420, guid: 33165e7024256084cbb56e48afd1d2b0, type: 3}
+  - {fileID: 196749015130347583, guid: b842605b211b0354a8abde6bb9d9ad2e, type: 3}
+  - {fileID: 6790975370395757085, guid: 0ea78a2c7ca6a79429e9e56d187d690c, type: 3}
+  - {fileID: 9072189844473331845, guid: ffea2856776510a4d8332c7f7e8d73dd, type: 3}
+  - {fileID: 5702870386301940473, guid: 9d20860f37571f94b93068c8a6ddeb3e, type: 3}
+  - {fileID: 8202042246964590450, guid: 99c20248c227a71458c422cc29c1460e, type: 3}
+  - {fileID: 7389354262958670066, guid: 48d118db3a7981c4abb471405ab48cd0, type: 3}
+  - {fileID: 1413603864124117561, guid: fdf7757f220565d4abda108c373ecab2, type: 3}
+  - {fileID: 8723540985092094940, guid: 9105b4e88ff0341498cf0c125bae7439, type: 3}
+  - {fileID: 8594060438320677194, guid: 8e03cda0a7290c4408f324cd0714a843, type: 3}
+  - {fileID: 4965451704137576369, guid: 4131e19d64ca29140b00516b7711563b, type: 3}
+  - {fileID: 4989883131040546975, guid: 04b9b2b29b031f4468a3f95e80d3f4fa, type: 3}
+  - {fileID: 2679850342998459246, guid: 989bba3fabf76814a8b057e386d5e6f5, type: 3}
+  - {fileID: 3361452625164574488, guid: 7340b8c5214ed6d4ba0d8185b3e604d6, type: 3}
+  - {fileID: 2163423043517905162, guid: d3bd25cd22bda004aacc09a18a5e40cb, type: 3}
+  - {fileID: 6390211007976577809, guid: 27bd5ecdfacc5894f85ab9f2af78132b, type: 3}
+  - {fileID: 3680404800466311057, guid: aeaeb81377299864f992d91e8551370d, type: 3}
+  - {fileID: 5716980695498175250, guid: 59624b69c20927e42b38b3cd25a06709, type: 3}
   TipKeys:
   - tip.1
   - tip.2

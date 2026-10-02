@@ -20,6 +20,12 @@ namespace Zonk.MatchFlow
         public ZonkMatch Match;
         public int Winner = -1;
         public bool Surrendered;
+
+        /// <summary>Режим партии для статистики (ID состояния стола: campaign, tower, endless_run); пусто — не задан.</summary>
+        public string Mode;
+
+        /// <summary>Сколько секунд шла партия (без загрузки).</summary>
+        public float Seconds;
     }
 
     /// <summary>
@@ -42,12 +48,14 @@ namespace Zonk.MatchFlow
         private readonly IUiService _ui;
         private readonly IQuestService _quests;
         private readonly IDieMastery _mastery;
+        private readonly IPlayerRecords _records;
         private readonly Zonk.Table.TutorialDirector _tutorial;
 
         public MatchRunner(TableView table, MatchPresenter presenter, ReactionDirector reactions, IChatChannel chat, UiKit kit,
             GameConfig config, IGameSettings settings, ContentDatabase content, IUiService ui, IQuestService quests,
-            IDieMastery mastery, Zonk.Table.TutorialDirector tutorial)
+            IDieMastery mastery, Zonk.Table.TutorialDirector tutorial, IPlayerRecords records)
         {
+            _records = records;
             _tutorial = tutorial;
             _quests = quests;
             _mastery = mastery;
@@ -67,6 +75,7 @@ namespace Zonk.MatchFlow
         {
             var match = new ZonkMatch(settings);
             var outcome = new MatchOutcome { Match = match };
+            var startedAt = Time.realtimeSinceStartup;
 
             var phrases = _content.All<PhraseConfig>();
             phrases.Sort((a, b) => a.Order.CompareTo(b.Order));
@@ -130,6 +139,7 @@ namespace Zonk.MatchFlow
                 }
             }
 
+            outcome.Seconds = Time.realtimeSinceStartup - startedAt;
             return outcome;
         }
 
@@ -178,6 +188,7 @@ namespace Zonk.MatchFlow
             while (true)
             {
                 var roll = match.Roll();
+                RecordRoll(progress, player, roll);
                 await _presenter.PlayRollAsync(roll, ct);
                 hud.SetHint(string.Empty);
                 if (_presenter.LastRollManual && local && !progress.HotSeat)
@@ -289,6 +300,8 @@ namespace Zonk.MatchFlow
                 return;
 
             _quests.Report(new QuestEvent { Kind = QuestEventKind.Keep, Score = keep.Score, HotSeat = progress.HotSeat });
+            if (!progress.HotSeat)
+                _records.RecordKeep(keep.Score, keep.HotDice);
             if (keep.HotDice)
                 _quests.Report(new QuestEvent { Kind = QuestEventKind.HotDice, HotSeat = progress.HotSeat });
         }
@@ -302,6 +315,8 @@ namespace Zonk.MatchFlow
             _quests.Report(new QuestEvent { Kind = QuestEventKind.Bank, Amount = banked, HotSeat = progress.HotSeat });
             if (progress.HotSeat)
                 return;
+
+            _records.RecordBank(banked);
 
             var dice = progress.Participants[player].Dice;
             for (var slot = 0; slot < points.Length && dice != null && slot < dice.Count; slot++)
@@ -325,6 +340,32 @@ namespace Zonk.MatchFlow
 
             outcome.Surrendered = true;
             surrender.Cancel();
+        }
+
+        /// <summary>Бросок местного игрока в статистику: сколько костей брошено, сколько из них обычных, единицы и пятёрки на обычных.</summary>
+        private void RecordRoll(ProgressTracking progress, int player, RollOutcome roll)
+        {
+            if (!progress.IsLocal(player) || progress.HotSeat)
+                return;
+
+            var dice = progress.Participants[player].Dice;
+            var rolled = roll.RolledDice;
+            var standard = 0;
+            var onesFives = 0;
+            for (var i = 0; i < rolled.Count; i++)
+            {
+                var slot = rolled[i];
+                var die = dice != null && slot < dice.Count ? dice[slot] : null;
+                if (die != null && die.IsSpecial)
+                    continue;
+
+                standard++;
+                var face = roll.Faces[slot];
+                if (face == 1 || face == 5)
+                    onesFives++;
+            }
+
+            _records.RecordRoll(roll.IsZonk, rolled.Count, standard, onesFives);
         }
 
         /// <summary>Кто говорит фразу с этого экрана: текущий игрок, если он местный, иначе первый местный.</summary>
