@@ -293,10 +293,10 @@ namespace Zonk.Editor
         private static void ValidateOpponent(OpponentConfig opponent, HashSet<string> texts, List<string> errors,
             List<string> warnings, GameConfig config)
         {
-            // Особые кости: у обычных соперников немного, у боссов больше; одна особая кость — один слот.
+            // Особые кости: у обычных соперников немного, у боссов больше. Повторы у соперника разрешены (сильные боссы —
+            // шесть «Счастливых»), правило «одна особая кость — один слот» только для набора игрока. Кости соперника видны
+            // до партии (CampaignWindow.DiceText).
             var special = opponent.Dice.Where(d => d != null && d.IsSpecial).ToList();
-            if (special.Count != special.Distinct().Count())
-                errors.Add($"{opponent.name}: the same special die is used twice (one special die = one slot)");
             if (special.Count > 6)
                 errors.Add($"{opponent.name}: more than 6 dice");
             if (config != null && !opponent.IsBoss && special.Count > config.OpponentMaxSpecialDice)

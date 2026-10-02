@@ -359,6 +359,33 @@ namespace Zonk.UI.Windows
             button.OnClick(onClick);
         }
 
+        /// <summary>
+        /// Кости соперника до партии: «Кости: Счастливая ×4, Шулерская ×2». У соперника особая кость может стоять
+        /// в нескольких слотах (у игрока — нет), поэтому сила соперника должна быть видна честно, до выбора.
+        /// </summary>
+        private string DiceText(OpponentConfig opponent)
+        {
+            var counts = new List<(DieConfig die, int count)>();
+            foreach (var die in opponent.Dice)
+            {
+                if (die == null || !die.IsSpecial)
+                    continue;
+                var index = counts.FindIndex(c => c.die == die);
+                if (index >= 0)
+                    counts[index] = (die, counts[index].count + 1);
+                else
+                    counts.Add((die, 1));
+            }
+
+            if (counts.Count == 0)
+                return T("campaign.opponentDiceStandard");
+
+            var parts = new List<string>(counts.Count);
+            foreach (var (die, count) in counts)
+                parts.Add(count > 1 ? T(die.NameKey) + " ×" + count : T(die.NameKey));
+            return T("campaign.opponentDice", string.Join(", ", parts));
+        }
+
         private void Select(OpponentConfig opponent)
         {
             _selected = opponent;
@@ -390,6 +417,7 @@ namespace Zonk.UI.Windows
             }
 
             text += RulesText(opponent);
+            text += DiceText(opponent) + "\n";
 
             var target = TargetOf(opponent);
             text += T("campaign.target", target);

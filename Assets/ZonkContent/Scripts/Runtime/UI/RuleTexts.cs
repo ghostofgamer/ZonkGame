@@ -16,15 +16,18 @@ namespace Zonk.UI
         private static readonly StringBuilder Builder = new StringBuilder();
 
         /// <summary>Одно правило. Нет описания — пустая строка.</summary>
+        private const int MinArgs = 4;
+
         public static string Describe(MatchModifier modifier, Func<string, string> localize, string language)
         {
             if (modifier == null || string.IsNullOrEmpty(modifier.DescriptionKey))
                 return string.Empty;
 
+            // Запас пустых значений: текст может ссылаться на {1}, когда у правила одно число, — тогда не «{0}» в окне, а текст.
             var source = modifier.DescriptionArgs ?? Array.Empty<object>();
-            var args = new object[source.Length];
-            for (var i = 0; i < source.Length; i++)
-                args[i] = Value(source[i], localize, language);
+            var args = new object[Math.Max(source.Length, MinArgs)];
+            for (var i = 0; i < args.Length; i++)
+                args[i] = i < source.Length ? Value(source[i], localize, language) : string.Empty;
 
             var format = localize(modifier.DescriptionKey);
             try
