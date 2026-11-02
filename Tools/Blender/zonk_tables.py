@@ -28,7 +28,7 @@
 Оси как в zonk_models.py: Unity = (-bx, bz, -by). В Blender: X — длина стола, Y — ширина (камера игрока со
 стороны +Y), Z — вверх.
 
-Текстура — атлас 1024: верхняя половина — столешница (по координатам мира), нижняя — 8 плиток 256 по видам
+Текстура — атлас 1024 (2048 пробовали 05.10: вес вдвое, разницы не видно): верхняя половина — столешница (по координатам мира), нижняя — 8 плиток 256 по видам
 материала (кромка, ножки, металл, золото и т.д.), детали проецируются в свою плитку.
 
 Запуск (фоном):
@@ -69,6 +69,7 @@ UPPER_Z = -0.6            # габарит MAX_X/MAX_Y проверяется у
 PLAY_DIAG = 3.95          # стакан в (2.15, 1.25) радиусом 0.38 по диагонали: |x| + |y| до 3.95 должно быть плоским
 MAX_TRIS = 5000
 TEX = 1024
+PX = TEX / 1024       # рисунок задан в пикселях атласа 1024: при другом TEX шум и трещины масштабируются, вид тот же
 
 # Атлас: столешница — верхняя половина по миру
 TOP_U = (0.0, 1.0)
@@ -76,6 +77,7 @@ TOP_V = (0.5, 1.0)
 TOP_X = (-3.0, 3.0)
 TOP_Y = (-2.5, 2.5)
 TILE = 0.25               # плитки нижней половины: 4 × 2
+CELL = 1.0                # м: плитка детали повторяется каждый метр (256 пикселей на метр во все стороны)
 
 # Плитки (номера)
 EDGE, LEG, METAL, GOLD, ACC1, ACC2, DARK, ACC3 = range(8)
@@ -111,7 +113,34 @@ class Builder:
         faces = self._new_faces(before)
         if normals:
             bmesh.ops.recalc_face_normals(self.bm, faces=faces)
+        faces = self._split_cells(faces, before, top)
         self.assign(faces, tile, top, bottom_tile)
+        return faces
+
+    @staticmethod
+    def _is_top(f, top):
+        return top and f.normal.z > 0.9 and abs(f.calc_center_median().z - TOP) < 0.02
+
+    def _split_cells(self, faces, before, top):
+        """Режет боковые грани части по сетке CELL вдоль X и Y: каждая клетка получает плитку целиком,
+        плитка повторяется каждый метр. Верх столешницы не режется (он по миру)."""
+        for axis in (0, 1):
+            side = [f for f in faces if not self._is_top(f, top)]
+            if not side:
+                return faces
+            values = [v.co[axis] for f in side for v in f.verts]
+            k = math.floor(min(values) / CELL) + 1
+            while k * CELL < max(values) - 1e-4:
+                side = [f for f in self._new_faces(before) if not self._is_top(f, top)]
+                edges = list({e for f in side for e in f.edges})
+                verts = list({v for f in side for v in f.verts})
+                co = [0.0, 0.0, 0.0]
+                co[axis] = k * CELL
+                no = [0.0, 0.0, 0.0]
+                no[axis] = 1.0
+                bmesh.ops.bisect_plane(self.bm, geom=side + edges + verts, dist=1e-5, plane_co=co, plane_no=no)
+                k += 1
+            faces = self._new_faces(before)
         return faces
 
     def assign(self, faces, tile, top=False, bottom_tile=None):
@@ -137,10 +166,26 @@ class Builder:
                 a, b = 1, 2
             else:
                 a, b = 0, 2
+            # Плотность одна во все стороны (TILE на CELL метров): по горизонтали — от начала клетки сетки,
+            # по высоте — от низа части, без растяжения низких полос (раньше часть растягивалась на плитку целиком:
+            # кромка 6 м × 0.12 м получала 256 пикселей вдоль и рисунок, сжатый в 50 раз, — в игре мыло полосами).
+            center = f.calc_center_median()
+
+            def coord(axis, value):
+                if axis == 2:
+                    return (value - lo[2]) / max(size[2], CELL)
+                return (value - math.floor(center[axis] / CELL) * CELL) / CELL
+
+            # Плитка ножек нарисована с волокнами вдоль высоты; у горизонтальных перекладин — поворот на 90°,
+            # чтобы волокна шли вдоль детали, а не поперёк.
+            lying = t == LEG and max(size.x, size.y) > size.z * 1.5
+            swap = lying and (b == 2 or (a, b) == (0, 1) and size.x > size.y)
             for loop in f.loops:
                 p = loop.vert.co
-                su = (p[a] - lo[a]) / max(size[a], 1e-4)
-                sv = (p[b] - lo[b]) / max(size[b], 1e-4)
+                su = min(max(coord(a, p[a]), 0.0), 1.0)
+                sv = min(max(coord(b, p[b]), 0.0), 1.0)
+                if swap:
+                    su, sv = sv, su
                 loop[self.uv].uv = (u0 + (0.02 + 0.96 * su) * TILE, v0 + (0.02 + 0.96 * sv) * TILE)
 
     def finish(self):
@@ -404,7 +449,24 @@ class Atlas:
         self.img[r0:r0 + n, c0:c0 + n] = rgb
 
     def noise(self, scale, scale_v=None, h=None, w=None):
-        return zm.periodic_noise(self.rng, h or TEX // 2, w or TEX, scale, scale_v=scale_v)
+        return zm.periodic_noise(self.rng, h or TEX // 2, w or TEX, scale * PX, scale_v=scale_v * PX if scale_v is not None else None)
+
+
+GRAIN_EDGE = 0.04      # мягкость края тона волокна (доля амплитуды): мало — чёткий край
+GRAIN_LINE = 0.09      # толщина тёмной линии волокна, доля периода
+GRAIN_TONE = 0.45      # перепад тонов между волокнами (1 — полосы «зеброй», 0 — только линии)
+
+
+def comic_grain(phase, light, dark, base=0.3, depth=0.4, tint=0.0):
+    """Комиксовое дерево (05.10): два ровных тона с чётким краем и тонкая тёмная линия волокна.
+    Раньше тон шёл плавной синусоидой — вдали и под углом она сливалась в муть («стол как 64 пикселя»),
+    а чёткие края и линии остаются читаемыми. phase — номер волокна (целые — соседние волокна)."""
+    wave = np.sin(2 * np.pi * phase)
+    band = ss(-GRAIN_EDGE, GRAIN_EDGE, wave)
+    img = lerp(light, dark, np.clip(base + depth * GRAIN_TONE * band + tint, 0, 1))
+    d = np.abs(((phase + 0.5) % 1.0) - 0.5)          # до линии на целом номере волокна, 0..0.5
+    line = 1 - ss(GRAIN_LINE * 0.55, GRAIN_LINE, d)
+    return lerp(img, dark * 0.7, line * 0.85)
 
 
 def wood_tile(atlas, light, dark, vertical, stripes=7, knots=True):
@@ -412,8 +474,7 @@ def wood_tile(atlas, light, dark, vertical, stripes=7, knots=True):
     n = TEX // 4
     warp = atlas.noise(30.0, h=n, w=n)
     a = u if vertical else v
-    grain = 0.5 + 0.5 * np.sin(2 * np.pi * (a * stripes + 0.08 * warp))
-    img = lerp(light, dark, np.clip(0.25 + 0.45 * grain ** 3, 0, 1))
+    img = comic_grain(a * stripes + 0.08 * warp, light, dark, 0.2, 0.35)
     if knots:
         for _ in range(2):
             cx, cy = atlas.rng.uniform(0.2, 0.8, 2)
@@ -447,8 +508,7 @@ def planks_top(atlas, light, dark, seam, count, along_x=True, offset_seed=0, nai
     shifts = rng.uniform(0, length, 64)
     tint = tints[idx % 64]
     warp = atlas.noise(40.0, 200.0)
-    grain = 0.5 + 0.5 * np.sin(2 * np.pi * (across / width * 4.0 + 0.25 * warp + 0.02 * along))
-    img = lerp(light, dark, np.clip(0.3 + 0.35 * grain ** 3 + tint, 0, 1))
+    img = comic_grain(across / width * 4.0 + 0.25 * warp + 0.02 * along, light, dark, 0.25, 0.35, tint)
     img = lerp(img, seam, (1 - ss(0.0, 0.035, np.minimum(pos, 1 - pos))) * 0.95)
     joint = ((along + shifts[idx % 64]) % length) / length
     jd = np.minimum(joint, 1 - joint) * length
@@ -585,8 +645,7 @@ def make_gambling():
         X, Y = a.X, a.Y
         dark_wood, mid = col(0.24, 0.10, 0.06), col(0.42, 0.20, 0.10)
         warp = a.noise(60.0, 300.0)
-        grain = 0.5 + 0.5 * np.sin(2 * np.pi * (Y * 6.0 + 0.3 * warp))
-        img = lerp(mid, dark_wood, np.clip(0.4 + 0.4 * grain ** 2, 0, 1))
+        img = comic_grain(Y * 6.0 + 0.3 * warp, mid, dark_wood, 0.35, 0.35)
         # светлая кайма с мастями вокруг игровой зоны
         d = np.minimum(np.minimum(HX - np.abs(X), HY - np.abs(Y)), (HX + HY - 0.5 - np.abs(X) - np.abs(Y)) / 1.414)
         band = ss(0.20, 0.23, d) * (1 - ss(0.50, 0.53, d))
@@ -730,17 +789,17 @@ def make_stone():
         # трещины на столешнице
         cracks = np.zeros((h, TEX), dtype=np.float32)
         zc.draw_cracks(cracks, r2, [(r2.uniform(0, TEX), r2.uniform(0, h), r2.uniform(0, 6.28)) for _ in range(4)],
-                       length=220, width=1.4)
+                       length=220 * PX, width=1.4 * PX)
         img = lerp(img, col(0.1, 0.1, 0.1), cracks * 0.85)
         a.set_top(img)
         n = TEX // 4
         a.set_tile(EDGE, flat_tile(a, stone * 0.9, 0.05, 40.0))
         side = flat_tile(a, stone * 0.92, 0.06, 40.0)
         u, v = a.tile_coords()
-        moss = zm.periodic_noise(a.rng, n, n, 18.0)
+        moss = zm.periodic_noise(a.rng, n, n, 18.0 * PX)
         side = lerp(side, col(0.30, 0.42, 0.16), np.clip(ss(0.4, 1.0, moss + 0.3 - v * 1.8), 0, 1) * 0.85)
         tcr = np.zeros((n, n), dtype=np.float32)
-        zc.draw_cracks(tcr, r2, [(r2.uniform(0, n), r2.uniform(0, n), r2.uniform(0, 6.28)) for _ in range(3)], length=90, width=1.2)
+        zc.draw_cracks(tcr, r2, [(r2.uniform(0, n), r2.uniform(0, n), r2.uniform(0, 6.28)) for _ in range(3)], length=90 * PX, width=1.2 * PX)
         side = lerp(side, col(0.12, 0.12, 0.12), tcr * 0.8)
         a.set_tile(ACC3, side)
         a.set_tile(DARK, flat_tile(a, stone_d * 0.6))
@@ -868,8 +927,7 @@ def make_royal():
         X, Y = a.X, a.Y
         mahogany, mahog_d = col(0.55, 0.16, 0.10), col(0.30, 0.07, 0.05)
         warp = a.noise(80.0, 300.0)
-        grain = 0.5 + 0.5 * np.sin(2 * np.pi * (Y * 5.0 + 0.4 * warp))
-        img = lerp(mahogany, mahog_d, np.clip(0.3 + 0.45 * grain ** 2, 0, 1))
+        img = comic_grain(Y * 5.0 + 0.4 * warp, mahogany, mahog_d, 0.25, 0.4)
         gold = col(1.0, 0.78, 0.28)
         d = dist_to_rect(X, Y, HX, HY)
         for line_d, w in ((0.06, 0.012), (0.12, 0.006), (0.28, 0.008)):
@@ -963,7 +1021,7 @@ def make_stump():
         a.set_top(img)
         u, v = a.tile_coords()
         nn = TEX // 4
-        warp = zm.periodic_noise(a.rng, nn, nn, 20.0, scale_v=60.0)
+        warp = zm.periodic_noise(a.rng, nn, nn, 20.0 * PX, scale_v=60.0 * PX)
         ridges = np.abs(np.sin(np.pi * (u * 9.0 + 0.1 * warp)))
         bark = lerp(col(0.44, 0.30, 0.17), col(0.30, 0.19, 0.10), np.clip(0.3 + 0.15 * warp, 0, 1))
         bark = lerp(bark, col(0.12, 0.07, 0.04), 1 - ss(0.0, 0.18, ridges))
@@ -1187,8 +1245,7 @@ def make_walnut():
         X, Y = a.X, a.Y
         light, dark = col(0.52, 0.33, 0.19), col(0.30, 0.17, 0.09)
         warp = a.noise(70.0, 260.0)
-        grain = 0.5 + 0.5 * np.sin(2 * np.pi * (Y * 4.0 + 0.5 * warp))
-        img = lerp(light, dark, np.clip(0.3 + 0.45 * grain ** 3, 0, 1))
+        img = comic_grain(Y * 4.0 + 0.5 * warp, light, dark, 0.25, 0.4)
         # «шпон в ёлочку» в центре и светлая полоса-инкрустация по краю
         d = dist_to_rect(X, Y, HX, HY)
         img = lerp(img, col(0.72, 0.52, 0.30), (ss(0.14, 0.15, d) * (1 - ss(0.2, 0.21, d))) * 0.85)
@@ -1233,7 +1290,7 @@ def make_birch():
         u, v = a.tile_coords()
         bark = flat_tile(a, col(0.93, 0.92, 0.88), 0.03, 20.0)
         nn = TEX // 4
-        spots = zm.periodic_noise(a.rng, nn, nn, 10.0, scale_v=40.0)
+        spots = zm.periodic_noise(a.rng, nn, nn, 10.0 * PX, scale_v=40.0 * PX)
         bark = lerp(bark, col(0.16, 0.15, 0.14), ss(0.68, 0.72, spots) * ss(0.8, 0.9, np.abs(np.sin(v * 23.0))) * 0.85)
         a.set_tile(ACC1, bark)
         a.set_tile(DARK, flat_tile(a, col(0.55, 0.45, 0.3)))
@@ -1351,6 +1408,40 @@ TABLES = [make_tavern, make_gambling, make_barrel, make_stone, make_deck, make_r
 # Сборка, проверка, экспорт
 # ---------------------------------------------------------------------------
 
+CRISP_LEVELS = 7        # ступеней яркости
+CRISP_INK = 0.28        # насколько темнее линия на границе ступеней
+CRISP_SMOOTH = 0.7      # лёгкое сглаживание до ступеней, пикселей (только против рваного края)
+FINISH = "soft"         # "soft" — упрощение zc.comic_flatten; "crisp" — ступени с линиями (пробовали 05.10: съедает волокна, хуже)
+TABLE_COMIC_BLUR = 1.0  # размытие упрощения у столов, пикселей (у стаканов 2): чёткие края тонов и линий волокон
+
+
+def crisp_comic(img):
+    """Чёткий комикс для столов: ступени цвета с жёстким краем и тонкая тёмная линия по краю ступени.
+    Прежнее упрощение размывало атлас на 2 пикселя и смешивало ступени с плавным цветом — стол выглядел
+    «под слоем лака». Тёмные линии рисунка (щели, трещины, гвозди) берутся из исходника, как раньше."""
+    h, w, _ = img.shape
+    fy = np.fft.fftfreq(h)[:, None]
+    fx = np.fft.fftfreq(w)[None, :]
+    kernel = np.exp(-2.0 * (np.pi * CRISP_SMOOTH) ** 2 * (fx * fx + fy * fy))
+    base = np.empty_like(img)
+    for c in range(3):
+        base[:, :, c] = np.real(np.fft.ifft2(np.fft.fft2(img[:, :, c]) * kernel))
+    weights = np.array((0.3, 0.59, 0.11), dtype=np.float32)
+    lum = np.clip(base @ weights, 1e-4, 1.0)
+    band = np.floor(lum * CRISP_LEVELS)
+    flat = base * (((band + 0.5) / CRISP_LEVELS) / lum)[..., None]
+    # линия: пиксель на тёмной стороне границы ступеней (сосед светлее)
+    edge = np.zeros_like(lum)
+    for axis in (0, 1):
+        for shift in (-1, 1):
+            edge = np.maximum(edge, (np.roll(band, shift, axis=axis) > band).astype(np.float32))
+    out = flat * (1.0 - CRISP_INK * edge)[..., None]
+    wide = np.real(np.fft.ifft2(np.fft.fft2(img @ weights) * np.exp(-2.0 * (np.pi * 2.0) ** 2 * (fx * fx + fy * fy))))
+    lines = zm.smoothstep(0.06, 0.16, wide - img @ weights)
+    out = lerp(out, img, lines)
+    return np.clip(out, 0.0, 1.0)
+
+
 def build(table):
     atlas = Atlas(sum(ord(ch) for ch in table.name))
     # плитки по умолчанию — нейтральные, чтобы пустые не были чёрными
@@ -1358,7 +1449,12 @@ def build(table):
         atlas.set_tile(k, flat_tile(atlas, col(0.4, 0.3, 0.2), 0.05))
     atlas.set_top(np.full((TEX // 2, TEX, 3), 0.5, dtype=np.float32))
     table.paint(atlas)
-    img = zc.comic_flatten(atlas.img)
+    if FINISH == "crisp":
+        img = crisp_comic(atlas.img)
+    else:
+        zc.COMIC_BLUR, blur = TABLE_COMIC_BLUR, zc.COMIC_BLUR
+        img = zc.comic_flatten(atlas.img)
+        zc.COMIC_BLUR = blur
     image = zm.save_png(table.name, img, os.path.join(TEXTURES_DIR, table.name + ".png"))
     mat = zm.make_material(table.name, image)
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
@@ -1459,7 +1555,8 @@ def render(out_dir, objs):
 
     # ракурс меню из сцены: Unity (3.6, 3.2, -5.6) → Blender (-3.6, 5.6, 3.2); цель чуть ниже центра
     views = (("menu", Vector((-4.2, 6.6, 3.6)), Vector((0.6, -0.2, -0.5))),
-             ("side", Vector((8.5, 1.5, 0.4)), Vector((0.0, 0.0, -0.7))))
+             ("side", Vector((8.5, 1.5, 0.4)), Vector((0.0, 0.0, -0.7))),
+             ("close", Vector((0.4, 4.6, 1.5)), Vector((-0.3, 1.6, -0.3))))
     for obj in objs:
         obj.hide_render = True
     for obj in objs:
@@ -1477,6 +1574,9 @@ def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     render_dir = argv[argv.index("--render") + 1] if "--render" in argv else None
     only = argv[argv.index("--only") + 1].split(",") if "--only" in argv else None
+    global FINISH
+    if "--finish" in argv:
+        FINISH = argv[argv.index("--finish") + 1]
 
     zm.reset_scene()
     os.makedirs(MODELS_DIR, exist_ok=True)

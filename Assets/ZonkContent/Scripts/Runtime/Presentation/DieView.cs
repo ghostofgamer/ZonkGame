@@ -25,6 +25,10 @@ namespace Zonk.Presentation
         private Mesh _skinMesh;
         private Material _skinMaterial;
         private MaterialPropertyBlock _block;
+        private MaterialPropertyBlock _accentBlock;
+        private Material _accent;
+        private readonly Material[] _lookMaterials = new Material[2];
+        private readonly Material[] _singleMaterial = new Material[1];
         private Color _markerColor = Color.clear;
         private float _glow = 1f;
         private Color _tint = Color.white;
@@ -61,6 +65,7 @@ namespace Zonk.Presentation
             _baseMesh = _meshFilter.sharedMesh;
             _baseMaterial = _renderer.sharedMaterial;
             _block = new MaterialPropertyBlock();
+            _accentBlock = new MaterialPropertyBlock();
             TryGetComponent(out _box);
             SetSelected(false);
         }
@@ -72,34 +77,49 @@ namespace Zonk.Presentation
             {
                 case MeshMaterialPayload meshMaterial:
                     _meshFilter.sharedMesh = meshMaterial.Mesh != null ? meshMaterial.Mesh : _baseMesh;
-                    _renderer.sharedMaterial = meshMaterial.Material != null ? meshMaterial.Material : _baseMaterial;
+                    SetSingleMaterial(meshMaterial.Material != null ? meshMaterial.Material : _baseMaterial);
                     break;
                 case MaterialPayload material:
                     _meshFilter.sharedMesh = _baseMesh;
-                    _renderer.sharedMaterial = material.Material != null ? material.Material : _baseMaterial;
+                    SetSingleMaterial(material.Material != null ? material.Material : _baseMaterial);
                     break;
                 default:
                     _meshFilter.sharedMesh = _baseMesh;
-                    _renderer.sharedMaterial = _baseMaterial;
+                    SetSingleMaterial(_baseMaterial);
                     break;
             }
 
             _skinMesh = _meshFilter.sharedMesh;
             _skinMaterial = _renderer.sharedMaterial;
+            _accent = null;
             ApplyBlock();
         }
 
         /// <summary>
         /// Свой вид особой кости поверх скина: модель (пусто — модель скина) и материал. Модель особой кости важнее
         /// модели скина — кость узнаётся по силуэту; материал вида или мастерства — поверх.
+        /// У модели из двух частей (подмешей) вторая — накладки (оковка, камни, кайма) материалом accent;
+        /// без него накладки того же вида, что и тело.
         /// </summary>
-        public void SetLook(Mesh mesh, Material material)
+        public void SetLook(Mesh mesh, Material material, Material accent = null)
         {
             if (material == null)
                 return;
 
             _meshFilter.sharedMesh = mesh != null ? mesh : _skinMesh != null ? _skinMesh : _baseMesh;
-            _renderer.sharedMaterial = material;
+            if (_meshFilter.sharedMesh != null && _meshFilter.sharedMesh.subMeshCount > 1)
+            {
+                _lookMaterials[0] = material;
+                _lookMaterials[1] = accent != null ? accent : material;
+                _renderer.sharedMaterials = _lookMaterials;
+                _accent = _lookMaterials[1];
+            }
+            else
+            {
+                SetSingleMaterial(material);
+                _accent = null;
+            }
+
             ApplyBlock();
         }
 
@@ -110,8 +130,20 @@ namespace Zonk.Presentation
                 return;
 
             _meshFilter.sharedMesh = _skinMesh != null ? _skinMesh : _baseMesh;
-            _renderer.sharedMaterial = _skinMaterial != null ? _skinMaterial : _baseMaterial;
+            SetSingleMaterial(_skinMaterial != null ? _skinMaterial : _baseMaterial);
+            _accent = null;
             ApplyBlock();
+        }
+
+        /// <summary>
+        /// Один материал на всю модель. Не sharedMaterial: тот меняет только первый слот, и после кости с накладками
+        /// (два материала) второй оставался — Unity рисовал его поверх модели из одной части (костяная кость
+        /// становилась чёрной или «без точек» — цвета чужих накладок).
+        /// </summary>
+        private void SetSingleMaterial(Material material)
+        {
+            _singleMaterial[0] = material;
+            _renderer.sharedMaterials = _singleMaterial;
         }
 
         public void SetMarker(Color color)
@@ -222,9 +254,20 @@ namespace Zonk.Presentation
             if (_block == null || _renderer == null)
                 return;
 
-            // Цвет материала скина не перекрываем: блок только умножает его на оттенок.
-            _block.Clear();
-            var material = _renderer.sharedMaterial;
+            // Блок у каждого материала свой (тело и накладки): у накладок свой цвет, оттенок умножает каждый.
+            FillBlock(_block, _renderer.sharedMaterial);
+            _renderer.SetPropertyBlock(_block, 0);
+            if (_accent != null)
+            {
+                FillBlock(_accentBlock, _accent);
+                _renderer.SetPropertyBlock(_accentBlock, 1);
+            }
+        }
+
+        private void FillBlock(MaterialPropertyBlock block, Material material)
+        {
+            // Цвет материала не перекрываем: блок только умножает его на оттенок.
+            block.Clear();
             if ((_tint != Color.white || _dimmed) && material != null && material.HasProperty(BaseColorId))
             {
                 var color = material.GetColor(BaseColorId) * _tint;
@@ -236,10 +279,9 @@ namespace Zonk.Presentation
                     color.a = alpha;
                 }
 
-                _block.SetColor(BaseColorId, color);
+                block.SetColor(BaseColorId, color);
             }
-            _block.SetColor(EmissionColorId, _markerColor.a > 0f ? _markerColor * (0.35f * _glow) : Color.black);
-            _renderer.SetPropertyBlock(_block);
+            block.SetColor(EmissionColorId, _markerColor.a > 0f ? _markerColor * (0.35f * _glow) : Color.black);
         }
     }
 }

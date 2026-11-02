@@ -429,6 +429,7 @@ namespace Zonk.Table
                 OpponentConfig opponent;
                 ChapterConfig chapter;
                 int stake;
+                var editDice = false;
                 var allowSpecial = _config.CampaignMode == null || _config.CampaignMode.AllowSpecialDice;
                 var screen = await _ui.OpenAsync<CampaignWindow>(ct,
                     w => w.Setup(_progress, _config, _loadout, _owned.Dice(allowSpecial)));
@@ -437,10 +438,18 @@ namespace Zonk.Table
                     opponent = await screen.WaitChoiceAsync(ct);
                     chapter = screen.Chapter;
                     stake = screen.Stake;
+                    editDice = screen.EditDiceRequested;
                 }
                 finally
                 {
                     await _ui.CloseAsync(screen, CancellationToken.None);
+                }
+
+                // «Изменить» кости: «Мои кости» на столе, затем снова кампания.
+                if (editDice)
+                {
+                    await DiceWindow.EditAsync(_ui, ct);
+                    continue;
                 }
 
                 if (opponent == null)

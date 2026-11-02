@@ -68,11 +68,15 @@ namespace Zonk.Table
         private readonly ShopFocus _focus;
         private readonly ShopService _shop;
         private readonly TutorialDirector _tutorial;
+        private readonly IPlayerLevel _level;
+        private readonly UiKit _kit;
         private bool _first = true;
 
         public MenuState(IUiService ui, TableView table, StageDresser dresser, IPlatformService platform, LoadingScreenHolder loading,
-            ShopFocus focus, ShopService shop, TutorialDirector tutorial)
+            ShopFocus focus, ShopService shop, TutorialDirector tutorial, IPlayerLevel level, UiKit kit)
         {
+            _level = level;
+            _kit = kit;
             _tutorial = tutorial;
             _focus = focus;
             _shop = shop;
@@ -81,6 +85,18 @@ namespace Zonk.Table
             _dresser = dresser;
             _platform = platform;
             _loading = loading;
+        }
+
+        /// <summary>Вещи пройденных уровней, добавленные обновлением: выдать и сказать, что пришло.</summary>
+        private void ShowMissedLevelItems(CancellationToken ct)
+        {
+            var granted = _level.GrantMissedItems();
+            if (granted.Count == 0)
+                return;
+
+            _table.Sound.Play(Sfx.Coin);
+            Toast.ShowAsync(_kit, _table.UiRoot, _kit.T("level.catchUp") + "\n" + RewardNames.Granted(granted, _kit.T), UiColors.Gold, 2f, ct)
+                .Forget();
         }
 
         public string Id => TableStateIds.Menu;
@@ -110,6 +126,7 @@ namespace Zonk.Table
             var menu = await _ui.OpenAsync<MainMenuWindow>(ct);
             await loading;
             _tutorial.Show(TutorialTrigger.MainMenu);
+            ShowMissedLevelItems(ct);
 
             MainMenuChoice choice;
             try
@@ -138,6 +155,7 @@ namespace Zonk.Table
                 case MainMenuChoice.Profile: return TableStateIds.Profile;
                 case MainMenuChoice.Chest: return TableStateIds.Chest;
                 case MainMenuChoice.Season: return TableStateIds.Season;
+                case MainMenuChoice.Dice: return TableStateIds.Dice;
                 default: return TableStateIds.Settings;
             }
         }
@@ -170,6 +188,25 @@ namespace Zonk.Table
                 await _ui.CloseAsync(window, CancellationToken.None);
             }
 
+            return TableStateIds.Menu;
+        }
+    }
+
+    /// <summary>«Мои кости»: наборы костей на столе (DiceWindow), затем обратно в меню.</summary>
+    public sealed class DiceState : ITableState
+    {
+        private readonly IUiService _ui;
+
+        public DiceState(IUiService ui)
+        {
+            _ui = ui;
+        }
+
+        public string Id => TableStateIds.Dice;
+
+        public async UniTask<string> RunAsync(CancellationToken ct)
+        {
+            await DiceWindow.EditAsync(_ui, ct);
             return TableStateIds.Menu;
         }
     }

@@ -20,6 +20,9 @@ namespace Zonk.Editor.Setup
         /// <summary>Большие поверхности: без контура и кромки (кромка на плоскости вдали — светлая полоса).</summary>
         private static readonly string[] ToonFlat = { "Felt", "Floor", "Wall", "Rug", "Sand", "Sea", "Deck", "Sail" };
 
+        /// <summary>Без кромки, но с контуром: столешница под острым углом от кромки светлела вся — «стол под лаком» (05.10).</summary>
+        private static readonly string[] ToonNoRim = { "Table" };
+
         private static void BuildToonStyle(GameConfig config)
         {
             var style = Asset<ToonStyleConfig>(ConfigsFolder + "/Game/ToonStyle.asset", s => { });
@@ -87,7 +90,7 @@ namespace Zonk.Editor.Setup
                 {
                     var flat = NameHas(material.name, ToonFlat);
                     material.SetFloat("_OutlineScale", flat ? 0f : 1f);
-                    material.SetFloat("_RimScale", flat ? 0f : 1f);
+                    material.SetFloat("_RimScale", flat || NameHas(material.name, ToonNoRim) ? 0f : 1f);
                 }
 
                 EditorUtility.SetDirty(material);

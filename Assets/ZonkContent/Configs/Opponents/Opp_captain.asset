@@ -20,6 +20,8 @@ MonoBehaviour:
   BodyColor: {r: 0.12, g: 0.1, b: 0.12, a: 1}
   Accessory: {fileID: 6265717507291405549, guid: c2c4633ed2829554b976130a4555dfc1, type: 3}
   IsBoss: 1
+  DreadOf: {fileID: 0}
+  DreadUnlockStars: 3
   Ai: {fileID: 11400000, guid: 9b4a3294963375b4a8ec29e18cb26386, type: 2}
   Dice:
   - {fileID: 11400000, guid: db28c967133efcc4c9ab1fab49f4f19e, type: 2}
@@ -29,6 +31,10 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a24cdadb60225194e92cd76b26771c82, type: 2}
   DiceSkin: {fileID: 0}
   Cup: {fileID: 11400000, guid: 230408a19d8cc9041af634eb49ee594f, type: 2}
+  HandSkin: {fileID: 11400000, guid: aa811c50978ca7e42a7380b26c07b074, type: 2}
+  HandLook: {fileID: 11400000, guid: 044c88635fb7138429175877ee28c026, type: 2}
+  HandSleeve: {fileID: 11400000, guid: 8f1396274a49c124685d2607b31ebcf0, type: 2}
+  HandWrist: {fileID: 11400000, guid: fcc3b8fbd82aae84f8381dfa8ace74a9, type: 2}
   TargetScore: 10000
   StarConditions:
   - rid: 4243792294545719584
@@ -43,11 +49,16 @@ MonoBehaviour:
   FirstWinRewards:
   - rid: 4243792294545719406
   - rid: 4243792294545719407
+  - rid: 1889488908866290227
   RepeatWinRewards:
   - rid: 4243792294545719408
   references:
     version: 2
     RefIds:
+    - rid: 1889488908866290227
+      type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Item: {fileID: 11400000, guid: 8f1396274a49c124685d2607b31ebcf0, type: 2}
     - rid: 4243792294545719405
       type: {class: MinBankModifier, ns: Zonk.Core.Modifiers, asm: Zonk.Core}
       data:

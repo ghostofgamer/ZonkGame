@@ -164,6 +164,9 @@ namespace Zonk.Editor.Setup
         /// рамка по краю граней. Текстура вдвое меньше основной: кость на экране маленькая, а сборка для браузера лёгкая.
         /// Уже созданный файл не перерисовывается: его можно заменить своей текстурой.
         /// </summary>
+        /// <summary>Метка исправленной текстуры мастерства (userData импортёра): без неё текстура перерисовывается.</summary>
+        private const string MasteryTextureMark = "zonk-mastery-v2";
+
         private static Material BuildMasteryLook(string lookName, int level, Color levelColor)
         {
             DieLook look = null;
@@ -178,7 +181,10 @@ namespace Zonk.Editor.Setup
 
             EnsureFolder(DieLooksFolder + "/Mastery");
             var texturePath = DieLooksFolder + "/Mastery/Die_" + lookName + "_M" + level + ".png";
-            if (!File.Exists(texturePath) || RedrawDieLooks)
+            // Нарисованные до 02.10.2026 (ошибка Smooth01: цвет точек на всём теле — кость тёмная, точки сливаются)
+            // перерисовываются один раз: у исправленной текстуры метка в userData импортёра.
+            var stale = AssetImporter.GetAtPath(texturePath) is TextureImporter old && old.userData != MasteryTextureMark;
+            if (!File.Exists(texturePath) || RedrawDieLooks || stale)
             {
                 var atlas = new Texture2D(2, 2);
                 atlas.LoadImage(File.ReadAllBytes(Textures + "/Die_Classic.png"));
@@ -189,6 +195,11 @@ namespace Zonk.Editor.Setup
                 var painted = Paint(atlas, look, pips, level >= 2 ? levelColor : (Color?)null, 2);
                 UnityEngine.Object.DestroyImmediate(atlas);
                 SavePng(texturePath, painted);
+                if (AssetImporter.GetAtPath(texturePath) is TextureImporter fresh && fresh.userData != MasteryTextureMark)
+                {
+                    fresh.userData = MasteryTextureMark;
+                    fresh.SaveAndReimport();
+                }
             }
 
             ConfigureTexture(texturePath, DieLookTextureSize);

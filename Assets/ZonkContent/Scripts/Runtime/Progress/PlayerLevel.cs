@@ -58,6 +58,9 @@ namespace Zonk.Progress
         int Level { get; }
         long Xp { get; }
 
+        /// <summary>Наибольший уровень (0 — без предела).</summary>
+        int MaxLevel { get; }
+
         /// <summary>Опыт, набранный на текущем уровне, и сколько нужно до следующего.</summary>
         void GetProgress(long xp, out int level, out long intoLevel, out long toNext);
 
@@ -68,6 +71,15 @@ namespace Zonk.Progress
         void AddXp(long xp);
 
         List<PlayerLevelUp> TakeLevelUps();
+
+        /// <summary>
+        /// Вещи пройденных уровней, которых у игрока нет: рубеж добавили или передвинули обновлением. Выдаёт и
+        /// возвращает выданное (пусто — ничего). Монеты задним числом не выдаются: только вещи.
+        /// </summary>
+        List<GrantedReward> GrantMissedItems();
+
+        /// <summary>На каком уровне выдаётся вещь (рубеж конфига); 0 — не за уровень.</summary>
+        int RewardLevelOf(ContentConfig item);
 
         int UnlockLevel(GameFeature feature);
         bool IsUnlocked(GameFeature feature);
@@ -106,6 +118,8 @@ namespace Zonk.Progress
 
         public int Level => LevelFor(Data.Xp);
 
+        public int MaxLevel => _config != null ? _config.MaxLevel : 0;
+
         public void GetProgress(long xp, out int level, out long intoLevel, out long toNext)
         {
             level = LevelFor(xp);
@@ -129,6 +143,7 @@ namespace Zonk.Progress
 
             var data = Data;
             data.Xp += xp;
+            Cap(data);
             GrantNewLevels(data);
             _saves.RequestSave();
             Changed?.Invoke();
@@ -156,6 +171,7 @@ namespace Zonk.Progress
 
             var before = data.Xp;
             data.Xp = before + matchXp + firstWinXp;
+            Cap(data);
             GrantNewLevels(data);
             _saves.RequestSave();
             Changed?.Invoke();
@@ -167,6 +183,39 @@ namespace Zonk.Progress
             var result = new List<PlayerLevelUp>(_levelUps);
             _levelUps.Clear();
             return result;
+        }
+
+        public List<GrantedReward> GrantMissedItems()
+        {
+            var granted = new List<GrantedReward>();
+            if (_config == null)
+                return granted;
+
+            var reached = Math.Min(Data.RewardedLevel, Level);
+            foreach (var milestone in _config.Milestones)
+            {
+                if (milestone == null || milestone.Level > reached)
+                    continue;
+
+                foreach (var reward in milestone.Rewards)
+                {
+                    if (reward is ContentReward content && content.Item != null)
+                        granted.AddRange(_granter.Grant(new Reward[] { reward }));
+                }
+            }
+
+            if (granted.Count > 0)
+            {
+                _saves.RequestSave();
+                Changed?.Invoke();
+            }
+
+            return granted;
+        }
+
+        public int RewardLevelOf(ContentConfig item)
+        {
+            return _config != null ? _config.LevelOf(item) : 0;
         }
 
         public int UnlockLevel(GameFeature feature)
@@ -198,6 +247,17 @@ namespace Zonk.Progress
                 _levelUps.Add(new PlayerLevelUp(data.RewardedLevel, granted));
                 LevelReached?.Invoke(data.RewardedLevel);
             }
+        }
+
+        /// <summary>На пределе опыт не копится: после поднятия предела игрок идёт со следующего уровня, а не прыгает через несколько.</summary>
+        private void Cap(PlayerLevelSave data)
+        {
+            if (_config.MaxLevel <= 0)
+                return;
+
+            var cap = PlayerLevelMath.TotalXpFor(_config.MaxLevel, _config.FirstLevelXp, _config.LevelXpGrowth);
+            if (data.Xp > cap)
+                data.Xp = cap;
         }
 
         private int LevelFor(long xp)

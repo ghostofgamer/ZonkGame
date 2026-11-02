@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dadb863474f503545870bc17fc16d1ae, type: 3}
+  m_Name: Hand
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.HandConfig
+  PalmOffset: 0.137
+  PadForward: 0.186
+  Tilt: 35
+  GripAround: 35
+  FingerPad: 0.072
+  MaxBend: 95
+  MaxOpen: 15
+  ThumbBend: 30
+  ThumbOpen: 45
+  RelaxBend: 10
+  ThumbRelaxBend: 0
+  ReachBend: -5
+  FistBend: {x: 90, y: 95, z: 70}
+  ThumbFistShare: 0.4
+  GripSqueeze: 0.05
+  CupGrips:
+  - Cup: {fileID: 11400000, guid: 093c0fde176a66b4699e3588c7f82867, type: 2}
+    Squeeze: 0.05
+    RadiusOffset: -0.11
+  - Cup: {fileID: 11400000, guid: 4c951069cd7fb604993f293c6ea484b9, type: 2}
+    Squeeze: 0
+    RadiusOffset: -0.1
+  - Cup: {fileID: 11400000, guid: 1ecf46d098fcebe48bdd60e2af2eeeeb, type: 2}
+    Squeeze: 0.05
+    RadiusOffset: -0.13
+  - Cup: {fileID: 11400000, guid: 0bc00f12f86175b489e89bf5b4a7f06f, type: 2}
+    Squeeze: 0.05
+    RadiusOffset: -0.06
+  - Cup: {fileID: 11400000, guid: 7f82e26526a05494b9bb4d534ea87d45, type: 2}
+    Squeeze: 0.05
+    RadiusOffset: -0.05
+  CurlSpeed: 600

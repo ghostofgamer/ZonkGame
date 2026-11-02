@@ -8,6 +8,9 @@ namespace Zonk.Configs
     {
         public RecordsSave Records;
         public int Level;
+
+        /// <summary>Предел уровня (0 — без предела): достижения выше него прячутся до обновления.</summary>
+        public int MaxLevel;
         public int Stars;
         public int TowerBest;
         public int EndlessBest;
@@ -26,6 +29,9 @@ namespace Zonk.Configs
     public abstract class AchievementGoal
     {
         public abstract long Progress(AchievementContext context);
+
+        /// <summary>Можно ли достичь порога сейчас (уровень 75 при пределе 50 — нет). Недостижимое не показывается.</summary>
+        public virtual bool IsReachable(AchievementContext context, long target) => true;
     }
 
     /// <summary>Счётчик статистики игрока.</summary>
@@ -116,6 +122,11 @@ namespace Zonk.Configs
                 case ProgressStat.DreadBeaten: return context.DreadBeaten;
                 default: return 0;
             }
+        }
+
+        public override bool IsReachable(AchievementContext context, long target)
+        {
+            return Stat != ProgressStat.Level || context.MaxLevel <= 0 || target <= context.MaxLevel;
         }
     }
 

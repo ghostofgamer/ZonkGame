@@ -12,6 +12,10 @@ Shader "Zonk/Toon"
         _Metallic("Metallic", Range(0, 1)) = 0
         [HDR] _EmissionColor("Emission", Color) = (0, 0, 0, 1)
 
+        [Header(Relief)]
+        [Toggle(_NORMALMAP)] _UseNormalMap("Use Normal Map", Float) = 0
+        [NoScaleOffset][Normal] _BumpMap("Normal Map", 2D) = "bump" {}
+
         [Header(Style)]
         _OutlineScale("Outline Scale (0 = no outline)", Range(0, 3)) = 1
         _RimScale("Rim Scale", Range(0, 1)) = 1
@@ -49,6 +53,7 @@ Shader "Zonk/Toon"
             #pragma fragment ToonFragment
 
             #pragma shader_feature_local_fragment _ALPHATEST_ON
+            #pragma shader_feature_local _NORMALMAP
 
             #pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE
             #pragma multi_compile _ _ADDITIONAL_LIGHTS

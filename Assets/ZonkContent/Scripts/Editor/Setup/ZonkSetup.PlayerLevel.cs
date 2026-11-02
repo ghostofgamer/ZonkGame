@@ -26,7 +26,7 @@ namespace Zonk.Editor.Setup
                     l.EveryLevelRewards.Add(Gift(coins, 50));
 
                 // Каждый пятый уровень — заметная награда: монеты и энергия, каждый десятый — больше.
-                for (var number = 5; number <= 100; number += 5)
+                for (var number = 5; number <= LevelCap; number += 5)
                 {
                     var milestone = new PlayerLevelMilestone { Level = number };
                     if (coins != null)
@@ -38,6 +38,8 @@ namespace Zonk.Editor.Setup
 
                 l.Unlocks.Add(new FeatureUnlock { Feature = GameFeature.Tower, Level = 3 });
                 l.Unlocks.Add(new FeatureUnlock { Feature = GameFeature.EndlessRun, Level = 5 });
+                l.MaxLevel = LevelCap;
+                l.RewardsLayoutVersion = LevelRewardsLayout;
             });
 
             if (config.PlayerLevel == null)

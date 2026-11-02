@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0bca9ea92f5e8eb439d99d4ec59031d4, type: 3}
+  m_Name: Slot_hand_look
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticSlotConfig
+  Id: hand_look
+  NameKey: slot.hand_look
+  Icon: {fileID: 0}
+  Order: 8
+  CameraShotId: shop_hand
+  DefaultItem: {fileID: 11400000, guid: 9c37a2e2053e93b4bba6cc0ba8ac1149, type: 2}
+  Applier:
+    rid: 1889488908866290131
+  ShowInShop: 1
+  MultiSelect: 0
+  DrivesLighting: 0
+  ExtraSpots: 0
+  references:
+    version: 2
+    RefIds:
+    - rid: 1889488908866290131
+      type: {class: AnchorPrefabApplier, ns: Zonk.Presentation, asm: Zonk}
+      data: 

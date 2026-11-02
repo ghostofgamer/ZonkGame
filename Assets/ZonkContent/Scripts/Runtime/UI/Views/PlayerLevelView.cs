@@ -72,7 +72,7 @@ namespace Zonk.UI.Views
             SetLevel(number);
             SetFill(Fraction(into, toNext));
             if (_caption != null)
-                _caption.text = into + " / " + toNext;
+                _caption.text = level.MaxLevel > 0 && number >= level.MaxLevel ? Localize("level.max", number) : into + " / " + toNext;
             if (_talentBadge != null)
                 _talentBadge.SetActive(_talents != null && _talents.FreePoints > 0);
         }

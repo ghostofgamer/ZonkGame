@@ -41,6 +41,17 @@ namespace Zonk.Presentation
         }
     }
 
+    /// <summary>Кожа руки: перекрашивает руку игрока (ближнюю, у камеры). В партии руки одеваются по участникам.</summary>
+    [Serializable]
+    public sealed class HandSkinApplier : CosmeticApplier
+    {
+        public override void Apply(CosmeticItemConfig item, CosmeticSlotConfig slot, CosmeticStage stage)
+        {
+            if (stage.Hand != null)
+                stage.Hand.SetSkin(item);
+        }
+    }
+
     /// <summary>Скин костей: перекрашивает кости игрока на столе.</summary>
     [Serializable]
     public sealed class DiceSkinApplier : CosmeticApplier
@@ -64,6 +75,11 @@ namespace Zonk.Presentation
         private readonly List<SceneLight> _lightBuffer = new List<SceneLight>();
 
         public DiceSetView Dice => _dice;
+
+        [Tooltip("Рука игрока у камеры: на ней примеряется кожа (HandSkinApplier); рукав — её якорь в списке якорей")]
+        [SerializeField] private HandView _hand;
+
+        public HandView Hand => _hand;
 
         // Дополнительные места слотов (безделушки): что стоит на каждом, решает экипировка игрока; открыто — по таланту.
         private ILoadout _loadout;
@@ -201,10 +217,11 @@ namespace Zonk.Presentation
         }
 
 #if UNITY_EDITOR
-        public void EditorSetup(List<CosmeticAnchor> anchors, DiceSetView dice)
+        public void EditorSetup(List<CosmeticAnchor> anchors, DiceSetView dice, HandView hand = null)
         {
             _anchors = anchors;
             _dice = dice;
+            _hand = hand;
         }
 #endif
 

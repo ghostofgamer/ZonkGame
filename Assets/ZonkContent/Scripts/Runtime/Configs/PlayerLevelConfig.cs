@@ -44,8 +44,12 @@ namespace Zonk.Configs
         [Tooltip("На сколько больше опыта нужен каждый следующий уровень")]
         [Min(0)] public int LevelXpGrowth = 60;
 
-        [Tooltip("Наибольший уровень (0 — без предела)")]
+        [Tooltip("Наибольший уровень (0 — без предела). Поднимается обновлением вместе с новыми рубежами: опыт сверх предела " +
+                 "не копится, поэтому после обновления игрок начинает следующий уровень с нуля, а не перепрыгивает несколько")]
         [Min(0)] public int MaxLevel = 0;
+
+        [Tooltip("Служебное: какая раскладка наград генератора уже применена (ZonkSetup.LevelRewards)")]
+        public int RewardsLayoutVersion;
 
         [Header("Опыт за партию")]
         public int WinXp = 50;
@@ -100,6 +104,46 @@ namespace Zonk.Configs
             }
 
             return 1;
+        }
+
+        /// <summary>Последний уровень, до которого есть что показать: предел или последний рубеж.</summary>
+        public int LastLevel
+        {
+            get
+            {
+                if (MaxLevel > 0)
+                    return MaxLevel;
+
+                var last = 1;
+                foreach (var milestone in Milestones)
+                {
+                    if (milestone != null && milestone.Level > last)
+                        last = milestone.Level;
+                }
+
+                return last;
+            }
+        }
+
+        /// <summary>На каком уровне выдаётся предмет (рубеж с ContentReward); 0 — не за уровень.</summary>
+        public int LevelOf(ContentConfig item)
+        {
+            if (item == null)
+                return 0;
+
+            foreach (var milestone in Milestones)
+            {
+                if (milestone == null || milestone.Rewards == null || (MaxLevel > 0 && milestone.Level > MaxLevel))
+                    continue;
+
+                foreach (var reward in milestone.Rewards)
+                {
+                    if (reward is ContentReward content && content.Item == item)
+                        return milestone.Level;
+                }
+            }
+
+            return 0;
         }
 
         public PlayerLevelMilestone MilestoneAt(int level)

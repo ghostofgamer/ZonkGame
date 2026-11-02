@@ -30,6 +30,9 @@ namespace Zonk.UI.Windows
         Profile,
         Chest,
         Season,
+
+        /// <summary>«Мои кости»: наборы костей на столе.</summary>
+        Dice,
     }
 
     /// <summary>
@@ -72,6 +75,9 @@ namespace Zonk.UI.Windows
 
         [Tooltip("Сезонный путь (вложенная кнопка). Пусто — не показывается")]
         [SerializeField] private UiButtonView _season;
+
+        [Tooltip("«Мои кости»: наборы костей (кнопка в колонке меню). Пусто — нет: старый префаб")]
+        [SerializeField] private UiButtonView _dice;
 
         private readonly Choice<MainMenuChoice> _choice = new Choice<MainMenuChoice>();
         private IQuestService _questService;
@@ -160,6 +166,8 @@ namespace Zonk.UI.Windows
                 _chest.OnClick(() => _choice.Set(MainMenuChoice.Chest));
             if (_season != null)
                 _season.OnClick(() => _choice.Set(MainMenuChoice.Season));
+            if (_dice != null)
+                _dice.OnClick(() => _choice.Set(MainMenuChoice.Dice));
         }
 
         protected override void OnShowing()
@@ -168,6 +176,8 @@ namespace Zonk.UI.Windows
             _campaign.SetText(T("menu.campaign"));
             _hotSeat.SetText(T("menu.hotseat"));
             _shop.SetText(T("menu.shop"));
+            if (_dice != null)
+                _dice.SetText(T("menu.dice"));
             _settings.SetText(T("menu.settings"));
             if (_quests != null)
                 _quests.SetText(T("menu.quests"));

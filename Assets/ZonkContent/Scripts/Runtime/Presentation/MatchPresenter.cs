@@ -221,7 +221,7 @@ namespace Zonk.Presentation
                 {
                     // Рука берёт стакан и несёт его к краю лотка.
                     SetCupContents(roll.RolledDice);
-                    await GrabCupAsync(hand, cup, 0.25f / Speed, ct);
+                    await GrabCupAsync(hand, cup, seat.CupAnchor.ModelItem, 0.25f / Speed, ct);
                     StartCupDice(cup);
                     await MoveCupToAsync(hand, cup, seat.ShakePoint.position, 0.3f / Speed, ct);
                     await cameraMove;
@@ -273,32 +273,34 @@ namespace Zonk.Presentation
         /// <summary>Доля высоты стакана, на которой ладонь обхватывает его.</summary>
         private const float GripHeightFraction = 0.45f;
 
-        /// <summary>Половина толщины ладони: ладонь касается стенки стакана, а не входит в неё.</summary>
-        private const float PalmOffset = 0.08f;
-
         /// <summary>
         /// Рука подходит к стакану сбоку, со своей стороны, и обхватывает его: ладонь прижата к стенке и смотрит
-        /// на стакан, пальцы идут вдоль окружности. Размер стакана берётся из его модели, поэтому хват подходит
-        /// к любому скину стакана.
+        /// на стакан, пальцы идут вдоль окружности и сжимаются на ней. Размер стакана берётся из его модели, поэтому
+        /// хват подходит к любому скину стакана; где стакан относительно ладони, решает рука (HandView.CupCentre).
         /// </summary>
-        private async UniTask GrabCupAsync(HandView hand, CupView cup, float duration, CancellationToken ct)
+        private async UniTask GrabCupAsync(HandView hand, CupView cup, CosmeticItemConfig cupItem, float duration,
+            CancellationToken ct)
         {
             var bounds = CupBounds(cup);
             var cupTransform = cup.transform;
-            var radius = Mathf.Max(bounds.extents.x, bounds.extents.z);
+            var radius = hand.GripRadius(Mathf.Max(bounds.extents.x, bounds.extents.z), cupItem);
             var center = new Vector3(cupTransform.position.x, bounds.min.y + bounds.size.y * GripHeightFraction,
                 cupTransform.position.z);
 
             var away = hand.transform.position - center;
             away.y = 0f;
             away = away.sqrMagnitude > 0.0001f ? away.normalized : -cupTransform.forward;
+            // Своя рука берёт стакан не в лоб, а сбоку: ладонь обходит стакан по окружности, предплечье — назад к себе.
+            away = Quaternion.AngleAxis(hand.GripAround, Vector3.up) * away;
             // Правая рука: пальцы идут по окружности вправо, левая — влево.
             var tangent = hand.RightHanded ? Vector3.Cross(away, Vector3.up) : Vector3.Cross(Vector3.up, away);
 
             // Локальный верх руки смотрит от стакана: ладонь (низ руки) прижата к стенке, пальцы (вперёд) по касательной.
             var rotation = Quaternion.LookRotation(tangent, away);
-            var position = center + away * (radius + PalmOffset);
+            var position = center - rotation * hand.CupCentre(radius);
+            hand.Reach();
             await hand.MoveToAsync(position, rotation, duration, ct);
+            hand.GripCup(radius, cupItem);
 
             _gripLocal = cupTransform.InverseTransformPoint(center);
             _gripOffset = position - center;
@@ -365,6 +367,7 @@ namespace Zonk.Presentation
             var restWorld = parent.TransformPoint(localPosition) + Vector3.up * _gripHeight + _gripOffset;
             await hand.MoveToAsync(restWorld, _uprightHand, 0.35f / Speed, ct);
             cup.SetParent(parent, true);
+            hand.Relax();
             await UniTask.WhenAll(
                 Animate.PoseAsync(cup, parent.TransformPoint(localPosition), parent.rotation * localRotation, 0.15f / Speed, ct),
                 hand.ReturnAsync(0.3f / Speed, ct));
@@ -503,7 +506,7 @@ namespace Zonk.Presentation
             try
             {
                 hand.SnapToRest();
-                await GrabCupAsync(hand, cup, 0.25f, ct);
+                await GrabCupAsync(hand, cup, seat.CupAnchor.ModelItem, 0.25f, ct);
                 await MoveCupToAsync(hand, cup, seat.ShakePoint.position, 0.3f, ct);
 
                 _table.Sound.Play(Sfx.DiceRattle, 0.8f);

@@ -80,7 +80,7 @@ namespace Zonk.Presentation
                     ? levels[level - 1].Glow
                     : 1f);
                 if (config != null && LookFor(config, level) != null)
-                    _dice[i].SetLook(config.LookMesh, LookFor(config, level));
+                    _dice[i].SetLook(config.LookMesh, LookFor(config, level), config.LookAccent);
                 else
                     _dice[i].ClearLook();
             }

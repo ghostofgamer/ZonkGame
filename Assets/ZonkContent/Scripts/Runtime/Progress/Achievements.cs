@@ -83,6 +83,9 @@ namespace Zonk.Progress
                 if (_all == null)
                 {
                     _all = _content.All<AchievementConfig>();
+                    // Недостижимое сейчас (уровень выше предела) — до обновления; уже открытое остаётся.
+                    var reach = new AchievementContext { MaxLevel = _level != null ? _level.MaxLevel : 0 };
+                    _all.RemoveAll(a => a.Goal != null && !a.Goal.IsReachable(reach, a.Target) && !IsUnlocked(a));
                     _all.Sort((a, b) => a.Order != b.Order ? a.Order.CompareTo(b.Order) : a.Target.CompareTo(b.Target));
                 }
 
@@ -136,6 +139,7 @@ namespace Zonk.Progress
             {
                 Records = _records.Data,
                 Level = _level != null ? _level.Level : 1,
+                MaxLevel = _level != null ? _level.MaxLevel : 0,
                 Stars = _campaign.TotalStars,
                 TowerBest = _saves.Get<TowerSave>(SaveKeys.Tower).Best,
                 EndlessBest = _saves.Get<EndlessRunSave>(SaveKeys.EndlessRun).Best,

@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3758024ff1cf4ad4caa14cc6c86d79b3, type: 3}
+  m_Name: roll_trick
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticItemConfig
+  Id: roll_trick
+  NameKey: item.roll_trick
+  Slot: {fileID: 11400000, guid: a5147a19ddfc7d045bdd4940798e4b0b, type: 2}
+  Icon: {fileID: 0}
+  Order: 10
+  Rarity: 0
+  Payload:
+    rid: 1889488865522876509
+  Price:
+    Options:
+    - rid: 1889488865522876510
+  HiddenInShop: 0
+  references:
+    version: 2
+    RefIds:
+    - rid: 1889488865522876509
+      type: {class: RollStylePayload, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Style: {fileID: 11400000, guid: 2453fd1794f61944e869dbf7503ace1a, type: 2}
+    - rid: 1889488865522876510
+      type: {class: ProgressPriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        HintKey: hint.level

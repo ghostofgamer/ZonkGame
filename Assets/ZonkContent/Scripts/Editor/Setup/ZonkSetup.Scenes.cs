@@ -83,12 +83,23 @@ namespace Zonk.Editor.Setup
 
             anchors.AddRange(DecorSpotAnchors());
 
-            var tray = BuildTray(out var feltAnchor);
+            var tray = BuildTray(out var feltAnchor, out var rimAnchor);
             anchors.Add(feltAnchor);
+            anchors.Add(rimAnchor);
 
             var south = BuildSeat("Seat_South", 1f, "cup", out var southCup);
             var north = BuildSeat("Seat_North", -1f, "cup_north", out var northCup);
             anchors.Add(southCup);
+            // Облик ближней руки (рукав, запястье, кисть) — в экипировке и примерке; дальнюю руку и руку жестов одевает
+            // партия (по участникам).
+            if (south.Hand != null)
+            {
+                foreach (var part in new[] { south.Hand.Sleeve, south.Hand.Wrist, south.Hand.HandLook })
+                {
+                    if (part != null)
+                        anchors.Add(part);
+                }
+            }
             anchors.Add(northCup);
 
             var opponent = BuildOpponent();
@@ -96,7 +107,7 @@ namespace Zonk.Editor.Setup
             var rig = BuildCameraRig();
 
             var stage = new GameObject("Stage").AddComponent<CosmeticStage>();
-            stage.EditorSetup(anchors, dice);
+            stage.EditorSetup(anchors, dice, south.Hand);
 
             var soundGo = new GameObject("Sound");
             var source = soundGo.AddComponent<AudioSource>();
@@ -114,13 +125,14 @@ namespace Zonk.Editor.Setup
             if (cameraData == null)
                 cameraData = rig.Camera.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
             cameraData.renderPostProcessing = false;
-            // Пятно света на стол: прожектор из точки лампы вниз; сила и цвет — профиль локации (TableLight), иначе выключен.
+            // Свет на весь стол: прожектор у лампы над центром стола; высоту, конус, силу и цвет ставит LightingDirector по профилю
+            // локации (TableLight…), иначе выключен.
             var tableLight = new GameObject("TableLight").AddComponent<Light>();
             tableLight.type = LightType.Spot;
             tableLight.transform.position = new Vector3(0f, 3.3f, 0f);
             tableLight.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-            tableLight.range = 8f;
-            tableLight.spotAngle = 95f;
+            tableLight.range = 15f;
+            tableLight.spotAngle = 110f;
             tableLight.shadows = LightShadows.None;
             tableLight.intensity = 0f;
             tableLight.enabled = false;
@@ -219,7 +231,7 @@ namespace Zonk.Editor.Setup
             return anchor;
         }
 
-        private static DiceTrayView BuildTray(out CosmeticAnchor felt)
+        private static DiceTrayView BuildTray(out CosmeticAnchor felt, out CosmeticAnchor rim)
         {
             var root = new GameObject("Tray");
             var center = Empty("Center", root.transform, new Vector3(0f, 0.02f, 0f));
@@ -232,12 +244,9 @@ namespace Zonk.Editor.Setup
                 Wall(root.transform, "WallBack", new Vector3(0f, 0.8f, 1.05f), new Vector3(3.4f, 1.6f, 0.1f)),
             };
 
-            // Видимая рамка лотка. Высокие стенки выше неё невидимы: кости не вылетают со стола.
-            var frame = AssetDatabase.LoadAssetAtPath<Material>(Materials + "/M_Frame.mat");
-            Prim(PrimitiveType.Cube, "FrameLeft", root.transform, new Vector3(-1.65f, 0.09f, 0f), new Vector3(0.1f, 0.18f, 2.2f), frame);
-            Prim(PrimitiveType.Cube, "FrameRight", root.transform, new Vector3(1.65f, 0.09f, 0f), new Vector3(0.1f, 0.18f, 2.2f), frame);
-            Prim(PrimitiveType.Cube, "FrameFront", root.transform, new Vector3(0f, 0.09f, -1.05f), new Vector3(3.4f, 0.18f, 0.1f), frame);
-            Prim(PrimitiveType.Cube, "FrameBack", root.transform, new Vector3(0f, 0.09f, 1.05f), new Vector3(3.4f, 0.18f, 0.1f), frame);
+            // Видимая рамка лотка — вещь слота «Рамка» (ZonkSetup.Rims, модели zonk_rims.py): внутренний край по стенкам.
+            // Высокие стенки выше неё невидимы: кости не вылетают со стола.
+            rim = Anchor("Rim", root.transform, Vector3.zero, RimSlotId);
 
             felt = Anchor("Felt", root.transform, Vector3.zero, "tray");
 
@@ -274,11 +283,16 @@ namespace Zonk.Editor.Setup
         }
 
         /// <summary>
-        /// Рука-заглушка: ладонь и пальцы из примитивов, точка захвата стакана. Ладонью вниз, пальцами вперёд:
-        /// у правой руки большой палец слева (−X), у левой справа. Тогда при хвате стакана большой палец смотрит вверх.
+        /// Рука: префаб модели (ZonkSetup.Hands), а без него — заглушка: ладонь и пальцы из примитивов, точка захвата
+        /// стакана. Ладонью вниз, пальцами вперёд: у правой руки большой палец слева (−X), у левой справа.
+        /// Тогда при хвате стакана большой палец смотрит вверх.
         /// </summary>
         private static HandView BuildHand(string name, Transform parent, Transform rest, bool rightHanded = true)
         {
+            var model = InstantiateHand(name, parent, rest, rightHanded);
+            if (model != null)
+                return model;
+
             var skin = AssetDatabase.LoadAssetAtPath<Material>(Materials + "/M_Skin.mat");
             var root = Empty(name, parent);
             root.transform.SetPositionAndRotation(rest.position, rest.rotation);
@@ -312,9 +326,9 @@ namespace Zonk.Editor.Setup
             var accessory = Empty("AccessoryAnchor", head.transform, new Vector3(0f, 0.45f, 0f));
             accessory.transform.localScale = Vector3.one / 0.75f;
 
-            var handRest = Empty("GestureHandRest", root.transform, new Vector3(0.9f, 0.12f, -0.8f), new Vector3(0f, 200f, 0f));
+            var handRest = Empty("GestureHandRest", root.transform, new Vector3(0.9f, 0.16f, -0.8f), new Vector3(0f, 200f, 0f));
             var hand = BuildHand("GestureHand", root.transform, handRest.transform);
-            var slam = Empty("SlamPoint", root.transform, new Vector3(0.7f, 0.05f, -1.1f));
+            var slam = Empty("SlamPoint", root.transform, new Vector3(0.7f, 0.15f, -1.1f));
 
             var avatar = root.AddComponent<OpponentAvatarView>();
             avatar.EditorSetup(body.transform, head.transform, accessory.transform, hand,
@@ -376,6 +390,8 @@ namespace Zonk.Editor.Setup
                 Shot(shots, "shop_dice", new Vector3(0f, 2.2f, -1.7f), new Vector3(0f, 0.1f, 0f), 40f),
                 Shot(shots, "shop_lamp", new Vector3(1.8f, 2.4f, -3.2f), new Vector3(0f, 3.4f, 0f), 45f),
                 Shot(shots, "shop_decor", new Vector3(-0.6f, 1.9f, -3.9f), new Vector3(-2.25f, 0.25f, -1.3f), 40f),
+                // Рука игрока в покое (HandRest юга): сбоку справа и сверху, рука и рукав над панелью магазина.
+                Shot(shots, "shop_hand", new Vector3(4.1f, 1.9f, -2.9f), new Vector3(2.1f, 0.05f, -2.45f), 40f),
                 // Дополнительные места безделушек: тот же сдвиг камеры от вещи, что у основного места.
                 Shot(shots, "shop_decor_2", DecorSpots[1] + DecorShotOffset, DecorSpots[1] + DecorLookUp, 40f),
                 Shot(shots, "shop_decor_3", DecorSpots[2] + DecorShotOffset, DecorSpots[2] + DecorLookUp, 40f),

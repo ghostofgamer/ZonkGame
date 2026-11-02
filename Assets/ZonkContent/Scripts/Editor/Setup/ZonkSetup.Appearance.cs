@@ -13,7 +13,7 @@ namespace Zonk.Editor.Setup
 {
     /// <summary>
     /// Облик игрока: слоты «Аватар» и «Рамка» (в сцене ничего не меняют, в магазине не показываются — выбираются в профиле),
-    /// 12 аватаров и 10 рамок разной редкости. Картинки — заглушки, нарисованные кодом (Art/Sprites/Avatars, Frames):
+    /// аватары и рамки разной редкости. Картинки — заглушки, нарисованные кодом (Art/Sprites/Avatars, Frames):
     /// настоящий арт подставляется в SpritePayload предмета без кода. Где взять: награда за уровень (рубежи
     /// PlayerLevelConfig), сундук и достижения (подсказка ProgressPriceOption.HintKey). Базовые аватар и рамка бесплатные.
     /// Уже созданные предметы, картинки и награды не перезаписываются.
@@ -38,6 +38,12 @@ namespace Zonk.Editor.Setup
             Crown,
             Sun,
             Six,
+            // Награды за уровни (ZonkSetup.LevelRewards).
+            Horseshoe,
+            Anchor,
+            Cup,
+            Key,
+            Flame,
         }
 
         private enum FrameStyle
@@ -50,6 +56,11 @@ namespace Zonk.Editor.Setup
             Gold,
             Fire,
             Royal,
+            // Награды за уровни (ZonkSetup.LevelRewards).
+            Chain,
+            Pips,
+            Laurel,
+            Stars,
         }
 
         /// <summary>Где взять: 0 — бесплатно, больше 0 — уровень, -1 — сундук, -2 — достижение.</summary>
@@ -92,6 +103,12 @@ namespace Zonk.Editor.Setup
             Av("avatar_crown", Rarity.Legendary, Glyph.Crown, C(0.75f, 0.12f, 0.15f), C(0.32f, 0.03f, 0.06f), C(1f, 0.78f, 0.2f), 50),
             Av("avatar_sun", Rarity.Legendary, Glyph.Sun, C(1f, 0.6f, 0.2f), C(0.75f, 0.22f, 0.08f), C(1f, 0.95f, 0.55f), FromChest),
             Av("avatar_six", Rarity.Legendary, Glyph.Six, C(0.14f, 0.12f, 0.1f), C(0.02f, 0.02f, 0.02f), C(1f, 0.78f, 0.25f), FromAchievement),
+            // За уровни (05.10): почти каждый второй уровень до 50 что-то даёт.
+            Av("avatar_horseshoe", Rarity.Common, Glyph.Horseshoe, C(0.42f, 0.3f, 0.2f), C(0.18f, 0.12f, 0.07f), C(0.86f, 0.88f, 0.92f), 2),
+            Av("avatar_anchor", Rarity.Common, Glyph.Anchor, C(0.25f, 0.55f, 0.75f), C(0.08f, 0.22f, 0.38f), C(0.95f, 0.93f, 0.85f), 8),
+            Av("avatar_cup", Rarity.Common, Glyph.Cup, C(0.78f, 0.55f, 0.3f), C(0.45f, 0.25f, 0.1f), C(0.4f, 0.2f, 0.1f), 13),
+            Av("avatar_key", Rarity.Rare, Glyph.Key, C(0.35f, 0.25f, 0.5f), C(0.12f, 0.08f, 0.22f), C(1f, 0.8f, 0.3f), 22),
+            Av("avatar_flame", Rarity.Rare, Glyph.Flame, C(0.3f, 0.1f, 0.12f), C(0.08f, 0.02f, 0.04f), C(1f, 0.5f, 0.12f), 33),
             // Сезон 1 «Пиратский»: только на сезонном пути.
             Av("avatar_s1_skull", Rarity.Rare, Glyph.Skull, C(0.75f, 0.12f, 0.12f), C(0.3f, 0.03f, 0.03f), C(0.96f, 0.93f, 0.85f), FromSeason),
             Av("avatar_s1_star", Rarity.Common, Glyph.Star, C(0.1f, 0.4f, 0.55f), C(0.03f, 0.15f, 0.25f), C(1f, 0.55f, 0.35f), FromSeason),
@@ -107,9 +124,14 @@ namespace Zonk.Editor.Setup
             Fr("frame_double", Rarity.Rare, FrameStyle.Double, C(0.3f, 0.75f, 0.55f), C(0.12f, 0.35f, 0.25f), FromChest),
             Fr("frame_emerald", Rarity.Rare, FrameStyle.Gems, C(0.75f, 0.78f, 0.82f), C(0.15f, 0.8f, 0.4f), 40),
             Fr("frame_ruby", Rarity.Rare, FrameStyle.Gems, C(0.35f, 0.3f, 0.3f), C(0.9f, 0.12f, 0.2f), FromAchievement),
-            Fr("frame_gold", Rarity.Legendary, FrameStyle.Gold, C(1f, 0.8f, 0.3f), C(0.3f, 0.6f, 1f), 75),
+            Fr("frame_gold", Rarity.Legendary, FrameStyle.Gold, C(1f, 0.8f, 0.3f), C(0.3f, 0.6f, 1f), 45),
             Fr("frame_fire", Rarity.Legendary, FrameStyle.Fire, C(1f, 0.45f, 0.1f), C(1f, 0.85f, 0.25f), FromChest),
             Fr("frame_royal", Rarity.Legendary, FrameStyle.Royal, C(0.45f, 0.15f, 0.6f), C(1f, 0.8f, 0.3f), FromAchievement),
+            // За уровни (05.10).
+            Fr("frame_chain", Rarity.Common, FrameStyle.Chain, C(0.72f, 0.74f, 0.78f), C(0.35f, 0.37f, 0.42f), 7),
+            Fr("frame_pips", Rarity.Rare, FrameStyle.Pips, C(0.96f, 0.93f, 0.85f), C(0.55f, 0.1f, 0.1f), 17),
+            Fr("frame_laurel", Rarity.Rare, FrameStyle.Laurel, C(0.45f, 0.72f, 0.3f), C(0.95f, 0.78f, 0.3f), 27),
+            Fr("frame_stars", Rarity.Legendary, FrameStyle.Stars, C(0.1f, 0.12f, 0.3f), C(1f, 0.85f, 0.35f), 43),
             Fr("frame_s1_rope", Rarity.Common, FrameStyle.Rope, C(0.45f, 0.32f, 0.2f), C(0.25f, 0.16f, 0.08f), FromSeason),
             Fr("frame_s1_sea", Rarity.Rare, FrameStyle.Dots, C(0.1f, 0.45f, 0.6f), C(0.85f, 0.95f, 1f), FromSeason),
             Fr("frame_s1_captain", Rarity.Legendary, FrameStyle.Gold, C(0.9f, 0.7f, 0.25f), C(0.85f, 0.12f, 0.15f), FromSeason),
@@ -175,7 +197,7 @@ namespace Zonk.Editor.Setup
         private static CosmeticItemConfig LookItem(string id, CosmeticSlotConfig slot, int order, Rarity rarity, Sprite sprite, int source)
         {
             var price = source == 0 ? new PriceOption[0]
-                : new PriceOption[] { new ProgressPriceOption { HintKey = source > 0 ? "hint.level" + source : source == FromChest ? "hint.chest" : source == FromSeason ? "hint.season" : "hint.achievement" } };
+                : new PriceOption[] { new ProgressPriceOption { HintKey = source > 0 ? "hint.level" : source == FromChest ? "hint.chest" : source == FromSeason ? "hint.season" : "hint.achievement" } };
             var item = Item(id, slot, order, new SpritePayload { Sprite = sprite }, price);
             var changed = false;
             if (item.Rarity != rarity && item.Rarity == Rarity.Common)
@@ -383,7 +405,7 @@ namespace Zonk.Editor.Setup
                     return Paint(color, Color.white, Ellipse(x, y, 116f, 140f, 16f, 12f) * 0.6f);
                 }
                 default:
-                    return color;
+                    return PaintLevelGlyph(color, glyph, x, y, ink, shade);
             }
         }
 
@@ -456,6 +478,9 @@ namespace Zonk.Editor.Setup
                         color = RingPaint(color, radius, 120f, 124f, def.Accent, def.Accent);
                         color = Paint(color, def.Accent, Polygon(x, y, new Vector2(96f, 222f), new Vector2(96f, 252f), new Vector2(112f, 234f),
                             new Vector2(128f, 254f), new Vector2(144f, 234f), new Vector2(160f, 252f), new Vector2(160f, 222f)));
+                        break;
+                    default:
+                        color = PaintLevelFrame(color, def, x, y, radius, angle, center, dark);
                         break;
                 }
 
@@ -667,10 +692,13 @@ namespace Zonk.Editor.Setup
             framesTitle.alignment = TextAlignmentOptions.Left;
             Height(framesTitle, 44);
             var frames = LookGrid("Frames", content);
+            var skinsTitle = LookTitle("SkinsTitle", content);
+            var skins = LookGrid("Skins", content);
             look.gameObject.SetActive(false);
 
             window.EditorSetupLook(statsTab, lookTab, statsPage, look.gameObject, preview, info, avatarsTitle, avatars, framesTitle,
                 frames, AppearanceCellPart());
+            window.EditorSetupSkins(skinsTitle, skins);
         }
 
         /// <summary>Аватар в главном меню: в левом верхнем углу, уровень — правее него.</summary>

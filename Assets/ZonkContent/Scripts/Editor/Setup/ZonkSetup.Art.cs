@@ -37,6 +37,12 @@ namespace Zonk.Editor.Setup
         private const int CupTextureSize = 1024;
         private const int TextureCrunchQuality = 50;
 
+        // Столы: 1024 (2048 пробовали 05.10 — вес вдвое, на глаз без разницы). Анизотропия 8 — веса не добавляет,
+        // а столешница видна под острым углом и без неё мылится полосами.
+        private const int TableTextureSize = 1024;
+        private const int TableCrunchQuality = TextureCrunchQuality;
+        private const int TableAniso = 8;
+
         /// <summary>Стаканы скрипта zonk_cups.py: имя модели, гладкость и металличность материала.</summary>
         private static readonly (string Name, float Smoothness, float Metallic)[] GeneratedCups =
         {
@@ -155,19 +161,21 @@ namespace Zonk.Editor.Setup
         /// Текстура для телефонов и браузера: не больше maxSize, сжатая, с мип-уровнями и Crunch — файл в сборке
         /// в несколько раз меньше (важно для загрузки в браузере), в памяти видеокарты как обычное сжатие.
         /// </summary>
-        private static void ConfigureTexture(string path, int maxSize)
+        private static void ConfigureTexture(string path, int maxSize, int quality = TextureCrunchQuality, int aniso = 1)
         {
             if (!(AssetImporter.GetAtPath(path) is TextureImporter importer))
                 return;
 
             if (importer.maxTextureSize == maxSize && importer.crunchedCompression && importer.mipmapEnabled &&
-                importer.textureCompression == TextureImporterCompression.Compressed)
+                importer.textureCompression == TextureImporterCompression.Compressed &&
+                importer.compressionQuality == quality && importer.anisoLevel == aniso)
                 return;
 
             importer.maxTextureSize = maxSize;
             importer.textureCompression = TextureImporterCompression.Compressed;
             importer.crunchedCompression = true;
-            importer.compressionQuality = TextureCrunchQuality;
+            importer.compressionQuality = quality;
+            importer.anisoLevel = aniso;
             importer.mipmapEnabled = true;
             importer.SaveAndReimport();
         }

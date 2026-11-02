@@ -21,6 +21,7 @@ namespace Zonk.UI
         public Color Gold = new Color(1f, 0.82f, 0.35f, 1f);
         public Color RarityCommon = new Color(0.62f, 0.6f, 0.56f, 1f);
         public Color RarityRare = new Color(0.35f, 0.62f, 1f, 1f);
+        public Color RarityEpic = new Color(0.72f, 0.38f, 0.95f, 1f);
         public Color RarityLegendary = new Color(1f, 0.72f, 0.18f, 1f);
 
         /// <summary>Неоткрытый предмет: серым.</summary>
@@ -29,6 +30,7 @@ namespace Zonk.UI
         public Color RarityColor(Zonk.Configs.Rarity rarity)
         {
             return rarity == Zonk.Configs.Rarity.Legendary ? RarityLegendary
+                : rarity == Zonk.Configs.Rarity.Epic ? RarityEpic
                 : rarity == Zonk.Configs.Rarity.Rare ? RarityRare
                 : RarityCommon;
         }

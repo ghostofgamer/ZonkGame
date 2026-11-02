@@ -47,8 +47,8 @@ namespace Zonk.Editor.Setup
         private static readonly (string Texture, string Id, bool Tiled, float Smoothness)[] FeltsV2 =
         {
             ("Felt_Leather", "felt_red", true, 0.35f),
-            ("Felt_Constellations", "felt_blue", true, 0.1f),
-            ("Felt_TreasureMap", "felt_teal", true, 0.1f),
+            ("Felt_Constellations", "felt_blue", false, 0.1f),   // 05.10: картина во всё сукно вместо плитки
+            ("Felt_TreasureMap", "felt_teal", false, 0.1f),      // 05.10: картина во всё сукно вместо плитки
             ("Felt_Rug", "felt_purple", false, 0.05f),
             ("Felt_Velvet", "felt_royal", false, 0.3f),
             ("Felt_Board", "felt_gold", false, 0.15f),

@@ -32,6 +32,9 @@ namespace Zonk.Presentation
         public int Spot => _spot;
         public GameObject Instance => _instance;
 
+        /// <summary>Предмет, чья модель стоит в якоре (свой или слота по умолчанию, если предмет — перекраска).</summary>
+        public CosmeticItemConfig ModelItem { get; private set; }
+
         /// <summary>Модель в якоре сменилась (поставлена, заменена или убрана).</summary>
         public event Action<CosmeticAnchor> InstanceChanged;
 
@@ -56,7 +59,9 @@ namespace Zonk.Presentation
         {
             var request = ++_request;
             var payload = item != null ? item.Payload : null;
-            var model = payload is PrefabPayload own && own.HasModel ? own : BasePayload(slotDefault);
+            var ownModel = payload is PrefabPayload own && own.HasModel;
+            var model = ownModel ? (PrefabPayload)payload : BasePayload(slotDefault);
+            ModelItem = ownModel ? item : slotDefault;
             var recolor = payload is MaterialPayload || payload is MeshMaterialPayload;
 
             // Та же модель уже стоит и не перекрашена: менять нечего (кроме нового перекрашивания).

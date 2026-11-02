@@ -22,7 +22,7 @@ namespace Zonk.Editor.Setup
         {
             "LoadingScreen", "RulesWindow", "MainMenuWindow", "SettingsWindow", "ConfirmWindow", "StoryWindow", "ResultsWindow",
             "HotSeatSetupWindow", "CampaignWindow", "ShopWindow", "MatchHudWindow", "QuestsWindow", "LeaderboardWindow", "TutorialTipWindow", "LanguageWindow",
-            "ChallengeWindow", "PerkChoiceWindow", "ProfileWindow", "ChestWindow", "SeasonWindow",
+            "ChallengeWindow", "PerkChoiceWindow", "ProfileWindow", "ChestWindow", "SeasonWindow", "DiceWindow",
         };
 
         private static UiConfig _ui;
@@ -58,6 +58,7 @@ namespace Zonk.Editor.Setup
             WindowPrefab<ProfileWindow>("ProfileWindow", popupIn, popupOut, true, BuildProfile);
             WindowPrefab<ChestWindow>("ChestWindow", popupIn, popupOut, true, BuildChestWindow);
             WindowPrefab<SeasonWindow>("SeasonWindow", popupIn, popupOut, true, BuildSeasonWindow);
+            WindowPrefab<DiceWindow>("DiceWindow", slideBottom, slideOutBottom, false, BuildDiceWindow);
         }
 
         private static void WindowPrefab<T>(string name, UiTransitionConfig show, UiTransitionConfig hide, bool popup,
@@ -399,10 +400,15 @@ namespace Zonk.Editor.Setup
             panel.anchoredPosition = new Vector2(0f, 16f);
             var column = Column(panel, 10, 14);
 
-            var tabs = Row(column, 8);
-            Height(tabs, 64);
+            // Вкладки — лента с прокруткой (ширина каждой по слову, ShopWindow.FitTab), «Назад» — справа вне ленты.
+            var tabsRow = Row(column, 8);
+            Height(tabsRow, 64);
+            tabsRow.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
+            var tabsList = TabStrip(tabsRow, out var tabs);
             var tabTemplate = ButtonView("TabTemplate", tabs, 24, _ui.Palette.ButtonMuted);
-            var back = ButtonView("Back", tabs, 24, _ui.Palette.Button);
+            var back = ButtonView("Back", tabsRow, 24, _ui.Palette.Button);
+            Width(back, 170, 0);
+            Width(tabsList, -1, 1);
 
             var body = Row(column, 16);
             Height(body, 250);

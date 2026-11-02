@@ -64,7 +64,7 @@ namespace Zonk.Progress
 
         // Рабочие списки розыгрыша: сундук открывается редко, но списки всё равно переиспользуются.
         private readonly List<ChestDropRule> _rules = new List<ChestDropRule>();
-        private readonly int[] _available = new int[3];
+        private readonly int[] _available = new int[RarityOrder.Count];
         private readonly List<CosmeticItemConfig> _candidates = new List<CosmeticItemConfig>();
 
         private readonly ITalents _talents;

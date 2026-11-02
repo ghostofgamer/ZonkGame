@@ -25,10 +25,25 @@ MonoBehaviour:
   FogDensity: 0.03
   Background: {r: 0.55, g: 0.62, b: 0.7, a: 1}
   LampIntensity: 0.6
+  TableLight: 0
+  TableLightColor: {r: 1, g: 0.84, b: 0.62, a: 1}
+  TableLightRadius: 4
+  TableLightFade: 0.8
+  TableLightHeight: 3.3
   PostProcess: {fileID: 0}
   PostProcessFrom: 2
-  Effects: []
+  ToonStyle: {fileID: 0}
+  Effects:
+  - rid: 7300000000000000001
   TransitionDuration: 0.6
   references:
     version: 2
-    RefIds: []
+    RefIds:
+    - rid: 7300000000000000001
+      type: {class: LampSwayEffect, ns: Zonk.Configs, asm: Zonk}
+      data:
+        LampSlot: lamp
+        Amplitude: {x: 0.4, y: 0.3}
+        Period: 7
+        Jitter: 0.2
+        PivotAbove: 1.2

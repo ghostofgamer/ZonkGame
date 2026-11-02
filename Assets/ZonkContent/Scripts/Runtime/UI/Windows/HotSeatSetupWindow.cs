@@ -28,6 +28,14 @@ namespace Zonk.UI.Windows
         private readonly Choice<bool> _choice = new Choice<bool>();
         private HotSeatSettings _settings;
         private GameConfig _config;
+        private ILoadout _loadout;
+
+        /// <summary>Наборы костей аккаунта: игрок 1 по умолчанию играет активным набором.</summary>
+        [Zenject.Inject]
+        public void Construct([Zenject.InjectOptional] ILoadout loadout)
+        {
+            _loadout = loadout;
+        }
 
 #if UNITY_EDITOR
         public void EditorSetup(TMP_Text title, TMP_Text target, UiButtonView minus, UiButtonView plus, UiButtonView firstPlayer,
@@ -81,7 +89,7 @@ namespace Zonk.UI.Windows
             _plus.SetText("+");
 
             for (var i = 0; i < _players.Length && i < data.Players.Count; i++)
-                _players[i].Setup(Localization, i, data.Players[i], settings, config, content, inventory, ownedDice, ownedSkins);
+                _players[i].Setup(Localization, i, data.Players[i], settings, config, content, inventory, ownedDice, ownedSkins, _loadout);
 
             ChangeTarget(0);
             RefreshOptions();

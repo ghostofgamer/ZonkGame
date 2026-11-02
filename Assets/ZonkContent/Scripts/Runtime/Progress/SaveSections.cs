@@ -266,9 +266,21 @@ namespace Zonk.Progress
     [Serializable]
     public sealed class HotSeatPlayerSave
     {
+        /// <summary>Свои кости (Dice), а не набор аккаунта.</summary>
+        public const int OwnDice = -1;
+
+        /// <summary>Активный набор аккаунта: меняется вместе с ним.</summary>
+        public const int ActivePreset = -2;
+
         public string Name;
         public List<string> Dice = new List<string>();
         public string SkinId;
+
+        /// <summary>
+        /// Откуда кости: OwnDice — свои, ActivePreset — активный набор аккаунта, 0.. — набор с этим номером.
+        /// Только у игрока 1 (хозяина аккаунта), у второго всегда свои. Старые сохранения без поля — активный набор.
+        /// </summary>
+        public int Preset = ActivePreset;
     }
 
     public enum FirstPlayerMode

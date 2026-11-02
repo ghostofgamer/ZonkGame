@@ -37,7 +37,7 @@ namespace Zonk.Editor.Setup
             var order = 30;
             foreach (var (name, id, smoothness) in TablesV2)
             {
-                var prefab = ImportedPrefab("Tables", name, smoothness, 0f, LampTextureSize, Color.white);
+                var prefab = ImportedPrefab("Tables", name, smoothness, 0f, TableTextureSize, Color.white, TableCrunchQuality, TableAniso);
                 if (prefab == null)
                     continue;
 

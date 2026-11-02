@@ -73,7 +73,7 @@ namespace Zonk.Editor.Setup
             var tableOrder = 20;
             foreach (var (name, id, smoothness) in GeneratedTables)
             {
-                var prefab = ImportedPrefab("Tables", name, smoothness, 0f, LampTextureSize, Color.white);
+                var prefab = ImportedPrefab("Tables", name, smoothness, 0f, TableTextureSize, Color.white, TableCrunchQuality, TableAniso);
                 if (prefab == null || tableSlot == null)
                     continue;
 
@@ -136,7 +136,8 @@ namespace Zonk.Editor.Setup
         /// Префаб из FBX: модель, основной материал с текстурой и, если у меша второй слот, светящийся Glow_*.
         /// Существующий префаб не пересоздаётся.
         /// </summary>
-        private static GameObject ImportedPrefab(string kind, string name, float smoothness, float metallic, int textureSize, Color glow)
+        private static GameObject ImportedPrefab(string kind, string name, float smoothness, float metallic, int textureSize, Color glow,
+            int quality = TextureCrunchQuality, int aniso = 1)
         {
             var modelPath = Models + "/" + kind + "/" + name + ".fbx";
             if (!(AssetImporter.GetAtPath(modelPath) is ModelImporter))
@@ -144,7 +145,7 @@ namespace Zonk.Editor.Setup
 
             ConfigureModel(modelPath, false);
             var texturePath = Textures + "/" + kind + "/" + name + ".png";
-            ConfigureTexture(texturePath, textureSize);
+            ConfigureTexture(texturePath, textureSize, quality, aniso);
             var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
             // Своё имя (Model_*), чтобы не взять материал старой перекраски с тем же именем (M_Table_Royal). Без «Candle» и «Deck»:
             // по ним комиксовый шейдер пропускает светящиеся и плоские материалы (ZonkSetup.Toon).

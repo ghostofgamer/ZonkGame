@@ -13,7 +13,7 @@ namespace Zonk.UI.Windows
 {
     /// <summary>
     /// Профиль игрока, две вкладки. «Статистика»: разделы (общее, режимы, броски, комбинации, удача, кости), строки —
-    /// копии детали Parts/StatRow. «Облик»: аватары и рамки (ячейки Parts/AppearanceCell) — открытые цветом редкости,
+    /// копии детали Parts/StatRow. «Облик»: аватары, рамки и кожа руки (ячейки Parts/AppearanceCell) — открытые цветом редкости,
     /// не открытые серые; нажатие на открытый надевает, на закрытый — примерка и подсказка, где взять.
     /// Списки строятся при открытии (редко: память выделять можно). Открывается нажатием на уровень или аватар
     /// в главном меню, закрывается кнопкой «Назад» (WaitCloseRequestAsync). Без вкладок (старый префаб) — только статистика.
@@ -43,6 +43,10 @@ namespace Zonk.UI.Windows
         [SerializeField] private RectTransform _framesGrid;
         [SerializeField] private AppearanceCellView _cellTemplate;
 
+        [Tooltip("Кожа руки (слот hand_skin): заголовок и сетка под рамками. Нет — окно без кожи (старый префаб)")]
+        [SerializeField] private TMP_Text _skinsTitle;
+        [SerializeField] private RectTransform _skinsGrid;
+
         [Header("Достижения")]
         [SerializeField] private UiButtonView _achievementsTab;
         [SerializeField] private GameObject _achievementsPage;
@@ -56,6 +60,7 @@ namespace Zonk.UI.Windows
             Look,
             Achievements,
             Talents,
+            Levels,
         }
 
         private IPlayerRecords _records;
@@ -96,6 +101,12 @@ namespace Zonk.UI.Windows
             _framesTitle = framesTitle;
             _framesGrid = framesGrid;
             _cellTemplate = cellTemplate;
+        }
+
+        public void EditorSetupSkins(TMP_Text title, RectTransform grid)
+        {
+            _skinsTitle = title;
+            _skinsGrid = grid;
         }
 
         public void EditorSetupAchievements(UiButtonView tab, GameObject page, TMP_Text summary, RectTransform list,
@@ -141,6 +152,7 @@ namespace Zonk.UI.Windows
             if (_achievementsTab != null)
                 _achievementsTab.OnClick(() => ShowPage(Page.Achievements));
             AwakeTalents();
+            AwakeLevels();
         }
 
         protected override void OnShowing()
@@ -155,9 +167,12 @@ namespace Zonk.UI.Windows
                 _avatarsTitle.text = T("profile.avatars");
             if (_framesTitle != null)
                 _framesTitle.text = T("profile.frames");
+            if (_skinsTitle != null)
+                _skinsTitle.text = T("profile.handSkins");
             if (_achievementsTab != null)
                 _achievementsTab.SetText(T("profile.achievements"));
             ShowingTalents();
+            ShowingLevels();
             Build();
             ShowPage(_page);
         }
@@ -169,7 +184,8 @@ namespace Zonk.UI.Windows
             var hasLook = _lookPage != null && _avatarsGrid != null && _cellTemplate != null;
             var hasAchievements = _achievementsPage != null && _achievementsList != null && _achievementTemplate != null &&
                                   _achievements != null;
-            if ((page == Page.Look && !hasLook) || (page == Page.Achievements && !hasAchievements) || (page == Page.Talents && !HasTalents))
+            if ((page == Page.Look && !hasLook) || (page == Page.Achievements && !hasAchievements) || (page == Page.Talents && !HasTalents) ||
+                (page == Page.Levels && !HasLevels))
                 page = Page.Stats;
             _page = page;
 
@@ -185,6 +201,9 @@ namespace Zonk.UI.Windows
             if (_talentsPage != null)
                 _talentsPage.SetActive(page == Page.Talents);
             PaintTab(_talentsTab, HasTalents, page == Page.Talents);
+            if (_levelsPage != null)
+                _levelsPage.SetActive(page == Page.Levels);
+            PaintTab(_levelsTab, HasLevels, page == Page.Levels);
 
             if (page == Page.Look)
                 BuildLook();
@@ -192,6 +211,8 @@ namespace Zonk.UI.Windows
                 BuildAchievements();
             else if (page == Page.Talents)
                 BuildTalents();
+            else if (page == Page.Levels)
+                BuildLevels();
         }
 
         private void PaintTab(UiButtonView tab, bool visible, bool selected)
@@ -257,6 +278,7 @@ namespace Zonk.UI.Windows
 
             AddCells(SlotIds.Avatar, _avatarsGrid);
             AddCells(SlotIds.Frame, _framesGrid);
+            AddCells(SlotIds.HandSkin, _skinsGrid);
             if (_preview != null)
                 _preview.ShowEquipped();
             if (_lookInfo != null)
@@ -270,7 +292,7 @@ namespace Zonk.UI.Windows
                 return;
 
             var items = _content.All<CosmeticItemConfig>().FindAll(i => i.Slot == slot);
-            items.Sort((a, b) => a.Rarity != b.Rarity ? a.Rarity.CompareTo(b.Rarity) : a.Order.CompareTo(b.Order));
+            items.Sort((a, b) => a.Rarity != b.Rarity ? RarityOrder.Rank(a.Rarity).CompareTo(RarityOrder.Rank(b.Rarity)) : a.Order.CompareTo(b.Order));
             foreach (var item in items)
             {
                 var cell = Instantiate(_cellTemplate, grid);
@@ -284,7 +306,8 @@ namespace Zonk.UI.Windows
 
         private void PaintCell(AppearanceCellView cell, CosmeticItemConfig item)
         {
-            cell.Show(PlayerAvatarView.SpriteOf(item), _palette.RarityColor(item.Rarity), _inventory.IsOwned(item),
+            var picture = PlayerAvatarView.SpriteOf(item);
+            cell.Show(picture != null ? picture : item.Icon, _palette.RarityColor(item.Rarity), _inventory.IsOwned(item),
                 _loadout.IsEquipped(item), _palette.Locked);
         }
 
@@ -334,8 +357,8 @@ namespace Zonk.UI.Windows
 
             foreach (var option in item.Price.Options)
             {
-                if (option is ProgressPriceOption progress && !string.IsNullOrEmpty(progress.HintKey))
-                    return T(progress.HintKey);
+                if (option is ProgressPriceOption progress)
+                    return RewardNames.ProgressHint(item, progress, _level, T);
             }
 
             return null;

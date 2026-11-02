@@ -37,6 +37,19 @@ namespace Zonk.Presentation
         private CancellationTokenSource _transitionCts;
         private CancellationTokenSource _effectsCts;
 
+        // Качание лампы (LampSwayEffect) и мерцание прожектора (LightFlickerEffect): исходные места запоминаются
+        // при первом обращении, наклон и множитель — поверх них.
+        private Transform _lamp;
+        private string _lampSlot;
+        private Vector3 _lampBasePosition;
+        private Quaternion _lampBaseRotation;
+        private Vector2 _tableLightBase;
+        private bool _tableLightBaseSet;
+        private float _tiltX;
+        private float _tiltZ;
+        private float _pivotAbove;
+        private float _tableFlicker = 1f;
+
         // Что выставлено сейчас (цель перехода): от этих значений считаются вспышки молний.
         private Color _sunColor;
         private float _sunIntensity;
@@ -172,7 +185,11 @@ namespace Zonk.Presentation
 
             Cancel(ref _effectsCts);
             _effectsCts = new CancellationTokenSource();
-            var context = new AtmosphereContext { Camera = _camera, Tier = tier, Sound = _sound, Flash = FlashAsync };
+            var context = new AtmosphereContext
+            {
+                Camera = _camera, Tier = tier, Sound = _sound, Flash = FlashAsync,
+                SwayLamp = SwayLamp, Lights = _lights, FlickerTableLight = FlickerTableLight,
+            };
             foreach (var effect in profile.Effects)
             {
                 if (effect != null)
@@ -193,11 +210,94 @@ namespace Zonk.Presentation
             if (!on)
                 return;
 
-            _tableLight.intensity = power;
+            // Геометрия от освещаемого круга: прожектор над центром стола на высоте профиля, полный свет до радиуса,
+            // дальше мягкое затухание. Свет слабеет с квадратом расстояния — сила домножается на высоту², чтобы
+            // TableLight был яркостью на сукне при любой высоте. Дальность с запасом: у края дальности URP гасит свет.
+            var height = _profile.TableLightHeight;
+            var radius = _profile.TableLightRadius;
+            var outer = radius + _profile.TableLightFade;
+            ApplyTableLightPose();
+            _tableLight.intensity = power * height * height * _tableFlicker;
             _tableLight.color = _profile.TableLightColor;
-            _tableLight.spotAngle = _profile.TableLightAngle;
-            _tableLight.innerSpotAngle = _profile.TableLightAngle * 0.6f;
+            _tableLight.spotAngle = 2f * Mathf.Atan2(outer, height) * Mathf.Rad2Deg;
+            _tableLight.innerSpotAngle = 2f * Mathf.Atan2(radius, height) * Mathf.Rad2Deg;
+            _tableLight.range = 2.5f * Mathf.Sqrt(height * height + outer * outer);
         }
+
+        /// <summary>Место прожектора: над центром стола на высоте профиля; лампа качается — он качается с ней вокруг подвеса.</summary>
+        private void ApplyTableLightPose()
+        {
+            if (!_tableLightBaseSet)
+            {
+                var start = _tableLight.transform.position;
+                _tableLightBase = new Vector2(start.x, start.z);
+                _tableLightBaseSet = true;
+            }
+
+            var position = new Vector3(_tableLightBase.x, _profile.TableLightHeight, _tableLightBase.y);
+            var down = Quaternion.Euler(90f, 0f, 0f);
+            if (_lamp == null || (_tiltX == 0f && _tiltZ == 0f))
+            {
+                _tableLight.transform.SetPositionAndRotation(position, down);
+                return;
+            }
+
+            var tilt = Quaternion.Euler(_tiltX, 0f, _tiltZ);
+            var pivot = _lampBasePosition + Vector3.up * _pivotAbove;
+            _tableLight.transform.SetPositionAndRotation(pivot + tilt * (position - pivot), tilt * down);
+        }
+
+        /// <summary>Наклон лампы слота вокруг точки подвеса (LampSwayEffect, каждый кадр). Ноль — лампа на месте.</summary>
+        private void SwayLamp(string slotId, float tiltX, float tiltZ, float pivotAbove)
+        {
+            if (_lamp == null || _lampSlot != slotId)
+            {
+                RestoreLamp();
+                _lamp = _stage != null ? _stage.SpotAnchor(slotId, 0) : null;
+                _lampSlot = slotId;
+                if (_lamp == null)
+                    return;
+                _lampBasePosition = _lamp.position;
+                _lampBaseRotation = _lamp.rotation;
+            }
+
+            _tiltX = tiltX;
+            _tiltZ = tiltZ;
+            _pivotAbove = pivotAbove;
+            var tilt = Quaternion.Euler(tiltX, 0f, tiltZ);
+            var pivot = _lampBasePosition + Vector3.up * pivotAbove;
+            _lamp.SetPositionAndRotation(pivot + tilt * (_lampBasePosition - pivot), tilt * _lampBaseRotation);
+            if (_tableLight != null && _tableLight.enabled && _profile != null)
+                ApplyTableLightPose();
+        }
+
+        private void RestoreLamp()
+        {
+            if (_lamp != null)
+                _lamp.SetPositionAndRotation(_lampBasePosition, _lampBaseRotation);
+            _tiltX = 0f;
+            _tiltZ = 0f;
+        }
+
+        /// <summary>Мерцание прожектора над столом (LightFlickerEffect, каждый кадр): множитель около 1.</summary>
+        private void FlickerTableLight(float factor)
+        {
+            _tableFlicker = factor;
+            if (_tableLight != null && _tableLight.enabled && _profile != null)
+            {
+                var height = _profile.TableLightHeight;
+                _tableLight.intensity = _profile.TableLight * height * height * factor;
+            }
+        }
+
+#if UNITY_EDITOR
+        // Только в редакторе: правка профиля локации во время игры сразу видна на столе — свет подбирается вживую.
+        private void Update()
+        {
+            if (_profile != null)
+                ApplyTableLight();
+        }
+#endif
 
         private void ApplyLights()
         {

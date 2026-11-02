@@ -54,6 +54,18 @@ namespace Zonk.Configs
         [Tooltip("Стакан соперника. Пусто = базовый")]
         public CosmeticItemConfig Cup;
 
+        [Tooltip("Кожа руки соперника (слот hand_skin). Пусто = базовая")]
+        public CosmeticItemConfig HandSkin;
+
+        [Tooltip("Кисть соперника (слот hand_look: перчатка, особая рука). Пусто = без перчатки")]
+        public CosmeticItemConfig HandLook;
+
+        [Tooltip("Рукав соперника (слот hand_sleeve). Пусто = базовый")]
+        public CosmeticItemConfig HandSleeve;
+
+        [Tooltip("Часы или браслет соперника (слот hand_wrist). Пусто = ничего")]
+        public CosmeticItemConfig HandWrist;
+
         [Tooltip("Цель партии с этим соперником, любая (у нынешних боссов 10000, можно и 340000). 0 = из правил режима")]
         public int TargetScore;
 

@@ -29,6 +29,10 @@ MonoBehaviour:
   - {fileID: 11400000, guid: a24cdadb60225194e92cd76b26771c82, type: 2}
   DiceSkin: {fileID: 0}
   Cup: {fileID: 0}
+  HandSkin: {fileID: 11400000, guid: 4e5a4f8ee0558e34282f0e3c7f8af494, type: 2}
+  HandLook: {fileID: 0}
+  HandSleeve: {fileID: 11400000, guid: a8174bbcc62e0234b8c9bf5969319567, type: 2}
+  HandWrist: {fileID: 11400000, guid: 4412bbfa757de84469fedf05e20da9b2, type: 2}
   TargetScore: 6000
   StarConditions:
   - rid: 4243792294545719569
@@ -43,11 +47,16 @@ MonoBehaviour:
   - rid: 4243792291812082121
   - rid: 4243792291812082122
   - rid: 4243792291812082180
+  - rid: 1889488908866290222
   RepeatWinRewards:
   - rid: 4243792291812082123
   references:
     version: 2
     RefIds:
+    - rid: 1889488908866290222
+      type: {class: ContentReward, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Item: {fileID: 11400000, guid: a8174bbcc62e0234b8c9bf5969319567, type: 2}
     - rid: 4243792291812082120
       type: {class: ThreeZonkPenaltyModifier, ns: Zonk.Core.Modifiers, asm: Zonk.Core}
       data:

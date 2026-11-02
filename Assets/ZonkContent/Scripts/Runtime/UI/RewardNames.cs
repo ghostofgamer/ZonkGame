@@ -27,6 +27,10 @@ namespace Zonk.UI
                 kindKey = "reward.rollStyle";
             else if (item is CosmeticItemConfig skin && skin.Slot != null && skin.Slot.Id == Table.SlotIds.DiceSkin)
                 kindKey = "reward.diceSkin";
+            else if (item is CosmeticItemConfig avatar && avatar.Slot != null && avatar.Slot.Id == Table.SlotIds.Avatar)
+                kindKey = "reward.avatar";
+            else if (item is CosmeticItemConfig frame && frame.Slot != null && frame.Slot.Id == Table.SlotIds.Frame)
+                kindKey = "reward.frame";
 
             if (kindKey == null)
                 return name;
@@ -75,6 +79,29 @@ namespace Zonk.UI
             }
 
             return Builder.ToString();
+        }
+
+        /// <summary>
+        /// Где взять вещь «за игру»: если она в рубежах уровня — «Награда за уровень 20 (у вас 12)» по конфигу (переставили
+        /// вещь на другой уровень — подсказка следует сама), иначе текст HintKey цены. Для окон (редко).
+        /// </summary>
+        public static string ProgressHint(ContentConfig item, ProgressPriceOption progress, Progress.IPlayerLevel level,
+            Func<string, string> localize)
+        {
+            var at = level != null ? level.RewardLevelOf(item) : 0;
+            if (at > 0)
+            {
+                try
+                {
+                    return string.Format(localize("hint.level"), at, level.Level);
+                }
+                catch (FormatException)
+                {
+                    return localize("hint.level");
+                }
+            }
+
+            return progress != null && !string.IsNullOrEmpty(progress.HintKey) ? localize(progress.HintKey) : null;
         }
 
         private static readonly string[] Roman = { "", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X" };

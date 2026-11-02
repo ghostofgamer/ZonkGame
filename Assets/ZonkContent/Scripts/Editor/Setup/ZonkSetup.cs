@@ -79,20 +79,31 @@ namespace Zonk.Editor.Setup
             var content = BuildContent(art);
             BuildPlayerLevel(content.Config);
             BuildAppearance(content.Config);
+            BuildLevelRewards(content.Config);
             BuildMeta(content.Config);
             BuildTalents(content.Config);
             BuildShopExpansion(content.Config);
+            BuildRims(content.Config);
+            BuildHandLook(content);
+            BuildHands();
             TuneTableLights();
             MigratePrefabPayloads();
             ApplyToonMaterials(content.Config);
+            ApplyNormalMaps();
             BuildWindows(content.Ui);
             AddPlayerLevelToWindows();
             AddAvatarToMainMenu();
+            AddHandSkinsToProfile();
             AddMetaButtonsToMainMenu();
+            AddDiceEditing();
+            UpgradeShopDetails();
+            UpgradeShopTabs();
             BuildSpriteAtlases();
             FixUiFonts();
             SlimPostProcessData();
             AddTalentsToWindows();
+            AddLevelsToProfile();
+            SlimPrimitiveMeshes();
             AssetDatabase.SaveAssets();
             ContentDatabaseBuilder.Rebuild();
             UiWindowRegistry.Rebuild();
@@ -224,6 +235,9 @@ namespace Zonk.Editor.Setup
         {
             var go = GameObject.CreatePrimitive(type);
             go.name = name;
+            var low = LowPolyMesh(type);
+            if (low != null)
+                go.GetComponent<MeshFilter>().sharedMesh = low;
             Object.DestroyImmediate(go.GetComponent<Collider>());
             go.transform.SetParent(parent, false);
             go.transform.localPosition = position;

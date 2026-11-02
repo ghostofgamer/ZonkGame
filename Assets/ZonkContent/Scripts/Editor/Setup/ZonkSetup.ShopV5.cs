@@ -110,6 +110,7 @@ namespace Zonk.Editor.Setup
             BuildTablesV2(config);
             BuildLampsFeltV2(config);
             BuildDecorSpots(config);
+            BuildDiceV3();
             if (config.ShopLayoutVersion < 6)
             {
                 config.ShopLayoutVersion = 6;
@@ -168,7 +169,7 @@ namespace Zonk.Editor.Setup
                     default:
                         price.Options.Add(new ProgressPriceOption
                         {
-                            HintKey = value > 0 ? "hint.level" + value : value == FromChest ? "hint.chest" : "hint.achievement",
+                            HintKey = value > 0 ? "hint.level" : value == FromChest ? "hint.chest" : "hint.achievement",
                         });
                         if (value > 0 && item is CosmeticItemConfig levelItem)
                             GiveAtLevel(config, value, levelItem);

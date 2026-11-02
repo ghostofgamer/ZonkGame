@@ -41,26 +41,39 @@ namespace Zonk.Presentation
         private readonly List<PrefabPayload> _heldCups = new List<PrefabPayload>();
 
         /// <summary>
-        /// Загрузить модели стаканов игроков до партии и держать до её конца: в партии стаканы пересоздаются на местах
-        /// (смена мест в игре вдвоём) и должны ставиться сразу, без ожидания загрузки.
+        /// Загрузить модели стаканов и рукавов игроков до партии и держать до её конца: в партии они пересоздаются
+        /// на местах (смена мест в игре вдвоём) и должны ставиться сразу, без ожидания загрузки.
         /// </summary>
         public async UniTask PreloadCupsAsync(IReadOnlyList<MatchParticipant> participants, CancellationToken ct)
         {
             ReleaseCups();
             for (var i = 0; i < participants.Count && i < 2; i++)
             {
-                var cup = participants[i].Cup;
-                if (cup == null)
-                    continue;
-
-                var model = cup.Payload is PrefabPayload own && own.HasModel ? own
-                    : cup.Slot != null && cup.Slot.DefaultItem != null ? cup.Slot.DefaultItem.Payload as PrefabPayload : null;
-                if (model == null || _heldCups.Contains(model))
-                    continue;
-
-                if (await _assets.AcquireAsync(model, ct) != null)
-                    _heldCups.Add(model);
+                await HoldModelAsync(participants[i].Cup, ct);
+                await HoldModelAsync(participants[i].HandSleeve, ct);
+                await HoldModelAsync(participants[i].HandWrist, ct);
+                await HoldModelAsync(participants[i].HandLook, ct);
             }
+        }
+
+        /// <summary>Рука в облике участника: кожа, кисть, рукав, запястье.</summary>
+        private static void Dress(HandView hand, MatchParticipant participant)
+        {
+            hand.SetLook(participant.HandSkin, participant.HandLook, participant.HandSleeve, participant.HandWrist);
+        }
+
+        private async UniTask HoldModelAsync(CosmeticItemConfig item, CancellationToken ct)
+        {
+            if (item == null)
+                return;
+
+            var model = item.Payload is PrefabPayload own && own.HasModel ? own
+                : item.Slot != null && item.Slot.DefaultItem != null ? item.Slot.DefaultItem.Payload as PrefabPayload : null;
+            if (model == null || _heldCups.Contains(model))
+                return;
+
+            if (await _assets.AcquireAsync(model, ct) != null)
+                _heldCups.Add(model);
         }
 
         private void ReleaseCups()
@@ -84,7 +97,7 @@ namespace Zonk.Presentation
                     seat.CupAnchor.Show(cup, cup.Slot != null ? cup.Slot.DefaultItem : null);
 
                 CupOf(seat).ReturnHome();
-                seat.Hand.SetSkin(_participants[i].HandSkin);
+                Dress(seat.Hand, _participants[i]);
             }
         }
 
@@ -136,8 +149,8 @@ namespace Zonk.Presentation
 
             if (_participants != null && _participants.Count == 2)
             {
-                near.SetSkin(_participants[player].HandSkin);
-                far.SetSkin(_participants[1 - player].HandSkin);
+                Dress(near, _participants[player]);
+                Dress(far, _participants[1 - player]);
             }
 
             await UniTask.WhenAll(near.ReturnAsync(half, ct), far.ReturnAsync(half, ct));

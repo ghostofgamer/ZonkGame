@@ -194,7 +194,7 @@ namespace Zonk.Presentation
                     _table.Camera.MoveToAsync(CameraShots.Match, 0.45f / Speed, ct).Forget();
 
                 _table.Sound.Play(Sfx.DiceKeep, 0.5f);
-                await GrabCupAsync(hand, cup, 0.14f / Speed, ct);
+                await GrabCupAsync(hand, cup, seat.CupAnchor.ModelItem, 0.14f / Speed, ct);
                 StartCupDice(cup);
 
                 var hold = cup.transform.TransformPoint(_gripLocal);

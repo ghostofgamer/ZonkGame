@@ -358,10 +358,10 @@ namespace Zonk.Editor
             var tabs = new Dictionary<string, List<Price>>();
             foreach (var item in database.All<CosmeticItemConfig>())
             {
-                if (item.Slot == null || !item.Slot.ShowInShop || item.HiddenInShop)
+                if (item.TabSlot == null || !item.TabSlot.ShowInShop || item.HiddenInShop)
                     continue;
-                if (!tabs.TryGetValue(item.Slot.name, out var prices))
-                    tabs[item.Slot.name] = prices = new List<Price>();
+                if (!tabs.TryGetValue(item.TabSlot.name, out var prices))
+                    tabs[item.TabSlot.name] = prices = new List<Price>();
                 prices.Add(item.Price);
             }
 

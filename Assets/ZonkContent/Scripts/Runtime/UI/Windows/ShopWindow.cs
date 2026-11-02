@@ -32,6 +32,14 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _detailButtonTemplate;
         [SerializeField] private TMP_Text _detailTextTemplate;
 
+        [Tooltip("Шаблон строки кнопок мест (безделушки): места в одну строку. Пусто — старый префаб: кнопка на место столбиком")]
+        [SerializeField] private RectTransform _spotRowTemplate;
+
+        [Header("Вкладки: лента с прокруткой, ширина по слову (шрифт не сжимается и не переносится)")]
+        [SerializeField] private float _tabFontSize = 26f;
+        [SerializeField] private float _tabPadding = 44f;
+        [SerializeField] private float _tabMinWidth = 130f;
+
         private readonly Choice<bool> _close = new Choice<bool>();
         private ContentDatabase _content;
         private IInventory _inventory;
@@ -50,15 +58,21 @@ namespace Zonk.UI.Windows
         private bool _diceTab;
         private CosmeticSlotConfig _slot;
         private int _spot;
+
+        /// <summary>Слот последней примерки: примерка вещи другого слота той же вкладки возвращает его экипировку.</summary>
+        private CosmeticSlotConfig _previewSlot;
+
         private CancellationToken _ct;
         private CancellationTokenSource _previewCts;
         private UniTask _previewTask = UniTask.CompletedTask;
         private IDieMastery _mastery;
+        private IPlayerLevel _level;
 
         [Inject]
         public void Construct(ContentDatabase content, IInventory inventory, ILoadout loadout, ShopService shop, TableView table,
-            MatchPresenter presenter, UiKit kit, IDieMastery mastery)
+            MatchPresenter presenter, UiKit kit, IDieMastery mastery, [InjectOptional] IPlayerLevel level)
         {
+            _level = level;
             _mastery = mastery;
             _content = content;
             _inventory = inventory;
@@ -86,6 +100,13 @@ namespace Zonk.UI.Windows
             _detailButtonTemplate = detailButtonTemplate;
             _detailTextTemplate = detailTextTemplate;
         }
+
+        public void EditorSetupSpotRow(RectTransform spotRowTemplate)
+        {
+            _spotRowTemplate = spotRowTemplate;
+        }
+
+        public bool HasSpotRow => _spotRowTemplate != null;
 #endif
 
         private void Awake()
@@ -95,6 +116,8 @@ namespace Zonk.UI.Windows
                 _cardTemplate.gameObject.SetActive(false);
             _detailButtonTemplate.gameObject.SetActive(false);
             _detailTextTemplate.gameObject.SetActive(false);
+            if (_spotRowTemplate != null)
+                _spotRowTemplate.gameObject.SetActive(false);
             _back.OnClick(() => _close.Set(true));
         }
 
@@ -119,6 +142,7 @@ namespace Zonk.UI.Windows
                 var captured = slot;
                 var tab = _tabTemplate.Spawn(_tabs);
                 tab.SetText(T(slot.NameKey));
+                FitTab(tab);
                 tab.OnClick(() => SelectSlot(captured));
             }
 
@@ -129,6 +153,7 @@ namespace Zonk.UI.Windows
             {
                 var diceTab = _tabTemplate.Spawn(_tabs);
                 diceTab.SetText(T("shop.dice"));
+                FitTab(diceTab);
                 diceTab.OnClick(SelectDice);
             }
 
@@ -136,6 +161,7 @@ namespace Zonk.UI.Windows
             {
                 var themes = _tabTemplate.Spawn(_tabs);
                 themes.SetText(T("shop.themes"));
+                FitTab(themes);
                 themes.OnClick(() => SelectSlot(null));
             }
 
@@ -144,10 +170,33 @@ namespace Zonk.UI.Windows
             {
                 var coinsTab = _tabTemplate.Spawn(_tabs);
                 coinsTab.SetText(T("shop.coins"));
+                FitTab(coinsTab);
                 coinsTab.OnClick(SelectCoins);
             }
 
             _back.transform.SetAsLastSibling();
+        }
+
+        /// <summary>
+        /// Вкладка шириной по своему слову: шрифт одного размера, без сжатия и переноса. Вкладки — лента с прокруткой
+        /// (в старом префабе без прокрутки ряд просто растягивает их, как раньше). Окно открывается редко: можно выделять память.
+        /// </summary>
+        private void FitTab(UiButtonView tab)
+        {
+            var label = tab.Label;
+            if (label == null)
+                return;
+
+            label.enableAutoSizing = false;
+            label.textWrappingMode = TextWrappingModes.NoWrap;
+            label.fontSize = _tabFontSize;
+            var width = Mathf.Max(_tabMinWidth, label.GetPreferredValues(label.text).x + _tabPadding);
+            var layout = tab.GetComponent<UnityEngine.UI.LayoutElement>();
+            if (layout == null)
+                layout = tab.gameObject.AddComponent<UnityEngine.UI.LayoutElement>();
+            layout.minWidth = width;
+            layout.preferredWidth = width;
+            layout.flexibleWidth = 0f;
         }
 
         /// <param name="focus">Что показать сразу: набор (особое предложение из меню), кость или предмет.</param>
@@ -164,8 +213,8 @@ namespace Zonk.UI.Windows
                     SelectDice();
                     SelectItem(focus);
                     break;
-                case CosmeticItemConfig item when item.Slot != null:
-                    SelectSlot(item.Slot);
+                case CosmeticItemConfig item when item.TabSlot != null:
+                    SelectSlot(item.TabSlot);
                     SelectItem(item);
                     break;
                 default:
@@ -200,7 +249,7 @@ namespace Zonk.UI.Windows
             IReadOnlyList<ContentConfig> entries = _themes;
             if (slot != null)
             {
-                var items = _content.All<CosmeticItemConfig>().FindAll(i => i.Slot == slot && (!i.HiddenInShop || _inventory.IsOwned(i)));
+                var items = _content.All<CosmeticItemConfig>().FindAll(i => i.TabSlot == slot && (!i.HiddenInShop || _inventory.IsOwned(i)));
                 items.Sort((a, b) => a.Order.CompareTo(b.Order));
                 entries = items;
             }
@@ -423,7 +472,13 @@ namespace Zonk.UI.Windows
                 {
                     // Места: поставить на выбранное место или убрать с него; стоит на другом — подсказка.
                     var placedAt = _loadout.SpotOf(onSpots);
-                    if (placedAt == _spot)
+                    if (_spot >= _loadout.SpotCount(onSpots.Slot))
+                    {
+                        // Закрытое место: только посмотреть (подсказка с талантом — в строке мест).
+                        if (placedAt >= 0)
+                            DetailText(T("shop.onSpotNow", placedAt + 1), UiColors.TextMuted);
+                    }
+                    else if (placedAt == _spot)
                     {
                         DetailButton(T("shop.removeFromSpot"), UiColors.ButtonMuted, () =>
                         {
@@ -474,7 +529,7 @@ namespace Zonk.UI.Windows
             {
                 if (option is ProgressPriceOption progress)
                 {
-                    DetailText(T(string.IsNullOrEmpty(progress.HintKey) ? "shop.fromProgress" : progress.HintKey), UiColors.TextMuted);
+                    DetailText(RewardNames.ProgressHint(item, progress, _level, T) ?? T("shop.fromProgress"), UiColors.TextMuted);
                     continue;
                 }
 
@@ -624,8 +679,45 @@ namespace Zonk.UI.Windows
             return spot <= 0 ? slot.CameraShotId : slot.CameraShotId + "_" + (spot + 1);
         }
 
-        /// <summary>Кнопки мест: выбранное — ярче, закрытые — с названием таланта, который их открывает.</summary>
+        /// <summary>
+        /// Кнопки мест одной строкой: выбранное ярче, закрытые приглушены, но их можно выбрать — камера покажет место,
+        /// вещь примерится на нём; поставить нельзя, подсказка называет талант. Старый префаб без строки — столбиком.
+        /// </summary>
         private void AddSpotButtons(CosmeticItemConfig item)
+        {
+            if (_spotRowTemplate == null)
+            {
+                AddSpotButtonsColumn(item);
+                return;
+            }
+
+            var slot = item.Slot;
+            var open = _loadout.SpotCount(slot);
+            var max = _loadout.MaxSpots(slot);
+            var row = Instantiate(_spotRowTemplate, _details);
+            row.gameObject.SetActive(true);
+            for (var spot = 0; spot < max; spot++)
+            {
+                var index = spot;
+                var color = spot == _spot ? UiColors.ButtonAccent : spot < open ? UiColors.Button : UiColors.ButtonMuted;
+                var button = _detailButtonTemplate.Spawn(row);
+                button.SetText(T("shop.spot", spot + 1));
+                button.SetColor(color);
+                button.OnClick(() =>
+                {
+                    _spot = index;
+                    SelectSlot(_slot);
+                    SelectItem(item);
+                });
+                button.Interactable = spot != _spot;
+            }
+
+            if (open < max)
+                DetailText(T(_spot >= open ? "shop.spotLockedNow" : "shop.spotsLocked", SpotTalentName()), UiColors.TextMuted);
+        }
+
+        /// <summary>Старый префаб: кнопка на каждое место столбиком, закрытые — с названием таланта.</summary>
+        private void AddSpotButtonsColumn(CosmeticItemConfig item)
         {
             var slot = item.Slot;
             var open = _loadout.SpotCount(slot);
@@ -673,6 +765,10 @@ namespace Zonk.UI.Windows
                     PreviewRollStyle(rollStyle.Style);
                     break;
                 case CosmeticItemConfig cosmetic:
+                    // Во вкладке вещи разных слотов (рукав и кожа): примерка другого слота возвращает прошлый.
+                    if (_previewSlot != null && _previewSlot != cosmetic.Slot)
+                        _table.Stage.Apply(_previewSlot, _loadout.GetEquipped(_previewSlot));
+                    _previewSlot = cosmetic.Slot;
                     if (HasSpots(cosmetic.Slot))
                         _table.Stage.ShowAtSpot(cosmetic.Slot, _spot, cosmetic);
                     else
@@ -754,7 +850,7 @@ namespace Zonk.UI.Windows
                 {
                     var level = _inventory.IsOwned(look) ? _mastery.GetLevel(look) : 0;
                     var info = _mastery.GetLevelInfo(level);
-                    die.SetLook(look.LookMesh, DiceSetView.LookFor(look, level));
+                    die.SetLook(look.LookMesh, DiceSetView.LookFor(look, level), look.LookAccent);
                     die.SetMarker(look.MarkerColor);
                     die.SetGlow(info != null ? info.Glow : 1f);
                 }
@@ -767,8 +863,11 @@ namespace Zonk.UI.Windows
         {
             foreach (Transform child in _details)
             {
-                if (child != _detailButtonTemplate.transform && child != _detailTextTemplate.transform)
+                if (child != _detailButtonTemplate.transform && child != _detailTextTemplate.transform &&
+                    (_spotRowTemplate == null || child != _spotRowTemplate.transform))
+                {
                     Destroy(child.gameObject);
+                }
             }
         }
     }

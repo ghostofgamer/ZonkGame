@@ -73,6 +73,10 @@ namespace Zonk.Presentation
             if (opponent != null && opponent.Accessory != null)
                 _accessory = Instantiate(opponent.Accessory, _accessoryAnchor, false);
 
+            if (_gestureHand != null)
+                _gestureHand.SetLook(opponent != null ? opponent.HandSkin : null, opponent != null ? opponent.HandLook : null,
+                    opponent != null ? opponent.HandSleeve : null, opponent != null ? opponent.HandWrist : null);
+
             StartIdle();
         }
 

@@ -77,6 +77,9 @@ namespace Zonk.Progress
             while (data.Players.Count < PlayerCount)
                 data.Players.Add(new HotSeatPlayerSave());
 
+            for (var i = 1; i < data.Players.Count; i++)
+                data.Players[i].Preset = HotSeatPlayerSave.OwnDice;
+
             foreach (var player in data.Players)
             {
                 if (player.Dice == null)

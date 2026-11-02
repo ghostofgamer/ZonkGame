@@ -730,8 +730,16 @@ namespace Zonk.Editor.Setup
         /// <summary>Вид кости на уровнях мастерства: только если список ещё пуст (свои материалы не затираются).</summary>
         private static void SetMasteryLooks(DieConfig die, string lookName, List<MasteryLevel> levels)
         {
-            if (die == null || die.MasteryLooks.Count > 0)
+            if (die == null)
                 return;
+
+            // Уже заполнено: только проверить текстуры (BuildMasteryLook перерисует устаревшие), список не трогать.
+            if (die.MasteryLooks.Count > 0)
+            {
+                for (var level = 1; level <= levels.Count; level++)
+                    BuildMasteryLook(lookName, level, levels[level - 1].Color);
+                return;
+            }
 
             for (var level = 1; level <= levels.Count; level++)
                 die.MasteryLooks.Add(BuildMasteryLook(lookName, level, levels[level - 1].Color));

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Base.Services.Quality;
 using Cysharp.Threading.Tasks;
@@ -18,6 +19,18 @@ namespace Zonk.Configs
 
         /// <summary>Вспышка света поверх профиля: цвет, сила, длительность (сек).</summary>
         public Func<Color, float, float, CancellationToken, UniTask> Flash;
+
+        /// <summary>
+        /// Наклон лампы слота (ID слота, наклон по X и Z в градусах, высота точки подвеса над якорем): лампа качается
+        /// вокруг подвеса, прожектор над столом — вместе с ней. Ноль — на место.
+        /// </summary>
+        public Action<string, float, float, float> SwayLamp;
+
+        /// <summary>Источники света в предметах на столе (лампа, локация); список живой — меняется со сменой предметов.</summary>
+        public IReadOnlyList<SceneLight> Lights;
+
+        /// <summary>Множитель яркости прожектора над столом (мерцание лампы). 1 — как в профиле.</summary>
+        public Action<float> FlickerTableLight;
     }
 
     /// <summary>
@@ -128,6 +141,120 @@ namespace Zonk.Configs
                     return;
                 context.Sound.Play(Sfx.Thunder, 0.8f);
             }
+        }
+    }
+
+    /// <summary>
+    /// Качание лампы над столом (сквозняк, качка корабля): лампа медленно ходит вокруг точки подвеса, а с ней свет
+    /// и прожектор — ступени света гуляют по столу. Две синусоиды с несоизмеримыми периодами по двум осям: движение
+    /// не повторяется явно. Слабо (1–2°), чтобы кости на столе читались; на корабле сильнее.
+    /// Каждый кадр — только математика и поворот одного объекта, без выделения памяти.
+    /// </summary>
+    [Serializable]
+    public sealed class LampSwayEffect : AtmosphereEffect
+    {
+        [Tooltip("ID слота лампы (CosmeticSlotConfig.Id)")]
+        public string LampSlot = "lamp";
+
+        [Tooltip("Наибольший наклон, градусы: по X (к игроку и от него) и по Z (влево-вправо)")]
+        public Vector2 Amplitude = new Vector2(1.5f, 1f);
+
+        [Tooltip("Период качания, секунды. Вторая ось и вторая волна — с несоизмеримыми периодами, чтобы движение не повторялось")]
+        [Min(0.5f)] public float Period = 5f;
+
+        [Tooltip("Доля второй, быстрой волны (дрожь поверх плавного качания): 0 — только плавно")]
+        [Range(0f, 1f)] public float Jitter = 0.25f;
+
+        [Tooltip("Высота точки подвеса над якорем лампы, м: чем выше, тем больше лампа сдвигается вбок")]
+        [Min(0f)] public float PivotAbove = 1.2f;
+
+        public override async UniTask RunAsync(AtmosphereContext context, CancellationToken ct)
+        {
+            if (context.SwayLamp == null)
+                return;
+
+            var phase = Random.value * 100f;
+            try
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    var t = Time.time + phase;
+                    var w = 2f * Mathf.PI / Mathf.Max(Period, 0.5f);
+                    var x = Mathf.Sin(t * w) * (1f - Jitter) + Mathf.Sin(t * w * 2.71f + 1.3f) * Jitter;
+                    var z = Mathf.Sin(t * w * 0.77f + 2.1f) * (1f - Jitter) + Mathf.Sin(t * w * 3.13f) * Jitter;
+                    context.SwayLamp(LampSlot, x * Amplitude.x, z * Amplitude.y, PivotAbove);
+                    await UniTask.Yield();
+                }
+            }
+            finally
+            {
+                context.SwayLamp(LampSlot, 0f, 0f, PivotAbove);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Мерцание огня: яркость ламп и свечей (SceneLight) и прожектора над столом слегка гуляет — живое пламя
+    /// или дрожащая лампочка. Шум Перлина, у каждого источника своя фаза; насколько дрожит источник — его
+    /// SceneLight.FlickerWeight (электрическая лампа может не мерцать). Без выделения памяти.
+    /// </summary>
+    [Serializable]
+    public sealed class LightFlickerEffect : AtmosphereEffect
+    {
+        [Tooltip("Насколько гуляет яркость, доля: 0.08 — ±8%")]
+        [Range(0f, 0.5f)] public float Amount = 0.08f;
+
+        [Tooltip("Скорость мерцания: 1 — спокойное масляное пламя, 3 — трепещущая свеча")]
+        [Min(0.05f)] public float Speed = 1.5f;
+
+        [Tooltip("Мерцает ли прожектор над столом (свет лампы на столе) вместе с лампами")]
+        public bool TableLight = true;
+
+        public override async UniTask RunAsync(AtmosphereContext context, CancellationToken ct)
+        {
+            var seed = Random.value * 100f;
+            try
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    var t = Time.time * Speed;
+                    var lights = context.Lights;
+                    if (lights != null)
+                    {
+                        for (var i = 0; i < lights.Count; i++)
+                        {
+                            if (lights[i] != null)
+                                lights[i].SetFlicker(1f + Amount * Noise(t, seed + i * 7.31f));
+                        }
+                    }
+
+                    if (TableLight && context.FlickerTableLight != null)
+                        context.FlickerTableLight(1f + Amount * Noise(t, seed));
+                    await UniTask.Yield();
+                }
+            }
+            finally
+            {
+                var lights = context.Lights;
+                if (lights != null)
+                {
+                    for (var i = 0; i < lights.Count; i++)
+                    {
+                        if (lights[i] != null)
+                            lights[i].SetFlicker(1f);
+                    }
+                }
+
+                context.FlickerTableLight?.Invoke(1f);
+            }
+        }
+
+        /// <summary>Шум −1..1: плавная волна и быстрая дрожь поверх.</summary>
+        private static float Noise(float t, float seed)
+        {
+            var slow = Mathf.PerlinNoise(t, seed) * 2f - 1f;
+            var fast = Mathf.PerlinNoise(t * 4.3f, seed + 31.7f) * 2f - 1f;
+            return slow * 0.7f + fast * 0.3f;
         }
     }
 }

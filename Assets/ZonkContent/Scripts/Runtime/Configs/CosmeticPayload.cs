@@ -65,4 +65,10 @@ namespace Zonk.Configs
     {
         public Sprite Sprite;
     }
+
+    /// <summary>«Ничего»: якорь слота пуст (без часов, без перчатки). Обычно — предмет слота по умолчанию.</summary>
+    [Serializable]
+    public sealed class EmptyPayload : CosmeticPayload
+    {
+    }
 }

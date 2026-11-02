@@ -32,6 +32,9 @@ namespace Zonk.Configs
 
         public Mesh LookMesh;
 
+        [Tooltip("Материал накладок модели (вторая часть LookMesh: оковка, камни, кайма). Пусто — как тело")]
+        public Material LookAccent;
+
         [Tooltip("Вид кости на уровнях мастерства: [0] — первый уровень и т.д. Пусто = LookMaterial")]
         public List<Material> MasteryLooks = new List<Material>();
 

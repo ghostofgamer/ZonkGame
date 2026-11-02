@@ -55,6 +55,9 @@ namespace Zonk.Progress
         /// <summary>Переключиться на набор. Пустой набор начинается с текущих костей.</summary>
         void SelectPreset(int index);
 
+        /// <summary>Кости набора index, не переключаясь на него (игра вдвоём: «игрок 1 играет набором 2»). Пустой — текущие.</summary>
+        IReadOnlyList<DieConfig> GetPresetDice(int index);
+
         event Action Changed;
     }
 
@@ -174,7 +177,8 @@ namespace Zonk.Progress
         {
             if (item == null || item.Slot == null || !_inventory.IsOwned(item))
                 return;
-            if (spot <= 0 || item.Slot.MultiSelect || spot >= MaxSpots(item.Slot))
+            // Закрытое место (не открыто талантом) — на основное: в магазине закрытое место можно только посмотреть.
+            if (spot <= 0 || item.Slot.MultiSelect || spot >= SpotCount(item.Slot))
             {
                 Equip(item);
                 return;
@@ -381,6 +385,18 @@ namespace Zonk.Progress
             data.Dice = new List<string>(target.Dice);
             _saves.RequestSave();
             Changed?.Invoke();
+        }
+
+        public IReadOnlyList<DieConfig> GetPresetDice(int index)
+        {
+            var data = Data;
+            if (index < 0 || index >= PresetCount || index == ActiveIndex(data) || index >= data.Presets.Count ||
+                data.Presets[index].Dice.Count == 0)
+            {
+                return GetDice();
+            }
+
+            return ResolveDice(data.Presets[index].Dice, _content, _config, _inventory);
         }
 
         private int ActiveIndex(LoadoutSave data)

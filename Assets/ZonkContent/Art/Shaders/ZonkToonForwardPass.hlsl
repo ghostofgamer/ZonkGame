@@ -10,6 +10,9 @@ struct Attributes
 {
     float4 positionOS : POSITION;
     float3 normalOS : NORMAL;
+#if defined(_NORMALMAP)
+    float4 tangentOS : TANGENT;
+#endif
     float2 texcoord : TEXCOORD0;
     UNITY_VERTEX_INPUT_INSTANCE_ID
 };
@@ -21,6 +24,9 @@ struct Varyings
     float3 positionWS : TEXCOORD1;
     half3 normalWS : TEXCOORD2;
     half fogFactor : TEXCOORD3;
+#if defined(_NORMALMAP)
+    half4 tangentWS : TEXCOORD4;    // w — знак битангенса
+#endif
     UNITY_VERTEX_INPUT_INSTANCE_ID
     UNITY_VERTEX_OUTPUT_STEREO
 };
@@ -33,7 +39,12 @@ Varyings ToonVertex(Attributes input)
     UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
     VertexPositionInputs position = GetVertexPositionInputs(input.positionOS.xyz);
+#if defined(_NORMALMAP)
+    VertexNormalInputs normal = GetVertexNormalInputs(input.normalOS, input.tangentOS);
+    output.tangentWS = half4(normal.tangentWS, input.tangentOS.w * GetOddNegativeScale());
+#else
     VertexNormalInputs normal = GetVertexNormalInputs(input.normalOS);
+#endif
     output.positionCS = position.positionCS;
     output.positionWS = position.positionWS;
     output.normalWS = normal.normalWS;
@@ -89,7 +100,16 @@ half4 ToonFragment(Varyings input) : SV_Target
     clip(albedo.a - _Cutoff);
 #endif
 
-    half3 normalWS = normalize(input.normalWS);
+    half3 surfaceWS = normalize(input.normalWS);
+    half3 normalWS = surfaceWS;
+#if defined(_NORMALMAP)
+    // Рельеф из карты нормалей (канавки, швы, плетение): свет ламп и солнца ложится в него ступенями.
+    // Сила рельефа заложена в саму карту (zonk_normals.py): без своего свойства в блоке материала — блок как у шейдера
+    // без рельефа (с ним у костей, которые рисуются со своим MaterialPropertyBlock, ломалась отрисовка).
+    half3 normalTS = SampleNormal(input.uv, TEXTURE2D_ARGS(_BumpMap, sampler_BumpMap), 1.0h);
+    half3 bitangentWS = input.tangentWS.w * cross(surfaceWS, input.tangentWS.xyz);
+    normalWS = NormalizeNormalPerPixel(TransformTangentToWorld(normalTS, half3x3(input.tangentWS.xyz, bitangentWS, surfaceWS)));
+#endif
     half3 viewWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
 
     InputData inputData = (InputData)0;
@@ -115,8 +135,12 @@ half4 ToonFragment(Varyings input) : SV_Target
     uint lightCount = GetAdditionalLightsCount();
     LIGHT_LOOP_BEGIN(lightCount)
         Light lamp = GetAdditionalLight(lightIndex, input.positionWS, shadowMask);
-        half lampLight = saturate(dot(normalWS, lamp.direction)) * lamp.distanceAttenuation * lamp.shadowAttenuation;
-        lighting += lamp.color * ToonLevels(lampLight);
+        // Ступени — по настоящей яркости: сила лампы в URP живёт в цвете, а distanceAttenuation — только спад 1/d².
+        // Раньше ступени считались без силы, и лампа в 3 м давала меньше первого порога (0.12) — света не было вовсе.
+        // Ярче 1 — без ступеней, просто ярче (центр пятна под лампой).
+        half strength = max(max(lamp.color.r, lamp.color.g), max(lamp.color.b, 0.0001h));
+        half lampLight = saturate(dot(normalWS, lamp.direction)) * lamp.distanceAttenuation * lamp.shadowAttenuation * strength;
+        lighting += lamp.color * (ToonLevels(saturate(lampLight)) * max(lampLight, 1.0h) / strength);
     LIGHT_LOOP_END
 #endif
 
@@ -124,7 +148,8 @@ half4 ToonFragment(Varyings input) : SV_Target
     half3 color = albedo.rgb * (lighting + ambient) + specular * lerp(half3(1.0h, 1.0h, 1.0h), albedo.rgb, _Metallic);
 
     // Кромка по силуэту: отделяет стакан и кости от фона.
-    half rim = 1.0h - saturate(dot(normalWS, viewWS));
+    // По нормали поверхности, не по рельефу: иначе кромка рябит по канавкам.
+    half rim = 1.0h - saturate(dot(surfaceWS, viewWS));
     half rimMask = smoothstep(_ZonkToonRim.x - 0.04h, _ZonkToonRim.x + 0.04h, rim)
         * lerp(_ZonkToonRim.z, 1.0h, ToonStep(light, _ZonkToonBands.x));
     color += _ZonkToonRimColor.rgb * rimMask * _ZonkToonRim.y * _RimScale * _ZonkToonBlend;

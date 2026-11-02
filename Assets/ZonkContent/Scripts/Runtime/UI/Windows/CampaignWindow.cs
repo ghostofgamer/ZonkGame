@@ -32,6 +32,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private TMP_Text _myDiceLabel;
         [SerializeField] private DiceLoadoutView _myDice;
         [SerializeField] private DicePresetsView _presets;
+
+        [Tooltip("«Изменить»: окно «Мои кости» на столе. Пусто — нет: старый префаб, кости меняются рядом кнопок")]
+        [SerializeField] private UiButtonView _editDice;
         [SerializeField] private UnityEngine.UI.Image _portrait;
         [SerializeField] private TMP_Text _stakeLabel;
         [SerializeField] private RectTransform _stakeList;
@@ -62,6 +65,9 @@ namespace Zonk.UI.Windows
         }
 
         public ChapterConfig Chapter { get; private set; }
+
+        /// <summary>Игрок нажал «Изменить» кости: окно закрывается без соперника, кампания откроет «Мои кости» и вернётся.</summary>
+        public bool EditDiceRequested { get; private set; }
 
 #if UNITY_EDITOR
         public void EditorSetup(UiButtonView previousChapter, UiButtonView nextChapter, TMP_Text chapterTitle,
@@ -99,6 +105,12 @@ namespace Zonk.UI.Windows
             _previousChapter.OnClick(() => ShowChapter(_chapterIndex - 1));
             _nextChapter.OnClick(() => ShowChapter(_chapterIndex + 1));
             _back.OnClick(() => _choice.Set(null));
+            if (_editDice != null)
+                _editDice.OnClick(() =>
+                {
+                    EditDiceRequested = true;
+                    _choice.Set(null);
+                });
             _play.OnClick(() =>
             {
                 if (_selected != null)
@@ -115,6 +127,8 @@ namespace Zonk.UI.Windows
             StarsText.Prepare(_info, config.Ui);
             _back.SetText(T("ui.back"));
             _myDiceLabel.text = T("campaign.myDice");
+            if (_editDice != null)
+                _editDice.SetText(T("dice.edit"));
             ShowDice(loadout, config, ownedDice);
             BuildStakes();
             if (_presets != null)
