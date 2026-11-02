@@ -22,10 +22,13 @@ namespace Zonk.Configs
 
         public Sprite Portrait;
 
-        [Tooltip("Цвет силуэта заглушки")]
+        [Tooltip("Оттенок края дыма тени")]
         public Color BodyColor = new Color(0.25f, 0.25f, 0.3f);
 
-        [Tooltip("Аксессуар на голову заглушки: шляпа, повязка")]
+        [Tooltip("Цвет глаз тени. У босса глаза красные (OpponentAvatarView)")]
+        public Color EyeColor = new Color(1f, 0.74f, 0.15f, 1f);
+
+        [Tooltip("Аксессуар на голову тени: шляпа, повязка")]
         public GameObject Accessory;
 
         public bool IsBoss;

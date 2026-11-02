@@ -23,6 +23,35 @@ namespace Zonk.Presentation
         [SerializeField] private Renderer[] _bodyRenderers = Array.Empty<Renderer>();
         [SerializeField] private Transform _slamPoint;
 
+        [Header("Дымная тень (Zonk/ShadowSmoke). Пусто — старая фигура из примитивов")]
+        [SerializeField] private Renderer _smoke;
+        [SerializeField] private Camera _camera;
+
+        [Tooltip("Руки дыма тянутся к этим рукам (дальняя рука партии и рука жестов)")]
+        [SerializeField] private HandView _wristLeft;
+        [SerializeField] private HandView _wristRight;
+
+        [Tooltip("Рукав начинается на столько метров позади центра ладони")]
+        [SerializeField] private float _wristBack = 0.45f;
+
+        [Tooltip("Точка головы на плоскости дыма, метры от центра плоскости")]
+        [SerializeField] private Vector2 _smokeHead = new Vector2(0f, 0.9f);
+
+        [Tooltip("Метров в одной единице шейдера (радиус головы около 0.5 единицы)")]
+        [SerializeField] private float _smokeUnit = 0.9f;
+
+        [Header("Глаза")]
+        [SerializeField] private Color _bossEyes = new Color(1f, 0.2f, 0.1f, 1f);
+        [SerializeField] private float _lookAmount = 0.12f;
+
+        private static readonly int WristLeftId = Shader.PropertyToID("_WristL");
+        private static readonly int WristRightId = Shader.PropertyToID("_WristR");
+        private static readonly int EyeColorId = Shader.PropertyToID("_EyeColor");
+        private static readonly int EyeOpenId = Shader.PropertyToID("_EyeOpen");
+        private static readonly int EyeSizeId = Shader.PropertyToID("_EyeSize");
+        private static readonly int EyeAngleId = Shader.PropertyToID("_EyeAngle");
+        private static readonly int EyeShiftId = Shader.PropertyToID("_EyeShift");
+
         private GameObject _accessory;
         private Vector3 _bodyRest;
         private Quaternion _headRest;
@@ -42,6 +71,18 @@ namespace Zonk.Presentation
             _gestureHand = gestureHand;
             _bodyRenderers = bodyRenderers;
             _slamPoint = slamPoint;
+        }
+
+        public void EditorSetupSmoke(Renderer smoke, HandView wristLeft, HandView wristRight)
+        {
+            _smoke = smoke;
+            _wristLeft = wristLeft;
+            _wristRight = wristRight;
+        }
+
+        public void EditorSetCamera(Camera camera)
+        {
+            _camera = camera;
         }
 #endif
 
@@ -65,8 +106,12 @@ namespace Zonk.Presentation
             {
                 bodyRenderer.GetPropertyBlock(_block);
                 _block.SetColor(BaseColorId, opponent != null ? opponent.BodyColor : Color.gray);
+                if (bodyRenderer == _smoke && opponent != null)
+                    _block.SetColor(EyeColorId, opponent.IsBoss ? _bossEyes : opponent.EyeColor);
                 bodyRenderer.SetPropertyBlock(_block);
             }
+
+            SetEyes(1f, 1f, DefaultEyeAngle);
 
             if (_accessory != null)
                 Destroy(_accessory);
@@ -91,6 +136,87 @@ namespace Zonk.Presentation
             if (!gameObject.activeInHierarchy)
                 return;
 
+            SetEyesFor(gesture);
+            try
+            {
+                await PlayGestureAsync(gesture, ct);
+            }
+            finally
+            {
+                if (this != null)
+                    SetEyes(1f, 1f, DefaultEyeAngle);
+            }
+        }
+
+        private const float DefaultEyeAngle = 0.25f;
+
+        /// <summary>Настроение глаз на время жеста: дым ничего не показывает, кроме глаз.</summary>
+        private void SetEyesFor(AvatarGesture gesture)
+        {
+            switch (gesture)
+            {
+                case AvatarGesture.Angry:
+                case AvatarGesture.SlamTable:
+                case AvatarGesture.SlamTwice:
+                    SetEyes(0.62f, 1.1f, 0.75f);
+                    break;
+                case AvatarGesture.Cheer:
+                case AvatarGesture.Shrug:
+                    SetEyes(1.3f, 1.35f, 0f);
+                    break;
+                case AvatarGesture.Laugh:
+                    SetEyes(0.4f, 1.25f, -0.5f);
+                    break;
+                case AvatarGesture.Think:
+                    SetEyes(0.8f, 1f, 0.1f);
+                    break;
+            }
+        }
+
+        private void SetEyes(float open, float size, float angle)
+        {
+            if (_smoke == null)
+                return;
+
+            _smoke.GetPropertyBlock(_block);
+            _block.SetFloat(EyeOpenId, open);
+            _block.SetFloat(EyeSizeId, size);
+            _block.SetFloat(EyeAngleId, angle);
+            _smoke.SetPropertyBlock(_block);
+        }
+
+        /// <summary>Руки дыма — к рукавам: точка рукава проецируется от камеры на плоскость дыма. Голова поворачивает взгляд.</summary>
+        private void LateUpdate()
+        {
+            if (_smoke == null || _camera == null)
+                return;
+
+            _smoke.GetPropertyBlock(_block);
+            if (_wristLeft != null)
+                _block.SetVector(WristLeftId, WristInSmoke(_wristLeft));
+            if (_wristRight != null)
+                _block.SetVector(WristRightId, WristInSmoke(_wristRight));
+
+            var look = _head.localRotation * Vector3.forward;
+            _block.SetVector(EyeShiftId, new Vector4(look.x * _lookAmount, look.y * _lookAmount, 0f, 0f));
+            _smoke.SetPropertyBlock(_block);
+        }
+
+        private Vector4 WristInSmoke(HandView hand)
+        {
+            var quad = _smoke.transform;
+            var cameraPoint = _camera.transform.position;
+            var hit = hand.transform.TransformPoint(0f, 0f, -_wristBack);
+            var direction = hit - cameraPoint;
+            var along = Vector3.Dot(quad.position - cameraPoint, quad.forward) / Mathf.Max(0.001f, Vector3.Dot(direction, quad.forward));
+            var world = cameraPoint + direction * along - quad.position;
+            var x = Vector3.Dot(world, quad.right) - _smokeHead.x;
+            var y = Vector3.Dot(world, quad.up) - _smokeHead.y;
+            return new Vector4(x / _smokeUnit, y / _smokeUnit, 0f, 0f);
+        }
+
+        private async UniTask PlayGestureAsync(AvatarGesture gesture, CancellationToken ct)
+        {
             switch (gesture)
             {
                 case AvatarGesture.Think:

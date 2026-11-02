@@ -102,9 +102,10 @@ namespace Zonk.Editor.Setup
             }
             anchors.Add(northCup);
 
-            var opponent = BuildOpponent();
+            var opponent = BuildOpponent(north.Hand);
             var dice = BuildDice();
             var rig = BuildCameraRig();
+            opponent.EditorSetCamera(rig.Camera);
 
             var stage = new GameObject("Stage").AddComponent<CosmeticStage>();
             stage.EditorSetup(anchors, dice, south.Hand);
@@ -310,29 +311,25 @@ namespace Zonk.Editor.Setup
             return hand;
         }
 
-        /// <summary>Соперник напротив: силуэт, голова с глазами, свободная рука для жестов.</summary>
-        private static OpponentAvatarView BuildOpponent()
+        /// <summary>Соперник напротив: дымная тень (одна плоскость, шейдер Zonk/ShadowSmoke), точка аксессуара, свободная рука для жестов.</summary>
+        private static OpponentAvatarView BuildOpponent(HandView northHand)
         {
-            var silhouette = AssetDatabase.LoadAssetAtPath<Material>(Materials + "/M_Silhouette.mat");
-            var eyes = AssetDatabase.LoadAssetAtPath<Material>(Materials + "/M_Eyes.mat");
-
             var root = new GameObject("Opponent");
             root.transform.position = new Vector3(0f, 0f, 2.9f);
-            var body = Prim(PrimitiveType.Capsule, "Body", root.transform, new Vector3(0f, 0.5f, 0f), new Vector3(1.3f, 1.05f, 0.8f), silhouette);
-            var head = Prim(PrimitiveType.Sphere, "Head", root.transform, new Vector3(0f, 1.95f, 0f), Vector3.one * 0.75f, silhouette);
-            foreach (var x in new[] { -0.17f, 0.17f })
-                Prim(PrimitiveType.Sphere, "Eye", head.transform, new Vector3(x, 0.08f, -0.42f), Vector3.one * 0.14f, eyes);
+            var body = Empty("Body", root.transform, Vector3.zero);
+            var smoke = BuildShadowSmoke(body.transform);
 
-            var accessory = Empty("AccessoryAnchor", head.transform, new Vector3(0f, 0.45f, 0f));
-            accessory.transform.localScale = Vector3.one / 0.75f;
+            var head = Empty("Head", body.transform, ShadowHeadPoint);
+            head.transform.localScale = Vector3.one * 1.25f;
+            var accessory = Empty("AccessoryAnchor", head.transform, new Vector3(0f, 0.34f, 0f));
 
             var handRest = Empty("GestureHandRest", root.transform, new Vector3(0.9f, 0.16f, -0.8f), new Vector3(0f, 200f, 0f));
             var hand = BuildHand("GestureHand", root.transform, handRest.transform);
             var slam = Empty("SlamPoint", root.transform, new Vector3(0.7f, 0.15f, -1.1f));
 
             var avatar = root.AddComponent<OpponentAvatarView>();
-            avatar.EditorSetup(body.transform, head.transform, accessory.transform, hand,
-                new Renderer[] { body.GetComponent<Renderer>(), head.GetComponent<Renderer>() }, slam.transform);
+            avatar.EditorSetup(body.transform, head.transform, accessory.transform, hand, new Renderer[] { smoke }, slam.transform);
+            avatar.EditorSetupSmoke(smoke, northHand, hand);
             root.SetActive(false);
             return avatar;
         }
@@ -377,7 +374,7 @@ namespace Zonk.Editor.Setup
                 Shot(shots, CameraShots.Match, new Vector3(0f, 4.1f, -4.9f), new Vector3(0f, -0.2f, 0.1f), 48f),
                 // Вид сверху ниже лампы (лампа на 3.6): абажур не закрывает кости, а кости крупнее на экране.
                 Shot(shots, CameraShots.Top, new Vector3(0f, 3.0f, -0.35f), new Vector3(0f, 0f, 0f), 58f),
-                Shot(shots, CameraShots.Opponent, new Vector3(0f, 1.9f, -1.6f), new Vector3(0f, 1.4f, 2.9f), 45f),
+                Shot(shots, CameraShots.Opponent, new Vector3(0f, 1.55f, -1.4f), new Vector3(0f, 0.72f, 2.9f), 45f),
                 Shot(shots, "shop_environment", new Vector3(6.5f, 4.5f, -9f), new Vector3(0f, 0.5f, 1.5f), 55f),
                 Shot(shots, "shop_table", new Vector3(4.2f, 2.6f, -4.6f), new Vector3(0f, -0.6f, 0f), 45f),
                 Shot(shots, "shop_tray", new Vector3(0f, 3.4f, -2.8f), new Vector3(0f, 0f, 0.1f), 45f),
