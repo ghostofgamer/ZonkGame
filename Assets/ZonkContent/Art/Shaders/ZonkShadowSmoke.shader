@@ -10,7 +10,7 @@ Shader "Zonk/ShadowSmoke"
         _Mask("Форма фигуры", 2D) = "white" {}
         _Noise("Шум", 2D) = "gray" {}
         _CoreColor("Цвет ядра", Color) = (0.018, 0.014, 0.026, 1)
-        _EdgeBrightness("Яркость края дыма", Range(0, 1)) = 0.5
+        _EdgeBrightness("Яркость края дыма", Range(0, 4)) = 1.7
         _Scroll("Скорость дыма вверх", Float) = 0.32
         _Warp("Изгиб фигуры", Float) = 0.75
         _Puffs("Рваность края", Float) = 0.85

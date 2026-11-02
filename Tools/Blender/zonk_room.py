@@ -171,6 +171,8 @@ def curtain(name, x_from, x_to, y, z_low, z_high, material, folds=7):
     for polygon in mesh.polygons:
         polygon.use_smooth = True
     obj = link(bpy.data.objects.new(name, mesh), material)
+    # Вторая сторона: иначе изнанка складок запекается чёрной.
+    obj.modifiers.new("s", "SOLIDIFY").thickness = 0.015
     return obj
 
 
@@ -206,8 +208,8 @@ def painting(kind):
     size = 128
     y, x = np.mgrid[0:size, 0:size] / size
     if kind == "boat":
-        image = np.zeros((size, size, 3)) + np.array([0.38, 0.55, 0.68])
-        image[y > 0.62] = (0.13, 0.27, 0.42)
+        image = np.zeros((size, size, 3)) + np.array([0.68, 0.82, 0.88])
+        image[y > 0.62] = (0.2, 0.42, 0.62)
         image[(np.abs(x - 0.5) < 0.24 - (0.74 - y) * 0.5) & (y > 0.54) & (y < 0.68)] = (0.25, 0.13, 0.07)
         image[(x > 0.5) & (x < 0.5 + (0.54 - y) * 0.75) & (y < 0.54) & (y > 0.2)] = (0.93, 0.88, 0.72)
         image[(x < 0.49) & (x > 0.49 - (0.54 - y) * 0.45) & (y < 0.54) & (y > 0.3)] = (0.78, 0.2, 0.17)
@@ -263,7 +265,7 @@ def rug_image():
     r = np.hypot(u, v)
     a = np.arctan2(v, u)
     # Ковёр спокойный: не спорит со столом. Тёмное вино и приглушённая охра.
-    wine, ochre, navy = np.array([0.24, 0.07, 0.075]), np.array([0.45, 0.32, 0.16]), np.array([0.12, 0.12, 0.2])
+    wine, ochre, navy = np.array([0.46, 0.14, 0.13]), np.array([0.66, 0.48, 0.24]), np.array([0.2, 0.2, 0.33])
     color = np.zeros((size, size, 3)) + wine
     color = np.where((r > 0.88)[..., None], ochre, color)
     color = np.where(((r > 0.76) & (r < 0.82))[..., None], ochre, color)
@@ -571,7 +573,8 @@ def lights():
     obj.rotation_euler = (math.radians(-52), 0, math.radians(-14))
 
     # Заполняющий тёплый свет: стены и ковёр не проваливаются в чёрное, под столом мягкая тень, а не дыра.
-    for (x, y, z, energy) in ((-3.6, -1.5, 3.4, 95), (3.2, -3.5, 3.4, 70), (0.4, BACK - 1.1, 3.0, 60), (-5.6, 2.2, 2.6, 42), (0, -5.5, 2.2, 55)):
+    # Спереди сильнее: стол снизу в кадре, а пол под ним не должен быть чёрной дырой.
+    for (x, y, z, energy) in ((-3.6, -1.5, 3.4, 110), (3.2, -3.5, 3.4, 95), (0.4, BACK - 1.1, 3.0, 60), (-5.6, 2.2, 2.6, 45), (0, -5.5, 2.2, 130), (0, -1.2, 0.9, 26)):
         fill = bpy.data.lights.new("Fill", "POINT")
         fill.energy = energy
         fill.color = (1.0, 0.8, 0.6)

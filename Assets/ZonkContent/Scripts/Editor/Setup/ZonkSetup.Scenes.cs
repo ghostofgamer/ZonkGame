@@ -375,7 +375,7 @@ namespace Zonk.Editor.Setup
                 // Вид сверху ниже лампы (лампа на 3.6): абажур не закрывает кости, а кости крупнее на экране.
                 Shot(shots, CameraShots.Top, new Vector3(0f, 3.0f, -0.35f), new Vector3(0f, 0f, 0f), 58f),
                 Shot(shots, CameraShots.Opponent, new Vector3(0f, 1.55f, -1.4f), new Vector3(0f, 0.72f, 2.9f), 45f),
-                Shot(shots, "shop_environment", new Vector3(6.5f, 4.5f, -9f), new Vector3(0f, 0.5f, 1.5f), 55f),
+                Shot(shots, "shop_environment", new Vector3(5.2f, 3.3f, -8.4f), new Vector3(0f, -1.3f, 1.2f), 50f),
                 Shot(shots, "shop_table", new Vector3(4.2f, 2.6f, -4.6f), new Vector3(0f, -0.6f, 0f), 45f),
                 Shot(shots, "shop_tray", new Vector3(0f, 3.4f, -2.8f), new Vector3(0f, 0f, 0.1f), 45f),
                 // Стакан — выше центра кадра и меньше: нижнюю треть экрана занимает панель магазина,
