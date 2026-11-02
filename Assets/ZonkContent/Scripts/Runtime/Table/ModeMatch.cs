@@ -117,9 +117,17 @@ namespace Zonk.Table
             };
 
             _platform.NotifyGameplayStart();
-            var outcome = await _runner.RunAsync(settings, players, ct);
+            MatchOutcome outcome;
+            try
+            {
+                outcome = await _runner.RunAsync(settings, players, ct);
+            }
+            finally
+            {
+                _platform.NotifyGameplayStop();
+            }
+
             outcome.Mode = setup.Mode;
-            _platform.NotifyGameplayStop();
 
             var won = outcome.Winner == 0 && !outcome.Surrendered;
             _quests.Report(new QuestEvent

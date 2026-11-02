@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Зонк: комикс-интерфейс</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Sans+Extra+Condensed:ital,wght@1,900&family=Rubik:ital,wght@0,500;0,700;1,900&family=Russo+One&family=Alumni+Sans:ital,wght@1,900&display=swap">
+<style>
+/* Макет: страница-разворот комикса. Сверху живая сцена партии, ниже разбор деталей. Один тёмный вид, как в игре. */
+:root{
+  color-scheme:dark;
+  --ink:#15100c; --night:#241a13; --night2:#33261b; --felt:#1b4a42; --paper:#f3e3bf;
+  --red:#e0362c; --orange:#f5801a; --gold:#ffc62e; --green:#2fa35a; --blue:#2f7fd6; --muted:#c3ae8e;
+  --display:"Fira Sans Extra Condensed","Arial Narrow",Impact,sans-serif;
+  --display-style:italic; --display-weight:900; --display-track:.01em;
+  --body:"Rubik","Segoe UI",Arial,sans-serif;
+  --dots:radial-gradient(circle at center,rgba(21,16,12,.34) 0 1.5px,transparent 1.8px);
+}
+*{box-sizing:border-box}
+body{background:var(--ink);color:var(--paper);font:500 16px/1.5 var(--body)}
+.wrap{grid-template-columns:minmax(0,1fr);max-width:1120px;margin:auto;padding-block:28px 64px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:44px}
+.d{font-family:var(--display);font-style:var(--display-style);font-weight:var(--display-weight);letter-spacing:var(--display-track);text-transform:uppercase}
+header h1{margin:0;font-size:clamp(40px,7vw,76px);line-height:.95;color:var(--gold);paint-order:stroke fill;-webkit-text-stroke:6px var(--ink);text-shadow:4px 5px 0 var(--red)}
+header p{margin:12px 0 0;max-width:62ch;color:var(--muted)}
+h2{margin:0 0 6px;font-size:clamp(28px,4vw,38px);line-height:1;color:var(--gold)}
+.lead{margin:0 0 18px;max-width:66ch;color:var(--muted)}
+
+/* Сцена партии */
+.controls{display:flex;flex-wrap:wrap;gap:10px 22px;margin-bottom:12px;align-items:center}
+.group{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.group>span{color:var(--muted);font-size:14px;margin-right:4px}
+.chip{font:700 14px var(--body);color:var(--paper);background:var(--night2);border:2px solid #5b4632;border-radius:7px;padding:6px 11px;cursor:pointer}
+.chip[aria-pressed=true]{background:var(--gold);color:var(--ink);border-color:var(--ink)}
+.chip:focus-visible,.btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.stage{container-type:inline-size;position:relative;aspect-ratio:16/9;width:100%;overflow:hidden;border:5px solid var(--ink);outline:2px solid #5b4632;border-radius:6px;background:radial-gradient(ellipse at 50% 58%,#2a6a5e 0,var(--felt) 45%,#0e2823 100%)}
+.stage::after{content:"";position:absolute;inset:0;pointer-events:none;background:var(--dots);background-size:.9cqw .9cqw;mask-image:radial-gradient(ellipse at 50% 50%,transparent 45%,#000 100%);-webkit-mask-image:radial-gradient(ellipse at 50% 50%,transparent 45%,#000 100%)}
+.scene{position:absolute;inset:0;z-index:1}
+.scene.shake{animation:shake .42s steps(7)}
+@keyframes shake{0%{transform:translate(0,0)}15%{transform:translate(-1.1cqw,.6cqw) rotate(-.5deg)}30%{transform:translate(1cqw,-.6cqw) rotate(.5deg)}50%{transform:translate(-.7cqw,.4cqw)}70%{transform:translate(.5cqw,-.3cqw)}100%{transform:none}}
+.plate{position:absolute;top:2.2cqw;display:flex;align-items:center;gap:1cqw;background:var(--night);border:.35cqw solid var(--ink);border-radius:.8cqw 1.1cqw .7cqw 1cqw;box-shadow:.35cqw .45cqw 0 var(--ink);padding:.6cqw 1.3cqw .6cqw .6cqw}
+.plate.me{left:2cqw;outline:.25cqw solid var(--gold);outline-offset:-.55cqw}
+.plate.them{right:2cqw}
+.face{width:4.6cqw;height:4.6cqw;border-radius:50%;border:.3cqw solid var(--ink);background:var(--paper) var(--dots);background-size:.6cqw .6cqw;display:grid;place-items:center;color:var(--ink);font-size:2.4cqw}
+.plate b{display:block;font:700 1.3cqw/1.2 var(--body);color:var(--muted)}
+.plate i{display:block;font-size:2.7cqw;line-height:1;color:var(--paper)}
+.turn{position:absolute;left:50%;top:4.4cqw;transform:translateX(-50%);text-align:center;background:var(--paper);color:var(--ink);border:.35cqw solid var(--ink);border-radius:.9cqw .6cqw 1cqw .7cqw;box-shadow:.35cqw .45cqw 0 var(--ink);padding:.5cqw 2.4cqw;min-width:21cqw}
+.turn small{display:block;font:700 1.2cqw var(--body)}
+.turn strong{display:block;font-size:3.2cqw;line-height:1.05}
+.flames{position:absolute;left:0;right:0;bottom:calc(100% - .25cqw);display:flex;justify-content:space-around;pointer-events:none;opacity:0;transition:opacity .1s}
+.flames canvas{width:3.2cqw;height:4cqw;margin:0 -.5cqw}
+.scene[data-state=hot] .flames{opacity:1}
+.scene[data-state=hot] .turn{background:var(--gold)}
+.dice{position:absolute;left:50%;top:71%;transform:translate(-50%,-50%);display:flex;gap:1.3cqw}
+.die{width:5.4cqw;height:5.4cqw;transform:rotate(var(--r));filter:drop-shadow(.3cqw .4cqw 0 var(--ink))}
+.scene[data-state=zonk] .die{filter:saturate(0) brightness(.6) drop-shadow(.3cqw .4cqw 0 var(--ink))}
+.burst{position:absolute;left:50%;top:39%;width:54cqw;transform:translate(-50%,-50%) rotate(-4deg);pointer-events:none;z-index:2}
+.burst.pop{animation:pop .36s cubic-bezier(.2,1.7,.4,1) both}
+@keyframes pop{0%{transform:translate(-50%,-50%) rotate(-14deg) scale(.15)}100%{transform:translate(-50%,-50%) rotate(-4deg) scale(1)}}
+.burst svg{display:block;width:100%;height:auto;overflow:visible}
+.burst .word{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:0 9cqw}
+.burst .word span{display:block;line-height:.92;color:#fff;font-size:var(--word,7.6cqw);paint-order:stroke fill;-webkit-text-stroke:1.2cqw var(--ink);text-shadow:.55cqw .7cqw 0 var(--ink)}
+.burst .word em{display:block;font-style:normal;font-family:var(--body);font-weight:900;font-size:2.1cqw;color:var(--gold);margin-top:.5cqw;white-space:nowrap;paint-order:stroke fill;-webkit-text-stroke:.55cqw var(--ink)}
+.actions{position:absolute;left:0;right:0;bottom:2.4cqw;display:flex;justify-content:center;gap:1.6cqw;z-index:3}
+.side{position:absolute;bottom:2.4cqw;left:2cqw;z-index:3}
+
+/* Кнопка: чернильный контур, жёсткая тень, точки растра снизу */
+.btn{position:relative;display:inline-block;border:0;cursor:pointer;color:#fff;background:var(--c,var(--orange));border-radius:.65em .85em .6em .8em;box-shadow:0 0 0 .14em var(--ink),0 .24em 0 .14em var(--ink);padding:.28em .95em .3em;font-size:var(--fs,26px);line-height:1;isolation:isolate}
+.btn::before{content:"";position:absolute;inset:0;border-radius:inherit;z-index:-1;background:var(--dots);background-size:.3em .3em;mask-image:linear-gradient(transparent 45%,#000);-webkit-mask-image:linear-gradient(transparent 45%,#000)}
+.btn::after{content:"";position:absolute;left:.3em;right:.3em;top:.1em;height:.11em;border-radius:1em;background:rgba(255,255,255,.5)}
+.btn span{paint-order:stroke fill;-webkit-text-stroke:.14em var(--ink);text-shadow:.04em .07em 0 var(--ink)}
+.btn:active,.btn.is-down{transform:translateY(.19em);box-shadow:0 0 0 .14em var(--ink),0 .05em 0 .14em var(--ink)}
+.btn.off{--c:#5d5247;cursor:default;color:#b6a994}
+.stage .btn{--fs:3.1cqw}
+.btn .flames{bottom:calc(100% - .4em)}
+.btn .flames canvas{width:1.2em;height:1.5em}
+.scene[data-state=hot] #roll .flames{opacity:1}
+
+/* Сравнение */
+.compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+.pane{border:2px solid #4b3a2b;border-radius:6px;padding:20px;display:grid;gap:14px;align-content:start;min-width:0}
+.pane h3{margin:0;font:700 14px var(--body);color:var(--muted)}
+.flat{background:rgba(20,18,15,.88);padding:16px;display:grid;gap:10px;justify-items:center;text-align:center}
+.flat p{margin:0;font:700 22px Arial,sans-serif;color:#f7edd9}
+.flat div{width:100%;padding:12px;font:700 18px Arial,sans-serif;color:#f7edd9;background:#8c5c29}
+.flat div.a{background:#d99933}
+.comic{position:relative;background:var(--night);border:4px solid var(--ink);box-shadow:0 0 0 2px #6b5238,6px 8px 0 var(--ink);border-radius:9px 13px 8px 12px;padding:30px 18px 20px;display:grid;gap:18px;justify-items:center;margin-top:12px}
+.comic::before{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--dots);background-size:7px 7px;mask-image:linear-gradient(135deg,#000 0,transparent 32%,transparent 70%,#000);-webkit-mask-image:linear-gradient(135deg,#000 0,transparent 32%,transparent 70%,#000);pointer-events:none}
+.ribbon{position:absolute;top:-16px;left:50%;transform:translateX(-50%) rotate(-2deg);background:var(--red);color:#fff;border:3px solid var(--ink);box-shadow:3px 4px 0 var(--ink);padding:2px 22px;font-size:27px;line-height:1.1;white-space:nowrap;border-radius:4px 7px 4px 6px}
+.comic .btn{--fs:27px;width:90%;text-align:center}
+.comic .btn+.btn{margin-top:4px}
+
+/* Детали */
+.kit{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:18px;align-items:start}
+.card{min-width:0}
+.card h3{margin:0 0 12px;font:700 14px var(--body);color:var(--muted)}
+.states{display:flex;flex-wrap:wrap;gap:22px 18px;padding:10px 6px 14px}
+.states .btn{--fs:25px}
+.item{position:relative;width:min(240px,100%);background:var(--paper);color:var(--ink);border:4px solid var(--ink);box-shadow:5px 6px 0 var(--ink);border-radius:9px 12px 8px 11px;overflow:hidden}
+.item .pic{height:128px;background:var(--blue) var(--dots);background-size:7px 7px;display:grid;place-items:center;border-bottom:4px solid var(--ink)}
+.item .tag{position:absolute;top:8px;left:-4px;background:var(--blue);color:#fff;border:3px solid var(--ink);padding:0 10px;font-size:18px}
+.item .txt{padding:9px 12px 12px}
+.item .name{font-size:25px;line-height:1.05}
+.item .price{display:flex;align-items:center;gap:6px;font:700 16px var(--body);margin-top:3px}
+.coin{width:19px;height:19px;border-radius:50%;background:var(--gold);border:3px solid var(--ink);box-shadow:inset -2px -2px 0 var(--orange);flex:none}
+.res{display:grid;gap:12px}
+.res .row{display:flex;justify-content:space-between;gap:10px;font-weight:700}
+.res .num{font-variant-numeric:tabular-nums}
+.bar{height:20px;background:var(--ink);border:3px solid var(--ink);border-radius:5px;overflow:hidden}
+.bar i{display:block;height:100%;width:64%;background:var(--gold) var(--dots);background-size:6px 6px}
+.next{background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:3px 4px 0 var(--ink);padding:9px 12px;transform:rotate(-.7deg);border-radius:5px 8px 4px 7px;font-weight:700;width:100%}
+.next .d{display:block;color:var(--red);font-size:21px;line-height:1.05}
+.sheet{display:block;width:100%;height:auto;background:#2b2017 var(--dots);background-size:7px 7px;border:3px solid var(--ink)}
+.note{margin:10px 0 0;font-size:14px;color:var(--muted);max-width:60ch}
+
+/* Шрифты */
+.fonts{display:grid;gap:12px}
+.spec{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 18px;align-items:center;width:100%;text-align:left;padding:14px 18px;background:var(--night);border:3px solid #4b3a2b;border-radius:7px;color:var(--paper);cursor:pointer;font:inherit}
+.spec[aria-pressed=true]{border-color:var(--gold)}
+.spec .smp{font-size:clamp(25px,4.6vw,44px);line-height:1;color:#fff;text-transform:uppercase;paint-order:stroke fill;-webkit-text-stroke:5px var(--ink);text-shadow:2px 3px 0 var(--ink);overflow-wrap:anywhere}
+.spec small{grid-column:1/-1;color:var(--muted);font-size:14px}
+.spec .lbl{font:700 13px var(--body);color:var(--gold);white-space:nowrap}
+
+/* Таблица огня */
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{text-align:left;padding:11px 14px 11px 0;border-bottom:2px solid #3b2d21;vertical-align:top}
+th{font:700 13px var(--body);color:var(--muted)}
+td:first-child{font-weight:700;color:var(--paper);white-space:nowrap}
+td{color:var(--muted)}
+.how{margin:0;padding-left:1.3em;max-width:70ch;color:var(--muted);display:grid;gap:8px}
+.how b{color:var(--paper)}
+@media (prefers-reduced-motion:reduce){.scene.shake,.burst.pop{animation:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1 class="d">Зонк в стиле комикса</h1>
+    <p>Образец интерфейса до правки игры. Сейчас в окнах нет ни одной текстуры: кнопки и панели залиты одним цветом, поэтому игра выглядит любительской. Ниже то, на что я предлагаю их заменить. Стол в сцене условный: настоящий останется 3D.</p>
+  </header>
+
+  <section aria-label="Живая сцена партии">
+    <div class="controls">
+      <div class="group" id="events"><span>Событие:</span>
+        <button class="chip" data-e="hot" aria-pressed="true">Горячие кости</button>
+        <button class="chip" data-e="zonk" aria-pressed="false">Зонк</button>
+        <button class="chip" data-e="combo" aria-pressed="false">Стрит</button>
+        <button class="chip" data-e="win" aria-pressed="false">Победа</button>
+      </div>
+      <div class="group" id="langs"><span>Язык:</span>
+        <button class="chip" data-l="ru" aria-pressed="true">RU</button>
+        <button class="chip" data-l="de" aria-pressed="false">DE</button>
+        <button class="chip" data-l="fr" aria-pressed="false">FR</button>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="scene" id="scene" data-state="hot">
+        <div class="plate me"><div class="face d">Я</div><div><b id="tYou">Вы</b><i class="d">3 250</i></div></div>
+        <div class="turn"><div class="flames" data-n="6"></div><small id="tTarget">Цель: 5000</small><strong class="d" id="tTurn">1 500</strong></div>
+        <div class="plate them"><div class="face d">?</div><div><b id="tThem">Соперник</b><i class="d">2 900</i></div></div>
+        <div class="dice" id="dice"></div>
+        <div class="burst" id="burst"></div>
+        <div class="side"><button class="btn d" style="--c:#6a5a4a;--fs:2.1cqw"><span id="tGive">Сдаться</span></button></div>
+        <div class="actions">
+          <button class="btn d" id="roll" style="--c:var(--orange)"><div class="flames" data-n="5"></div><span id="tRoll">Бросить</span></button>
+          <button class="btn d" style="--c:var(--green)"><span id="tBank">Забрать 1500</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="d">Было и станет</h2>
+    <p class="lead">Слева окно по текущим цветам из настроек игры. Справа те же кнопки в новом виде: контур как у моделей в стиле Toon, растр точками как в тенях стола, толстая тень как на обложке комикса.</p>
+    <div class="compare">
+      <div class="pane"><h3>Сейчас</h3>
+        <div class="flat"><p>Игра вдвоём</p><div class="a">Кампания</div><div>Магазин</div><div>Настройки</div></div>
+      </div>
+      <div class="pane"><h3>Станет</h3>
+        <div class="comic"><div class="ribbon d">Игра вдвоём</div>
+          <button class="btn d" style="--c:var(--orange)"><span>Кампания</span></button>
+          <button class="btn d" style="--c:var(--blue)"><span>Магазин</span></button>
+          <button class="btn d" style="--c:#6a5a4a"><span>Настройки</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="d">Детали окон</h2>
+    <p class="lead">Числа и названия здесь примеры. Каждая деталь становится текстурой, которая растягивается без искажения углов, и работает на всех окнах сразу.</p>
+    <div class="kit">
+      <div class="card"><h3>Состояния кнопки</h3>
+        <div class="states">
+          <button class="btn d" style="--c:var(--orange)"><span>Обычная</span></button>
+          <button class="btn d is-down" style="--c:var(--orange)"><span>Нажата</span></button>
+          <button class="btn d off"><span>Закрыта</span></button>
+        </div>
+        <h3 style="margin-top:18px">Карточка магазина</h3>
+        <div class="item"><div class="tag d">Редкий</div><div class="pic"><svg width="72" height="86" viewBox="0 0 72 86" aria-hidden="true"><path d="M9 7h54l-7 72H16z" fill="#c9823c" stroke="#15100c" stroke-width="6" stroke-linejoin="round"/><path d="M12 26h48M14 56h44" stroke="#15100c" stroke-width="5"/></svg></div>
+          <div class="txt"><div class="name d">Стакан-бочонок</div><div class="price"><span class="coin"></span>1 200</div></div></div>
+      </div>
+      <div class="card"><h3>Итоги партии с блоком «Дальше»</h3>
+        <div class="comic res"><div class="ribbon d" style="background:var(--green)">Победа!</div>
+          <div style="width:100%" class="res">
+            <div class="row"><span>Вы</span><span class="num">5 150</span></div>
+            <div class="row" style="color:var(--muted)"><span>Соперник</span><span class="num">4 300</span></div>
+            <div class="row"><span>Уровень 7</span><span class="num">340 / 530</span></div>
+            <div class="bar"><i></i></div>
+            <div class="next"><span class="d">Дальше</span>Ещё 190 опыта: уровень 8 и новая рамка</div>
+          </div>
+          <button class="btn d" style="--c:var(--orange)"><span>Следующий соперник</span></button>
+        </div>
+      </div>
+      <div class="card"><h3>Огонь как спрайты: 8 кадров по очереди</h3>
+        <canvas class="sheet" id="sheetView" width="640" height="100" role="img" aria-label="Восемь кадров пламени в одну полосу"></canvas>
+        <p class="note">Кадры сменяются 12 раз в секунду, а не плавно: так двигаются рисованные эффекты в комиксах и аниме. Одна такая полоса весит очень мало и подходит для телефонов и браузера.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="d">Шрифт заголовков</h2>
+    <p class="lead">Классические комикс-шрифты вроде Bangers не содержат кириллицы. Эти три содержат русский и турецкий алфавиты и бесплатны для игры. Нажми на строку, и вся страница перейдёт на этот шрифт. Для мелкого текста я беру Rubik: он хорошо читается на телефоне.</p>
+    <div class="fonts" id="fonts">
+      <button class="spec" aria-pressed="true" data-font="fira"><span class="smp" style="font-family:'Fira Sans Extra Condensed',sans-serif;font-style:italic;font-weight:900">Горячие кости! Heiße Würfel!</span><span class="lbl">Я выбираю этот</span><small>Fira Sans Extra Condensed, узкий с наклоном. Больше всего похож на надписи комикса, а длинный немецкий текст влезает в кнопку.</small></button>
+      <button class="spec" aria-pressed="false" data-font="alumni"><span class="smp" style="font-family:'Alumni Sans',sans-serif;font-style:italic;font-weight:900">Горячие кости! Heiße Würfel!</span><span class="lbl"></span><small>Alumni Sans, ещё уже и резче. Смотрится как плакат, но мельче читается хуже.</small></button>
+      <button class="spec" aria-pressed="false" data-font="rubik"><span class="smp" style="font-family:'Rubik',sans-serif;font-style:italic;font-weight:900">Горячие кости! Heiße Würfel!</span><span class="lbl"></span><small>Rubik Black, широкий и округлый. Самый дружелюбный и казуальный, но занимает больше всего места.</small></button>
+      <button class="spec" aria-pressed="false" data-font="russo"><span class="smp" style="font-family:'Russo One',sans-serif">Горячие кости! Heiße Würfel!</span><span class="lbl"></span><small>Russo One, прямой. Хорошо читается, но больше похож на спортивный логотип, чем на комикс.</small></button>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="d">Где будет огонь и движение</h2>
+    <p class="lead">Эффект работает, пока он редкий. Поэтому каждый привязан к заметному событию, а в обычном ходе интерфейс спокоен.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Событие</th><th>Что происходит</th></tr></thead>
+      <tbody>
+        <tr><td>Горячие кости</td><td>Табличка очков хода и кнопка «Бросить» загораются, пока идёт этот ход.</td></tr>
+        <tr><td>Ход больше 1000 очков</td><td>От таблички поднимаются искры. Чем больше очков, тем их больше.</td></tr>
+        <tr><td>Зонк</td><td>Красная вспышка, тряска экрана, кости сереют. Огонь гаснет дымком.</td></tr>
+        <tr><td>Победа над боссом</td><td>Вспышка, искры и лента с именем босса.</td></tr>
+        <tr><td>Новый уровень</td><td>Полоса опыта вспыхивает, награда вылетает крупно.</td></tr>
+        <tr><td>Легендарная вещь</td><td>Рамка карточки горит, в магазине и сундуке.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2 class="d">Как это попадёт в игру</h2>
+    <ol class="how">
+      <li><b>Текстуры рисую сам.</b> Скрипт на Blender создаёт кнопки, панели, ленты и кадры огня, как уже делает это для столов и стаканов.</li>
+      <li><b>Подключение одним местом.</b> Детали уже вынесены в общие префабы, поэтому новый вид появится во всех окнах сразу.</li>
+      <li><b>Надписи.</b> Контур и тень делает TextMeshPro, поэтому они одинаково выглядят на всех семи языках и остаются чёткими на любом экране.</li>
+      <li><b>Проверка.</b> Сравниваю вес сборки и смотрю окна на 16:9, 21:9, 1:1 и на немецком.</li>
+    </ol>
+  </section>
+</div>
+
+<script>
+(function(){
+  var reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var T = {
+    ru:{you:'Вы',them:'Соперник',target:'Цель: 5000',roll:'Бросить',bank:'Забрать 1500',give:'Сдаться',hot:'Горячие кости!',zonk:'ЗОНК!',combo:'Стрит!',win:'Победа!',hotSub:'+1500 · все кости снова в игре',zonkSub:'Очки хода сгорели',comboSub:'+1500',winSub:'+250 монет'},
+    de:{you:'Du',them:'Gegner',target:'Ziel: 5000',roll:'Würfeln',bank:'1500 sichern',give:'Aufgeben',hot:'Heiße Würfel!',zonk:'ZONK!',combo:'Straße!',win:'Sieg!',hotSub:'+1500 · alle Würfel wieder im Spiel',zonkSub:'Zugpunkte verloren',comboSub:'+1500',winSub:'+250 Münzen'},
+    fr:{you:'Vous',them:'Adversaire',target:'Objectif : 5000',roll:'Lancer',bank:'Encaisser 1500',give:'Abandonner',hot:'Dés brûlants !',zonk:'ZONK !',combo:'Suite !',win:'Victoire !',hotSub:'+1500 · tous les dés à nouveau',zonkSub:'Points du tour perdus',comboSub:'+1500',winSub:'+250 pièces'}
+  };
+  var lang='ru', state='hot';
+  var COLORS={hot:'#f5801a',zonk:'#e0362c',combo:'#ffc62e',win:'#2fa35a'};
+
+  // Кадры пламени: 8 штук в одной полосе, как будущая текстура игры.
+  var FW=80,FH=100,FRAMES=8;
+  var sheet=document.createElement('canvas'); sheet.width=FW*FRAMES; sheet.height=FH;
+  var s=sheet.getContext('2d');
+  function tongue(cx,base,height,width,f,seed,tilt){
+    var p=[],n=22,i,a=Math.PI*2*f/FRAMES;
+    function wob(t){return (Math.sin(a+t*6+seed)*.26+Math.sin(a*2+t*11+seed*2)*.12)*width*t+tilt*t*t*width}
+    function half(t){return width*Math.pow(1-t,.8)*Math.pow(t+.05,.32)*1.35}
+    for(i=0;i<=n;i++){var t=i/n;p.push([cx-half(t)+wob(t),base-height*t])}
+    for(i=n-1;i>=0;i--){var u=i/n;p.push([cx+half(u)+wob(u),base-height*u])}
+    return p;
+  }
+  function paint(p,fill,stroke,lw){
+    s.beginPath();s.moveTo(p[0][0],p[0][1]);
+    for(var i=1;i<p.length;i++)s.lineTo(p[i][0],p[i][1]);
+    s.closePath();s.lineJoin='round';
+    if(stroke){s.strokeStyle=stroke;s.lineWidth=lw;s.stroke()}
+    s.fillStyle=fill;s.fill();
+  }
+  for(var f=0;f<FRAMES;f++){
+    s.save();s.translate(f*FW,0);
+    var hs=[.85+.09*Math.sin(Math.PI*2*f/FRAMES),.62+.1*Math.sin(Math.PI*2*f/FRAMES+2),.55+.1*Math.sin(Math.PI*2*f/FRAMES+4)];
+    var layers=[
+      [tongue(25,92,FH*hs[1],13,f,1.7,-.5),tongue(56,92,FH*hs[2],12,f,4.1,.5),tongue(40,94,FH*hs[0],21,f,.4,0)]
+    ];
+    layers[0].forEach(function(p){paint(p,'#e0362c','#15100c',7)});
+    layers[0].forEach(function(p){paint(p,'#e0362c')});
+    paint(tongue(40,92,FH*hs[0]*.72,14,f,.4,0),'#f5801a');
+    paint(tongue(40,92,FH*hs[0]*.42,8,f,.9,0),'#ffc62e');
+    s.restore();
+  }
+  var view=document.getElementById('sheetView');
+  view.getContext('2d').drawImage(sheet,0,0);
+
+  var flames=[];
+  document.querySelectorAll('.flames').forEach(function(box){
+    var n=+box.dataset.n;
+    for(var i=0;i<n;i++){
+      var c=document.createElement('canvas');c.width=FW;c.height=FH;c.setAttribute('aria-hidden','true');
+      box.appendChild(c);flames.push({ctx:c.getContext('2d'),off:(i*3)%FRAMES});
+    }
+  });
+  function drawFlames(frame){
+    flames.forEach(function(fl){
+      var k=(frame+fl.off)%FRAMES;
+      fl.ctx.clearRect(0,0,FW,FH);
+      fl.ctx.drawImage(sheet,k*FW,0,FW,FH,0,0,FW,FH);
+    });
+  }
+  drawFlames(0);
+  if(!reduce){
+    var last=-1;
+    (function tick(t){
+      var fr=Math.floor(t/1000*12);
+      if(fr!==last&&state==='hot'){last=fr;drawFlames(fr)}
+      requestAnimationFrame(tick);
+    })(0);
+  }
+
+  // Плашка-взрыв: неровная звезда с тенью и растром.
+  function rng(seed){return function(){seed=(seed*16807)%2147483647;return seed/2147483647}}
+  function star(seed){
+    var r=rng(seed),pts=[],n=17,i;
+    for(i=0;i<n*2;i++){
+      var a=Math.PI*2*i/(n*2)+(r()-.5)*.07, out=i%2===0;
+      var k=out?.86+r()*.14:.63+r()*.07;
+      pts.push((500+Math.cos(a)*490*k).toFixed(0)+','+(210+Math.sin(a)*205*k).toFixed(0));
+    }
+    return pts.join(' ');
+  }
+  function renderBurst(animate){
+    var d=T[lang],seed={hot:7,zonk:31,combo:97,win:211}[state],c=COLORS[state],pts=star(seed);
+    var el=document.getElementById('burst');
+    el.innerHTML='<svg viewBox="0 0 1000 420" aria-hidden="true"><defs><pattern id="ht" width="13" height="13" patternUnits="userSpaceOnUse" patternTransform="rotate(30)"><circle cx="6.5" cy="6.5" r="3.2" fill="#15100c" fill-opacity=".3"/></pattern></defs>'+
+      '<polygon points="'+pts+'" fill="#15100c" transform="translate(13,17)"/>'+
+      '<polygon points="'+pts+'" fill="'+c+'" stroke="#15100c" stroke-width="10" stroke-linejoin="round"/>'+
+      '<polygon points="'+pts+'" fill="url(#ht)"/></svg>'+
+      '<div class="word"><div><span class="d"></span><em></em></div></div>';
+    el.querySelector('span').textContent=d[state];el.style.setProperty('--word',d[state].length>9?'6cqw':'7.6cqw');
+    el.querySelector('em').textContent=d[state+'Sub'];
+    el.classList.remove('pop');
+    if(animate&&!reduce){void el.offsetWidth;el.classList.add('pop')}
+  }
+  function renderDice(){
+    var rots=[-8,5,-3,9,-6,4],faces=[1,2,3,4,5,6],P={1:[[50,50]],2:[[28,28],[72,72]],3:[[28,28],[50,50],[72,72]],4:[[28,28],[72,28],[28,72],[72,72]],5:[[28,28],[72,28],[50,50],[28,72],[72,72]],6:[[28,24],[72,24],[28,50],[72,50],[28,76],[72,76]]};
+    document.getElementById('dice').innerHTML=faces.map(function(v,i){
+      return '<svg class="die" style="--r:'+rots[i]+'deg" viewBox="0 0 100 100" aria-hidden="true"><rect x="5" y="5" width="90" height="90" rx="17" fill="#f3e3bf" stroke="#15100c" stroke-width="7"/>'+P[v].map(function(q){return '<circle cx="'+q[0]+'" cy="'+q[1]+'" r="9" fill="'+(v===1||v===5?'#e0362c':'#15100c')+'"/>'}).join('')+'</svg>';
+    }).join('');
+  }
+  function setText(){
+    var d=T[lang];
+    [['tYou','you'],['tThem','them'],['tTarget','target'],['tRoll','roll'],['tBank','bank'],['tGive','give']].forEach(function(p){document.getElementById(p[0]).textContent=d[p[1]]});
+    document.getElementById('tTurn').textContent=state==='zonk'?'0':'1 500';
+  }
+  function press(group,attr,val){group.querySelectorAll('.chip').forEach(function(b){b.setAttribute('aria-pressed',b.dataset[attr]===val?'true':'false')})}
+  var scene=document.getElementById('scene');
+  document.getElementById('events').addEventListener('click',function(e){
+    var b=e.target.closest('.chip');if(!b)return;
+    state=b.dataset.e;press(this,'e',state);scene.dataset.state=state;setText();renderBurst(true);
+    scene.classList.remove('shake');
+    if(!reduce&&(state==='zonk'||state==='hot')){void scene.offsetWidth;scene.classList.add('shake')}
+  });
+  document.getElementById('langs').addEventListener('click',function(e){
+    var b=e.target.closest('.chip');if(!b)return;
+    lang=b.dataset.l;press(this,'l',lang);setText();renderBurst(true);
+  });
+  var FONTS={
+    fira:['"Fira Sans Extra Condensed","Arial Narrow",Impact,sans-serif','italic','.01em'],
+    alumni:['"Alumni Sans","Arial Narrow",Impact,sans-serif','italic','.01em'],
+    rubik:['"Rubik","Arial Black",sans-serif','italic','-.01em'],
+    russo:['"Russo One","Arial Black",sans-serif','normal','0']
+  };
+  document.getElementById('fonts').addEventListener('click',function(e){
+    var b=e.target.closest('.spec');if(!b)return;
+    this.querySelectorAll('.spec').forEach(function(x){x.setAttribute('aria-pressed',x===b?'true':'false')});
+    var f=FONTS[b.dataset.font],r=document.documentElement.style;
+    r.setProperty('--display',f[0]);r.setProperty('--display-style',f[1]);r.setProperty('--display-track',f[2]);
+  });
+  renderDice();setText();renderBurst(false);
+})();
+</script>
+
+</html>

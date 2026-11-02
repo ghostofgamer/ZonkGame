@@ -67,7 +67,7 @@ namespace Zonk.Editor.Setup
                     var changed = false;
                     foreach (var text in root.GetComponentsInChildren<TMPro.TMP_Text>(true))
                     {
-                        if (text.font == _ui.Font || text.font == _ui.BoldFont)
+                        if (text.font == _ui.Font || text.font == _ui.BoldFont || text.font == _ui.DisplayFont)
                             continue;
 
                         text.font = _ui.Font;

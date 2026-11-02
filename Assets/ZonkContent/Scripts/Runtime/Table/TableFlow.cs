@@ -85,8 +85,9 @@ namespace Zonk.Table
                 {
                     current = await state.RunAsync(ct);
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
+                    // Закрылась сцена. Любая другая отмена внутри состояния — ошибка: ниже, возврат в меню.
                     return;
                 }
                 catch (Exception e)

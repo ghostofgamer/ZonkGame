@@ -159,6 +159,8 @@ namespace Zonk.UI
         public TMP_Text RentToast(Transform parent)
         {
             var label = Pop(_toasts);
+            if (label == null && Config != null && Config.ToastPrefab != null)
+                label = UnityEngine.Object.Instantiate(Config.ToastPrefab, parent);
             if (label == null)
             {
                 label = Label(parent, 84, UiColors.Text);
@@ -181,6 +183,8 @@ namespace Zonk.UI
         public TMP_Text RentPopup(Transform parent, float fontSize)
         {
             var label = Pop(_popups);
+            if (label == null && Config != null && Config.PopupPrefab != null)
+                label = UnityEngine.Object.Instantiate(Config.PopupPrefab, parent);
             if (label == null)
             {
                 label = Label(parent, 64, UiColors.Text);

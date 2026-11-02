@@ -4,6 +4,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using Zenject;
 using Zonk.Configs;
 using Zonk.Core.Match;
@@ -35,6 +36,18 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _phrasesButton;
         [SerializeField] private RectTransform _phrasesPanel;
         [SerializeField] private UiButtonView _phraseTemplate;
+
+        [Header("Комикс (детали Parts; в старом префабе пусто — обычные надписи)")]
+        [SerializeField] private ComicBurstView _burst;
+        [SerializeField] private Image _turnPlate;
+        [SerializeField] private GameObject _turnFire;
+        [SerializeField] private GameObject _rollFire;
+
+        [Tooltip("Цвет таблички очков хода при горячих костях")]
+        [SerializeField] private Color _turnPlateHot = new Color(1f, 0.776f, 0.18f, 1f);
+
+        private Color _turnPlateNormal;
+        private bool _hot;
 
         private readonly Choice<HudAction> _action = new Choice<HudAction>();
         private Func<(bool canRoll, bool canBank, int bankScore)> _actionState;
@@ -74,10 +87,26 @@ namespace Zonk.UI.Windows
             _phrasesPanel = phrasesPanel;
             _phraseTemplate = phraseTemplate;
         }
+
+        public void EditorSetupComic(ComicBurstView burst, Image turnPlate, GameObject turnFire, GameObject rollFire)
+        {
+            _burst = burst;
+            _turnPlate = turnPlate;
+            _turnFire = turnFire;
+            _rollFire = rollFire;
+        }
 #endif
 
         private void Awake()
         {
+            if (_turnPlate != null)
+                _turnPlateNormal = _turnPlate.color;
+            if (_burst != null)
+                _burst.gameObject.SetActive(false);
+            if (_turnFire != null)
+                _turnFire.SetActive(false);
+            if (_rollFire != null)
+                _rollFire.SetActive(false);
             _phraseTemplate.gameObject.SetActive(false);
             _phrasesPanel.gameObject.SetActive(false);
             _roll.OnClick(() => _action.Set(HudAction.Roll));
@@ -123,7 +152,7 @@ namespace Zonk.UI.Windows
                 _players[i].SetScore(match.Players[i].Score, match.Phase != MatchPhase.Finished && match.CurrentPlayerIndex == i);
 
             // Режим строки: 0 — очки хода, 1 — последний круг, 2 — партия окончена. Строки собираются при смене режима.
-            var mode = match.IsFinalRound ? 1 : match.Phase == MatchPhase.Finished ? 2 : 0;
+            var mode = match.Phase == MatchPhase.Finished ? 2 : match.IsFinalRound ? 1 : 0;
             if (mode != _headMode || match.Rules.TargetScore != _headTarget)
             {
                 _headMode = mode;
@@ -140,7 +169,7 @@ namespace Zonk.UI.Windows
                 {
                     // Накрутка очков хода больше не пишет в строку: в ней теперь «последний круг» или итог.
                     _turnScore.Jump(_turnScore.Target);
-                    _turn.text = mode == 1 ? head + "\n" + T("match.finalRound") : head;
+                    _turn.text = head + "\n" + T(mode == 1 ? "match.finalRound" : "match.over");
                 }
             }
 
@@ -298,6 +327,29 @@ namespace Zonk.UI.Windows
         {
             _roll.SetVisible(false);
             _bank.SetVisible(false);
+        }
+
+        /// <summary>Крупное событие партии: плашка-взрыв. В старом префабе без неё — обычная надпись.</summary>
+        public UniTask BurstAsync(string word, string caption, Color color, bool fire, float hold, CancellationToken ct)
+        {
+            return _burst != null
+                ? _burst.PlayAsync(word, caption, color, fire, hold, ct)
+                : ToastAsync(word, color, hold, ct);
+        }
+
+        /// <summary>Ход «в огне» после горячих костей: горят табличка очков и кнопка броска. Гаснет с концом хода.</summary>
+        public void SetHot(bool hot)
+        {
+            if (hot == _hot)
+                return;
+
+            _hot = hot;
+            if (_turnFire != null)
+                _turnFire.SetActive(hot);
+            if (_rollFire != null)
+                _rollFire.SetActive(hot);
+            if (_turnPlate != null)
+                _turnPlate.color = hot ? _turnPlateHot : _turnPlateNormal;
         }
 
         public UniTask ToastAsync(string text, Color color, float duration, CancellationToken ct)

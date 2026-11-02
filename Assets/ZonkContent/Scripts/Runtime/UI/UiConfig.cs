@@ -50,6 +50,19 @@ namespace Zonk.UI
         public TMP_FontAsset Font;
         public TMP_FontAsset BoldFont;
 
+        [Tooltip("Шрифт заголовков и кнопок (комикс): Fira Sans Extra Condensed Black Italic")]
+        public TMP_FontAsset DisplayFont;
+
+        [Tooltip("Материал шрифта заголовков: чернильный контур и жёсткая тень")]
+        public Material DisplayMaterial;
+
+        [Header("Мимолётные надписи (детали Parts)")]
+        [Tooltip("Крупная надпись по центру. Пусто — надпись собирается кодом")]
+        public TMP_Text ToastPrefab;
+
+        [Tooltip("Очки над отложенными костями. Пусто — надпись собирается кодом")]
+        public TMP_Text PopupPrefab;
+
         public UiPalette Palette = new UiPalette();
 
         [Header("Переходы по умолчанию")]

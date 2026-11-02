@@ -52,6 +52,7 @@ namespace Zonk.MatchFlow
         private readonly IPlayerRecords _records;
         private readonly ITalents _talents;
         private readonly Zonk.Table.TutorialDirector _tutorial;
+        private bool _askingSurrender;
 
         public MatchRunner(TableView table, MatchPresenter presenter, ReactionDirector reactions, IChatChannel chat, UiKit kit,
             GameConfig config, IGameSettings settings, ContentDatabase content, IUiService ui, IQuestService quests,
@@ -85,6 +86,7 @@ namespace Zonk.MatchFlow
             phrases.Sort((a, b) => a.Order.CompareTo(b.Order));
 
             using (var surrenderCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
+            using (var surrenderAskCts = CancellationTokenSource.CreateLinkedTokenSource(ct))
             {
                 var token = surrenderCts.Token;
                 // Модели стаканов — заранее: в партии они ставятся сразу (префабы грузятся по требованию).
@@ -111,7 +113,7 @@ namespace Zonk.MatchFlow
 
                 void OnSurrender()
                 {
-                    AskSurrenderAsync(surrenderCts, outcome, token).Forget();
+                    AskSurrenderAsync(surrenderCts, outcome, surrenderAskCts.Token).Forget();
                 }
 
                 hud.PhraseChosen += OnPhraseChosen;
@@ -135,6 +137,8 @@ namespace Zonk.MatchFlow
                 }
                 finally
                 {
+                    // Партия кончилась любым путём: окно «Сдаться?» не должно остаться поверх итогов.
+                    surrenderAskCts.Cancel();
                     _tutorial.Hide();
                     hud.PhraseChosen -= OnPhraseChosen;
                     hud.SurrenderRequested -= OnSurrender;
@@ -192,6 +196,7 @@ namespace Zonk.MatchFlow
             var player = match.CurrentPlayerIndex;
             var controller = controllers[player];
             progress.Turn[player].Reset();
+            hud.SetHot(false);
             var local = progress.IsLocal(player);
             if (!local)
                 _tutorial.Show(TutorialTrigger.OpponentTurn);
@@ -229,11 +234,11 @@ namespace Zonk.MatchFlow
                         _tutorial.Show(TutorialTrigger.Zonk);
                     hud.Refresh(match);
                     _reactions.Fire(player, MatchEventType.SelfZonk, MatchEventType.OtherZonk);
-                    var toast = hud.ToastAsync(_kit.T("match.zonk"), UiColors.Bad, 0.7f, ct);
+                    hud.SetHot(false);
+                    var caption = roll.TurnEnd.Penalty > 0 ? _kit.T("match.penalty", roll.TurnEnd.Penalty) : null;
+                    var burst = hud.BurstAsync(_kit.T("match.zonk"), caption, UiColors.Bad, false, 0.7f, ct);
                     await _presenter.PlayZonkAsync(player, ct);
-                    await toast;
-                    if (roll.TurnEnd.Penalty > 0)
-                        await hud.ToastAsync(_kit.T("match.penalty", roll.TurnEnd.Penalty), UiColors.Bad, 0.6f, ct);
+                    await burst;
                     return;
                 }
 
@@ -260,16 +265,15 @@ namespace Zonk.MatchFlow
                 if (keep.HotDice)
                 {
                     _reactions.Fire(player, MatchEventType.SelfHotDice, MatchEventType.OtherHotDice);
-                    await hud.ToastAsync(_kit.T("match.hotDice"), UiColors.Gold, 0.5f, ct);
+                    hud.SetHot(true);
+                    await hud.BurstAsync(_kit.T("match.hotDice"), null, UiColors.ButtonAccent, true, 0.6f, ct);
                 }
 
                 if ((decision.Bank && match.CanBank) || !match.CanRollAgain)
                 {
-                    if (!match.CanBank)
-                        throw new InvalidOperationException("No dice to roll and banking is not allowed");
-
                     var end = match.Bank();
                     OnBank(progress, player, end.Banked);
+                    hud.SetHot(false);
                     if (local)
                         _tutorial.Show(TutorialTrigger.Bank);
                     if (end.StartedFinalRound)
@@ -357,9 +361,19 @@ namespace Zonk.MatchFlow
             }
         }
 
+        /// <summary>
+        /// Окно «Сдаться?». Пока оно открыто, партия стоит (Time.timeScale = 0: ИИ и анимации ждут, окна идут в реальном
+        /// времени). Второе нажатие второго окна не открывает. ct отменяется концом партии: тогда окно закрывается без сдачи.
+        /// </summary>
         private async UniTaskVoid AskSurrenderAsync(CancellationTokenSource surrender, MatchOutcome outcome, CancellationToken ct)
         {
-            bool confirmed;
+            if (_askingSurrender)
+                return;
+
+            _askingSurrender = true;
+            var timeScale = Time.timeScale;
+            Time.timeScale = 0f;
+            var confirmed = false;
             try
             {
                 confirmed = await ConfirmWindow.AskAsync(_ui, _kit.T("match.surrenderConfirm"), ct);
@@ -368,8 +382,14 @@ namespace Zonk.MatchFlow
             {
                 return;
             }
+            finally
+            {
+                Time.timeScale = timeScale;
+                _askingSurrender = false;
+            }
 
-            if (!confirmed)
+            // Пока окно закрывалось, партия могла кончиться: источник отмены уже уничтожен, сдаваться некому.
+            if (!confirmed || ct.IsCancellationRequested)
                 return;
 
             outcome.Surrendered = true;

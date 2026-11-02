@@ -43,6 +43,24 @@ namespace Zonk.Tests
         }
 
         [Test]
+        public void WithoutHotDiceAllKeptDiceEndTheTurnEvenBelowEntryScore()
+        {
+            var rules = RuleSet.CreateClassic();
+            rules.HotDice = false;
+            rules.EntryScore = 100000;
+            var match = new ZonkMatch(TwoPlayers(ForcedDice(1, 2, 3, 4, 5, 6), PlayerSetup.StandardDice(), rules));
+
+            match.Roll();
+            Assert.IsFalse(match.IsBankAllowedAfterKeep(100, 5), "dice left: the entry score still applies");
+            var keep = match.Keep(new[] { 0, 1, 2, 3, 4, 5 });
+
+            Assert.IsFalse(match.CanRollAgain);
+            Assert.IsTrue(match.CanBank, "no dice to roll: the turn must be able to end");
+            Assert.AreEqual(keep.TurnScore, match.Bank().Banked);
+            Assert.AreEqual(1, match.CurrentPlayerIndex);
+        }
+
+        [Test]
         public void ZonkSaveKeepsTheTurnUntilChargesRunOut()
         {
             // 2, 2, 3, 3, 4, 6 — ни одной комбинации: каждый бросок — Зонк.

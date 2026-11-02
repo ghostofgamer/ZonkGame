@@ -130,7 +130,16 @@ namespace Zonk.Core.Match
         }
 
         /// <summary>Можно ли сейчас забрать очки: после отложенных костей и с учётом порогов.</summary>
-        public bool CanBank => Phase == MatchPhase.AwaitingDecision && IsBankAllowed(TurnScore);
+        public bool CanBank => Phase == MatchPhase.AwaitingDecision && IsBankAllowedAfterKeep(TurnScore, DiceInHandCount);
+
+        /// <summary>
+        /// Можно ли забрать очки, если после выбора в руке останется diceLeft костей. Без горячих костей и без костей
+        /// в руке бросать нечем: ход завершается забором очков, даже если они ниже порога входа (иначе ход не закончить).
+        /// </summary>
+        public bool IsBankAllowedAfterKeep(int turnScore, int diceLeft)
+        {
+            return IsBankAllowed(turnScore) || (turnScore > 0 && diceLeft == 0);
+        }
 
         /// <summary>Пороги входа и минимума для заданных очков хода текущего игрока.</summary>
         public bool IsBankAllowed(int turnScore)

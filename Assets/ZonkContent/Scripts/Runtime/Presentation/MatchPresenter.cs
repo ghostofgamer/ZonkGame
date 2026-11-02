@@ -77,8 +77,12 @@ namespace Zonk.Presentation
         private float Speed => Mathf.Max(1, _settings.Speed);
         private DiceSetView Dice => _table.Dice;
 
+        /// <summary>Стол занят партией: PrepareMatch был, EndMatch ещё нет. Меню по нему убирает стол после ошибки в партии.</summary>
+        public bool MatchActive { get; private set; }
+
         public void PrepareMatch(IReadOnlyList<MatchParticipant> participants, ulong seed)
         {
+            MatchActive = true;
             _participants = participants;
             _visualRandom = new System.Random(unchecked((int)seed));
             Dice.DisableSelection();
@@ -105,6 +109,7 @@ namespace Zonk.Presentation
 
         public void EndMatch()
         {
+            MatchActive = false;
             AbortManual();
             StopCupDice(true);
 

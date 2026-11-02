@@ -357,8 +357,16 @@ namespace Zonk.Table
                 settings.Rules.TargetScore = data.Target;
 
                 _platform.NotifyGameplayStart();
-                var outcome = await _runner.RunAsync(settings, players, ct);
-                _platform.NotifyGameplayStop();
+                MatchOutcome outcome;
+                try
+                {
+                    outcome = await _runner.RunAsync(settings, players, ct);
+                }
+                finally
+                {
+                    _platform.NotifyGameplayStop();
+                }
+
                 _quests.Report(new QuestEvent
                 {
                     Kind = QuestEventKind.MatchFinished,
@@ -484,18 +492,31 @@ namespace Zonk.Table
                 stake = 0;
             }
 
-            // Локация главы — до партии: стаканы и свет партии уже в ней.
-            await _dresser.OverrideAsync(chapter.Environment, ct);
-
             // Цель — у соперника своя или режима; правила соперника — на обоих (ModeMatch: участники, партия, отчёт заданиям).
             var mode = _config.CampaignMode;
-            var result = await _match.PlayAsync(new ModeMatchSetup
+            ModeMatchResult result;
+            try
             {
-                Mode = TableStateIds.Campaign,
-                Opponent = opponent,
-                Target = opponent.TargetScore,
-                SharedRules = opponent.Modifiers,
-            }, ct);
+                // Локация главы — до партии: стаканы и свет партии уже в ней.
+                await _dresser.OverrideAsync(chapter.Environment, ct);
+                result = await _match.PlayAsync(new ModeMatchSetup
+                {
+                    Mode = TableStateIds.Campaign,
+                    Opponent = opponent,
+                    Target = opponent.TargetScore,
+                    SharedRules = opponent.Modifiers,
+                }, ct);
+            }
+            catch (System.Exception e) when (!(e is System.OperationCanceledException && ct.IsCancellationRequested))
+            {
+                // Партия сорвалась не по вине игрока: ставка и энергия возвращаются. Дальше TableFlow вернёт в меню,
+                // меню уберёт стол и вернёт локацию игрока.
+                if (stake > 0)
+                    _wallet.Add(_config.Coins, stake);
+                await _energy.RefundAfterErrorAsync(CampaignWindow.EnergyCost(opponent, _config), ct);
+                throw;
+            }
+
             var outcome = result.Outcome;
             var players = result.Players;
             var me = players[0];

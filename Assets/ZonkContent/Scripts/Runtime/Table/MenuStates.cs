@@ -70,11 +70,13 @@ namespace Zonk.Table
         private readonly TutorialDirector _tutorial;
         private readonly IPlayerLevel _level;
         private readonly UiKit _kit;
+        private readonly MatchPresenter _presenter;
         private bool _first = true;
 
         public MenuState(IUiService ui, TableView table, StageDresser dresser, IPlatformService platform, LoadingScreenHolder loading,
-            ShopFocus focus, ShopService shop, TutorialDirector tutorial, IPlayerLevel level, UiKit kit)
+            ShopFocus focus, ShopService shop, TutorialDirector tutorial, IPlayerLevel level, UiKit kit, MatchPresenter presenter)
         {
+            _presenter = presenter;
             _level = level;
             _kit = kit;
             _tutorial = tutorial;
@@ -103,6 +105,10 @@ namespace Zonk.Table
 
         public async UniTask<string> RunAsync(CancellationToken ct)
         {
+            // В меню попали с незакрытой партией — значит, в партии или итогах была ошибка: убрать кости, руки и стаканы.
+            if (_presenter.MatchActive)
+                _presenter.EndMatch();
+
             if (_first)
             {
                 // Первый показ: экран загрузки ещё на месте — дождаться моделей стола, чтобы он ушёл уже с одетым столом.

@@ -60,5 +60,14 @@ namespace Zonk.Table
             _wallet.Add(_config.Energy, cost);
             return _wallet.TrySpend(_config.Energy, cost);
         }
+
+        /// <summary>Партия сорвалась из-за ошибки: вернуть энергию и сообщить игроку, что плата возвращена.</summary>
+        public async UniTask RefundAfterErrorAsync(int cost, CancellationToken ct)
+        {
+            if (cost > 0 && _config.Energy != null)
+                _wallet.Add(_config.Energy, cost);
+
+            await Toast.ShowAsync(_kit, _table.UiRoot, _kit.T("match.errorRefund"), UiColors.Bad, 1.6f, ct);
+        }
     }
 }

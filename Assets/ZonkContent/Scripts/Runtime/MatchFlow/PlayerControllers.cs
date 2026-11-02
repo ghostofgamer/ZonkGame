@@ -90,7 +90,9 @@ namespace Zonk.MatchFlow
                 var remaining = match.DiceInHandCount - selection.Count;
                 var canRoll = remaining > 0 || match.Rules.HotDice;
                 var total = match.TurnScore + score.Score;
-                return (canRoll, match.IsBankAllowed(total), total);
+                // С горячими костями рука пополнится, поэтому остаток для забора считается только без них.
+                var left = remaining == 0 && match.Rules.HotDice ? ZonkMatch.DiceCount : remaining;
+                return (canRoll, match.IsBankAllowedAfterKeep(total, left), total);
             }
 
             void OnSelectionChanged(IReadOnlyList<int> selection)

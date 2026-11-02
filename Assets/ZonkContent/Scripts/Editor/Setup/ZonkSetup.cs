@@ -98,11 +98,13 @@ namespace Zonk.Editor.Setup
             AddDiceEditing();
             UpgradeShopDetails();
             UpgradeShopTabs();
+            ImportComicSprites();
             BuildSpriteAtlases();
             FixUiFonts();
             SlimPostProcessData();
             AddTalentsToWindows();
             AddLevelsToProfile();
+            ApplyComicSkin();
             SlimPrimitiveMeshes();
             AssetDatabase.SaveAssets();
             ContentDatabaseBuilder.Rebuild();
