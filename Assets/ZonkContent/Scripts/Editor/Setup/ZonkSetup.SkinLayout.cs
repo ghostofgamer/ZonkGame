@@ -27,6 +27,82 @@ namespace Zonk.Editor.Setup
             return material;
         }
 
+        /// <summary>Подложка растёт по тексту внутри. Снизу и справа отступ больше: там тень таблички.</summary>
+        private static void FitPlateToText(GameObject plate)
+        {
+            var layout = plate.AddComponent<HorizontalLayoutGroup>();
+            layout.padding = new RectOffset(30, 36, 14, 22);
+            layout.childAlignment = TextAnchor.MiddleCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = false;
+            layout.childForceExpandHeight = false;
+            var fitter = plate.AddComponent<ContentSizeFitter>();
+            fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        }
+
+        /// <summary>Крупная надпись на подложке: Toast на любом фоне читается. Переиспользуемая деталь.</summary>
+        private static UiLabelPlate LabelPlatePart(GameObject plate)
+        {
+            return Part("LabelPlate", () =>
+            {
+                var root = (GameObject)PrefabUtility.InstantiatePrefab(plate);
+                root.name = "LabelPlate";
+                PrefabUtility.UnpackPrefabInstance(root, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+                FitPlateToText(root);
+                var group = root.AddComponent<CanvasGroup>();
+                group.blocksRaycasts = false;
+                group.interactable = false;
+
+                var label = UiText("Label", root.transform, _ui.DisplayFont, 60f, Color.white);
+                ComicText(label);
+                label.textWrappingMode = TextWrappingModes.NoWrap;
+                label.overflowMode = TextOverflowModes.Overflow;
+
+                root.AddComponent<UiLabelPlate>().EditorSetup(label, group);
+                return root;
+            }).GetComponent<UiLabelPlate>();
+        }
+
+        /// <summary>Карточка магазина: иконка главная, выбор — золотая рамка, а не бледная заливка поверх всего.</summary>
+        private static void UpgradeShopCardPart()
+        {
+            var path = PartsFolder + "/ShopCard.prefab";
+            if (IsLocked(path) || AssetDatabase.LoadAssetAtPath<GameObject>(path) == null)
+                return;
+
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var icon = FindDeep(root.transform, "Icon") as RectTransform;
+                var selection = FindDeep(root.transform, "Selection");
+                var name = FindDeep(root.transform, "Name") as RectTransform;
+                var price = FindDeep(root.transform, "Price") as RectTransform;
+                var state = FindDeep(root.transform, "State") as RectTransform;
+                if (icon == null || selection == null || name == null || price == null || state == null || Mathf.Approximately(icon.sizeDelta.x, 140f))
+                    return;
+
+                Corner(icon, new Vector2(0.5f, 1f), new Vector2(140f, 140f), new Vector2(0f, -6f));
+                Anchor(name, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 72f), new Vector2(-20f, 36f));
+                Anchor(price, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 42f), new Vector2(-20f, 28f));
+                Anchor(state, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 20f), new Vector2(-20f, 26f));
+                state.GetComponent<TMPro.TMP_Text>().color = _ui.Palette.Text;
+
+                var frame = selection.GetComponent<Image>();
+                frame.sprite = ComicSpriteAsset("UI_Plate");
+                frame.type = Image.Type.Sliced;
+                frame.fillCenter = false;
+                frame.color = _ui.Palette.Gold;
+                selection.SetAsLastSibling();
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
         /// <summary>Строка с фиксированной высотой не должна расти: горизонтальная раскладка сообщает гибкую высоту (кнопки итогов выросли на всё окно).</summary>
         private static bool FixStretchingRows(GameObject root)
         {
@@ -87,25 +163,54 @@ namespace Zonk.Editor.Setup
             var root = PrefabUtility.LoadPrefabContents(path);
             try
             {
+                var window = root.GetComponent<Zonk.UI.Windows.MatchHudWindow>();
                 var plate = root.transform.Find("TurnPlate") as RectTransform;
-                var turn = root.transform.Find("Turn") as RectTransform;
-                if (plate == null || turn == null)
+                if (window == null || plate == null)
                     return;
 
-                Corner(plate, new Vector2(0f, 1f), new Vector2(300f, 96f), new Vector2(24f, -150f));
-                turn.SetParent(plate, false);
-                turn.anchorMin = Vector2.zero;
-                turn.anchorMax = Vector2.one;
-                turn.pivot = new Vector2(0.5f, 0.5f);
-                turn.offsetMin = new Vector2(14f, 12f);
-                turn.offsetMax = new Vector2(-18f, -8f);
-                var turnText = turn.GetComponent<TMP_Text>();
-                turnText.enableAutoSizing = true;
-                turnText.fontSizeMin = 18f;
-                turnText.fontSizeMax = 52f;
+                // Ниже таблички счёта: огонь над очками хода её не закрывает.
+                var turnOffset = new Vector2(24f, -224f);
+                Corner(plate, new Vector2(0f, 1f), new Vector2(300f, 96f), turnOffset);
 
-                if (root.transform.Find("Hint") is RectTransform hint)
-                    Corner(hint, new Vector2(0.5f, 0f), new Vector2(1100f, 60f), new Vector2(0f, 200f));
+                if (root.transform.Find("Turn") is RectTransform turn)
+                {
+                    turn.SetParent(plate, false);
+                    turn.anchorMin = Vector2.zero;
+                    turn.anchorMax = Vector2.one;
+                    turn.pivot = new Vector2(0.5f, 0.5f);
+                    turn.offsetMin = new Vector2(14f, 12f);
+                    turn.offsetMax = new Vector2(-18f, -8f);
+                    var turnText = turn.GetComponent<TMP_Text>();
+                    turnText.enableAutoSizing = true;
+                    turnText.fontSizeMin = 18f;
+                    turnText.fontSizeMax = 52f;
+                }
+
+                // Подсказка на подложке, подложка растёт по тексту.
+                GameObject hintPlate = null;
+                var existingPlate = root.transform.Find("HintPlate");
+                if (existingPlate != null)
+                    hintPlate = existingPlate.gameObject;
+                else if (root.transform.Find("Hint") is RectTransform hint)
+                {
+                    hintPlate = Nest(PlatePart(), root.transform, "HintPlate");
+                    var hintRect = (RectTransform)hintPlate.transform;
+                    hintRect.anchorMin = hintRect.anchorMax = hintRect.pivot = new Vector2(0.5f, 0f);
+                    hintRect.anchoredPosition = new Vector2(0f, 198f);
+                    hintPlate.transform.SetSiblingIndex(hint.GetSiblingIndex());
+                    FitPlateToText(hintPlate);
+
+                    hint.SetParent(hintRect, false);
+                    var hintText = hint.GetComponent<TMP_Text>();
+                    hintText.enableAutoSizing = false;
+                    hintText.fontSize = 30f;
+                    hintText.textWrappingMode = TextWrappingModes.NoWrap;
+                    hintText.outlineWidth = 0f;
+                    hintText.font = _ui.BoldFont;
+                    hintText.fontSharedMaterial = _ui.BoldFont.material;
+                }
+
+                window.EditorSetupHudLayout(hintPlate, turnOffset);
 
                 if (root.transform.Find("Surrender") is RectTransform surrender)
                     Corner(surrender, new Vector2(1f, 0f), new Vector2(260f, 88f), new Vector2(-24f, 24f));

@@ -42,6 +42,7 @@ namespace Zonk.UI.Windows
         [SerializeField] private Image _turnPlate;
         [SerializeField] private GameObject _turnFire;
         [SerializeField] private GameObject _rollFire;
+        [SerializeField] private GameObject _hintPlate;
 
         [Tooltip("Цвет таблички очков хода при горячих костях")]
         [SerializeField] private Color _turnPlateHot = new Color(1f, 0.776f, 0.18f, 1f);
@@ -99,6 +100,12 @@ namespace Zonk.UI.Windows
             _turnFire = turnFire;
             _rollFire = rollFire;
         }
+
+        public void EditorSetupHudLayout(GameObject hintPlate, Vector2 turnPlateOffset)
+        {
+            _hintPlate = hintPlate;
+            _turnPlateOffset = turnPlateOffset;
+        }
 #endif
 
         private void Awake()
@@ -111,6 +118,8 @@ namespace Zonk.UI.Windows
                 _turnFire.SetActive(false);
             if (_rollFire != null)
                 _rollFire.SetActive(false);
+            if (_hintPlate != null)
+                _hintPlate.SetActive(false);
             _phraseTemplate.gameObject.SetActive(false);
             _phrasesPanel.gameObject.SetActive(false);
             _roll.OnClick(() => _action.Set(HudAction.Roll));
@@ -287,6 +296,9 @@ namespace Zonk.UI.Windows
         public void SetHint(string text)
         {
             _hint.text = text;
+            // Подложка видна только с текстом: подсказка читается на любом фоне стола.
+            if (_hintPlate != null)
+                _hintPlate.SetActive(!string.IsNullOrEmpty(text));
         }
 
         /// <summary>Перед каждым броском: только «Бросить» (стакан можно взять и рукой — MatchPresenter.WaitGrabAsync).</summary>

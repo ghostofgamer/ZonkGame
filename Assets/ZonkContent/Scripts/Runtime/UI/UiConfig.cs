@@ -63,6 +63,9 @@ namespace Zonk.UI
         [Tooltip("Крупная надпись по центру. Пусто — надпись собирается кодом")]
         public TMP_Text ToastPrefab;
 
+        [Tooltip("Крупная надпись на подложке (Parts/LabelPlate): читается на любом фоне. Пусто — надпись без подложки")]
+        public Views.UiLabelPlate ToastPlatePrefab;
+
         [Tooltip("Очки над отложенными костями. Пусто — надпись собирается кодом")]
         public TMP_Text PopupPrefab;
 

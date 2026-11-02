@@ -405,6 +405,7 @@ namespace Zonk.Editor.Setup
             var burst = ComicBurstPart(ring);
             _ui.ToastPrefab = ComicLabelPart("Toast", 84f, new Vector2(1200f, 160f), true).GetComponent<TMP_Text>();
             _ui.PopupPrefab = ComicLabelPart("Popup", 64f, new Vector2(700f, 120f), false).GetComponent<TMP_Text>();
+            _ui.ToastPlatePrefab = LabelPlatePart(plate);
             EditorUtility.SetDirty(_ui);
             AssetDatabase.SaveAssets();
 
@@ -414,6 +415,7 @@ namespace Zonk.Editor.Setup
 
             AddComicToHud(plate, row, burst);
             UpgradeHudPanelPart();
+            UpgradeShopCardPart();
             UpgradeHudLayout();
             UpgradeMainMenu();
         }

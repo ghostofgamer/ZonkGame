@@ -15,10 +15,49 @@ namespace Zonk.UI
     {
         private const float FadeDuration = 0.25f;
 
+        private static async UniTask ShowPlateAsync(UiKit kit, Zonk.UI.Views.UiLabelPlate plate, string text, Color color, float duration,
+            CancellationToken ct)
+        {
+            plate.Label.text = text;
+            plate.Label.color = color;
+            plate.Group.alpha = 1f;
+            var rect = plate.Rect;
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.62f);
+            rect.anchoredPosition = Vector2.zero;
+
+            try
+            {
+                rect.localScale = Vector3.one * 0.4f;
+                await Animate.ScaleAsync(rect, Vector3.one, 0.25f, ct, AnimateEase.OutBack);
+                await UniTask.Delay(TimeSpan.FromSeconds(duration), cancellationToken: ct);
+
+                var time = 0f;
+                while (time < FadeDuration)
+                {
+                    plate.Group.alpha = 1f - time / FadeDuration;
+                    await UniTask.Yield(PlayerLoopTiming.Update, ct);
+                    time += Time.deltaTime;
+                }
+            }
+            finally
+            {
+                if (plate != null)
+                    kit.ReturnToastPlate(plate);
+            }
+        }
+
         public static async UniTask ShowAsync(UiKit kit, Transform parent, string text, Color color, float duration,
             CancellationToken ct)
         {
-            // Надпись из пула UiKit: TextMeshPro с контуром не создаётся и не уничтожается на каждое сообщение.
+            // Надпись на подложке: читается на любом фоне. Деталь из пула, не создаётся на каждое сообщение.
+            var plate = kit.RentToastPlate(parent);
+            if (plate != null)
+            {
+                await ShowPlateAsync(kit, plate, text, color, duration, ct);
+                return;
+            }
+
+            // Без детали в UiConfig — старая надпись из пула.
             var label = kit.RentToast(parent);
             label.text = text;
             label.color = color;

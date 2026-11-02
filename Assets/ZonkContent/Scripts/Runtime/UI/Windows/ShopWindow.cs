@@ -265,7 +265,7 @@ namespace Zonk.UI.Windows
                 var state = spots && equipped ? T("shop.onSpot", placedAt + 1)
                     : T(equipped ? equippedKey : owned ? "shop.owned" : "shop.forSale");
                 AddCard(entry, T(entry.NameKey), IconOf(entry), owned ? null : PriceSummary(entry), state,
-                    equipped ? UiColors.ButtonAccent : owned ? UiColors.Button : UiColors.ButtonMuted, () => SelectItem(captured));
+                    equipped ? UiColors.ButtonAccent : owned ? UiColors.PanelLight : UiColors.ButtonMuted, () => SelectItem(captured));
             }
 
             var onSpot = slot != null ? (ContentConfig)_loadout.GetEquippedAt(slot, _spot) : null;
@@ -281,7 +281,7 @@ namespace Zonk.UI.Windows
                 var captured = die;
                 var owned = _inventory.IsOwned(die);
                 AddCard(die, T(die.NameKey), die.Icon, owned ? null : PriceSummary(die), T(owned ? "shop.owned" : "shop.forSale"),
-                    owned ? UiColors.Button : UiColors.ButtonMuted, () => SelectItem(captured));
+                    owned ? UiColors.PanelLight : UiColors.ButtonMuted, () => SelectItem(captured));
             }
 
             SelectItem(_shopDice.Count > 0 ? _shopDice[0] : null);

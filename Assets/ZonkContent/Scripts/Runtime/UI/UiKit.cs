@@ -115,6 +115,7 @@ namespace Zonk.UI
     {
         private readonly ILocalization _localization;
         private readonly Stack<TMP_Text> _toasts = new Stack<TMP_Text>();
+        private readonly Stack<Views.UiLabelPlate> _toastPlates = new Stack<Views.UiLabelPlate>();
         private readonly Stack<TMP_Text> _popups = new Stack<TMP_Text>();
         private readonly Stack<Image> _bubbles = new Stack<Image>();
         private readonly Stack<Image> _coins = new Stack<Image>();
@@ -153,6 +154,20 @@ namespace Zonk.UI
             rect.sizeDelta = size;
             rect.anchoredPosition = offset;
             return rect;
+        }
+
+        /// <summary>Надпись на подложке для Toast из пула (Parts/LabelPlate). null — детали нет в UiConfig. Вернуть — ReturnToastPlate.</summary>
+        public Views.UiLabelPlate RentToastPlate(Transform parent)
+        {
+            var plate = Pop(_toastPlates);
+            if (plate == null && Config != null && Config.ToastPlatePrefab != null)
+                plate = UnityEngine.Object.Instantiate(Config.ToastPlatePrefab, parent);
+            return plate != null ? Show(plate, parent) : null;
+        }
+
+        public void ReturnToastPlate(Views.UiLabelPlate plate)
+        {
+            Push(_toastPlates, plate);
         }
 
         /// <summary>Надпись для Toast из пула. Вернуть — ReturnToast.</summary>
