@@ -851,6 +851,8 @@ namespace Zonk.Editor.Setup
             var layout = LayoutOf(component);
             layout.minHeight = height;
             layout.preferredHeight = height;
+            // Строка кнопок иначе растягивается: горизонтальная раскладка сообщает гибкую высоту.
+            layout.flexibleHeight = 0f;
         }
 
         /// <summary>Ширина в строке: width ≥ 0 — фиксированная, flexible — доля свободного места.</summary>

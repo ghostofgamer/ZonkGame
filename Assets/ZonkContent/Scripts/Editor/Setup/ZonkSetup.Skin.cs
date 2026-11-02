@@ -22,7 +22,13 @@ namespace Zonk.Editor.Setup
         private const float FlameFps = 12f;
 
         // Жирный текст такого размера и крупнее становится заголовочным шрифтом.
-        private const float DisplayMinSize = 28f;
+        private const float DisplayMinSize = 40f;
+
+        // Надпись на кнопке мельче этого — тонкий контур без тени, иначе буквы забиваются.
+        private const float DisplaySmallSize = 32f;
+
+        // Кнопка под палец: надпись не мельче.
+        private const float ButtonMinFont = 28f;
 
         private static readonly Color Ink = new Color(0.082f, 0.063f, 0.047f, 1f);
         private static readonly Color Paper = new Color(0.953f, 0.89f, 0.749f, 1f);
@@ -132,6 +138,7 @@ namespace Zonk.Editor.Setup
             _ui.BoldFont = FontAsset("Rubik-Bold");
             _ui.DisplayFont = FontAsset(DisplayFontName);
             _ui.DisplayMaterial = DisplayMaterial(_ui.DisplayFont);
+            _ui.DisplaySmallMaterial = DisplaySmallMaterial(_ui.DisplayFont);
 
             if (firstRun)
             {
@@ -406,6 +413,9 @@ namespace Zonk.Editor.Setup
                 SkinPrefab(AssetDatabase.GUIDToAssetPath(guid), map);
 
             AddComicToHud(plate, row, burst);
+            UpgradeHudPanelPart();
+            UpgradeHudLayout();
+            UpgradeMainMenu();
         }
 
         private static void SkinPrefab(string path, List<KeyValuePair<Color, Color>> map)
@@ -424,6 +434,8 @@ namespace Zonk.Editor.Setup
 
                 foreach (var text in root.GetComponentsInChildren<TMP_Text>(true))
                     changed |= SkinText(text, map);
+
+                changed |= FixStretchingRows(root);
 
                 if (changed)
                     PrefabUtility.SaveAsPrefabAsset(root, path);
@@ -510,11 +522,29 @@ namespace Zonk.Editor.Setup
                 changed = true;
             }
 
+            var inButton = text.GetComponentInParent<UiButtonView>(true) != null;
+            var size = text.enableAutoSizing ? text.fontSizeMax : text.fontSize;
+            if (inButton)
+            {
+                if (size < ButtonMinFont)
+                {
+                    size = ButtonMinFont;
+                    text.fontSize = size;
+                    text.fontSizeMax = size;
+                    changed = true;
+                }
+
+                var buttonMaterial = size < DisplaySmallSize ? _ui.DisplaySmallMaterial : _ui.DisplayMaterial;
+                if (text.font == _ui.DisplayFont && text.fontSharedMaterial != buttonMaterial)
+                {
+                    text.fontSharedMaterial = buttonMaterial;
+                    changed = true;
+                }
+            }
+
             if (PrefabUtility.IsPartOfPrefabInstance(text))
                 return changed;
 
-            var inButton = text.GetComponentInParent<UiButtonView>(true) != null;
-            var size = text.enableAutoSizing ? text.fontSizeMax : text.fontSize;
             var bold = text.font == _ui.BoldFont || text.font == _ui.DisplayFont ||
                        (text.font != null && text.font.name.Contains("Bold"));
             var display = inButton || (bold && size >= DisplayMinSize);
@@ -522,7 +552,7 @@ namespace Zonk.Editor.Setup
             var font = display ? _ui.DisplayFont : bold ? _ui.BoldFont : _ui.Font;
             // Тёмный текст на светлой табличке: чернильный контур сделал бы из него пятно.
             var dark = text.color.r + text.color.g + text.color.b < 0.9f;
-            var material = display && !dark ? _ui.DisplayMaterial : font.material;
+            var material = !display || dark ? font.material : size < DisplaySmallSize ? _ui.DisplaySmallMaterial : _ui.DisplayMaterial;
 
             if (text.font != font)
             {

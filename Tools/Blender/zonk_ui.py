@@ -98,8 +98,9 @@ def button():
     fill_mask = smooth(-ink, body)
 
     shade = np.full((size, size), 0.90)
-    shade = np.where(y > size - 5 - shadow - ink - 26, 0.76, shade)  # нижняя тень-ступень
-    grey = shade * (1 - 0.34 * dots(x, y, 8, 2.1) * (y > size - 5 - shadow - ink - 26))
+    band = y >= 90  # только в нижней границе 9-slice: в плитке серединки полоса повторялась бы на всю кнопку
+    shade = np.where(band, 0.76, shade)  # нижняя тень-ступень
+    grey = shade * (1 - 0.34 * dots(x, y, 8, 2.1) * band)
     grey = np.where((y > 4 + ink + 4) & (y < 4 + ink + 10), 1.0, grey)  # блик сверху
     color = np.dstack([grey, grey, grey])
     return compose((INK, outside), (color, fill_mask))

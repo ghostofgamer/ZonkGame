@@ -46,6 +46,10 @@ namespace Zonk.UI.Windows
         [Tooltip("Цвет таблички очков хода при горячих костях")]
         [SerializeField] private Color _turnPlateHot = new Color(1f, 0.776f, 0.18f, 1f);
 
+        [Tooltip("Отступ таблички очков хода от верхнего угла экрана того, кто ходит")]
+        [SerializeField] private Vector2 _turnPlateOffset = new Vector2(24f, -150f);
+
+        private int _turnPlatePlayer = -1;
         private Color _turnPlateNormal;
         private bool _hot;
 
@@ -151,31 +155,52 @@ namespace Zonk.UI.Windows
             for (var i = 0; i < _players.Length && i < match.Players.Count; i++)
                 _players[i].SetScore(match.Players[i].Score, match.Phase != MatchPhase.Finished && match.CurrentPlayerIndex == i);
 
-            // Режим строки: 0 — очки хода, 1 — последний круг, 2 — партия окончена. Строки собираются при смене режима.
+            PlaceTurnPlate(match.CurrentPlayerIndex);
+
+            if (match.Rules.TargetScore != _headTarget)
+            {
+                _headTarget = match.Rules.TargetScore;
+                for (var i = 0; i < _players.Length; i++)
+                    _players[i].SetGoal(_headTarget);
+            }
+
+            // Подпись над числом: 0 — очки хода, 1 — последний круг (очки видны и в нём), 2 — партия окончена.
+            // Строки собираются только при смене режима.
             var mode = match.Phase == MatchPhase.Finished ? 2 : match.IsFinalRound ? 1 : 0;
-            if (mode != _headMode || match.Rules.TargetScore != _headTarget)
+            if (mode != _headMode)
             {
                 _headMode = mode;
-                _headTarget = match.Rules.TargetScore;
-                var head = T("match.target", match.Rules.TargetScore);
-                if (mode == 0)
+                if (mode == 2)
                 {
-                    NumberTemplate.Split(T("match.turnScore"), out var prefix, out _turnSuffix);
-                    _turnPrefix = head + "\n" + prefix;
-                    _turnScore.Jump(match.TurnScore);
-                    NumberText.Set(_turn, _turnPrefix, match.TurnScore, _turnSuffix);
+                    _turnScore.Jump(_turnScore.Target);
+                    _turn.text = T("match.over");
                 }
                 else
                 {
-                    // Накрутка очков хода больше не пишет в строку: в ней теперь «последний круг» или итог.
-                    _turnScore.Jump(_turnScore.Target);
-                    _turn.text = head + "\n" + T(mode == 1 ? "match.finalRound" : "match.over");
+                    NumberTemplate.Split(T("match.turnScore"), out var prefix, out _turnSuffix);
+                    var label = mode == 1 ? T("match.finalRound") : prefix.Trim().TrimEnd(':').Trim();
+                    _turnPrefix = "<size=52%>" + label + "</size>\n";
+                    _turnScore.Jump(match.TurnScore);
+                    NumberText.Set(_turn, _turnPrefix, match.TurnScore, _turnSuffix);
                 }
             }
 
             // Очки хода: рост накручивается с подпрыгиванием, сброс (новый ход, Зонк) — сразу.
-            if (mode == 0 && _turnScore.SetTarget(match.TurnScore, isActiveAndEnabled))
+            if (mode != 2 && _turnScore.SetTarget(match.TurnScore, isActiveAndEnabled))
                 NumberText.Set(_turn, _turnPrefix, match.TurnScore, _turnSuffix);
+        }
+
+        /// <summary>Табличка очков хода — под табличкой того, кто ходит: верх экрана свободен для соперника и его аксессуаров.</summary>
+        private void PlaceTurnPlate(int player)
+        {
+            if (_turnPlate == null || player == _turnPlatePlayer)
+                return;
+
+            _turnPlatePlayer = player;
+            var rect = _turnPlate.rectTransform;
+            var left = player == 0;
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(left ? 0f : 1f, 1f);
+            rect.anchoredPosition = new Vector2(left ? _turnPlateOffset.x : -_turnPlateOffset.x, _turnPlateOffset.y);
         }
 
         private void Update()

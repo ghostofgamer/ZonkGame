@@ -14,6 +14,9 @@ namespace Zonk.UI.Views
         [SerializeField] private Image _portrait;
 
         private readonly CountingNumber _counter = new CountingNumber();
+        private string _goalSuffix;
+        private int _activeState = -1;
+        private Color _nameColor = Color.white;
 
 #if UNITY_EDITOR
         public void EditorSetup(Image background, TMP_Text name, TMP_Text score, Image portrait)
@@ -28,6 +31,7 @@ namespace Zonk.UI.Views
         public void SetPlayer(string name, Color color)
         {
             _name.text = name;
+            _nameColor = color;
             _name.color = color;
         }
 
@@ -41,6 +45,13 @@ namespace Zonk.UI.Views
             _portrait.gameObject.SetActive(portrait != null);
         }
 
+        /// <summary>Цель партии рядом со счётом: «600 / 4000». Строка собирается один раз.</summary>
+        public void SetGoal(int goal)
+        {
+            _goalSuffix = "<size=50%><alpha=#B0> / " + goal + "<alpha=#FF></size>";
+            NumberText.Set(_score, null, _counter.Shown == int.MinValue ? 0 : _counter.Shown, _goalSuffix);
+        }
+
         /// <summary>Как накручивать рост счёта: длительность, подпрыгивание числа (масштаб) и его длительность. 0 — сразу.</summary>
         public void SetCounting(float duration, float punch, float punchDuration)
         {
@@ -51,16 +62,24 @@ namespace Zonk.UI.Views
         {
             // Рост (игрок забрал очки) накручивается с подпрыгиванием; первое значение и сброс — сразу.
             if (_counter.SetTarget(score, isActiveAndEnabled))
-                NumberText.Set(_score, null, score);
+                NumberText.Set(_score, null, score, _goalSuffix);
 
-            _background.color = active ? UiColors.PanelLight : UiColors.Panel;
-            transform.localScale = active ? Vector3.one * 1.06f : Vector3.one;
+            // Чей ход: табличка загорается цветом. Меняется только при смене хода.
+            var state = active ? 1 : 0;
+            if (state == _activeState)
+                return;
+
+            _activeState = state;
+            _background.color = active ? UiColors.ButtonAccent : UiColors.Panel;
+            _score.color = active ? Color.white : UiColors.Gold;
+            _name.color = active ? Color.white : _nameColor;
+            transform.localScale = active ? Vector3.one * 1.04f : Vector3.one;
         }
 
         private void Update()
         {
             if (_counter.Tick(Time.deltaTime, _score.rectTransform))
-                NumberText.Set(_score, null, _counter.Shown);
+                NumberText.Set(_score, null, _counter.Shown, _goalSuffix);
         }
     }
 

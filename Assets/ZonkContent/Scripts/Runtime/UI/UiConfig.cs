@@ -56,6 +56,9 @@ namespace Zonk.UI
         [Tooltip("Материал шрифта заголовков: чернильный контур и жёсткая тень")]
         public Material DisplayMaterial;
 
+        [Tooltip("Материал для мелких надписей заголовочным шрифтом: тонкий контур без тени, буквы не забиваются")]
+        public Material DisplaySmallMaterial;
+
         [Header("Мимолётные надписи (детали Parts)")]
         [Tooltip("Крупная надпись по центру. Пусто — надпись собирается кодом")]
         public TMP_Text ToastPrefab;
