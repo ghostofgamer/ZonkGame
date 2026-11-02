@@ -39,6 +39,16 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _again;
         [SerializeField] private UiButtonView _double;
 
+        [Header("Прогрессия (детали Parts; в старом префабе пусто — итоги без них)")]
+        [Tooltip("Плашка-взрыв поверх итогов: победа, новый уровень")]
+        [SerializeField] private ComicBurstView _burst;
+
+        [Tooltip("Крупный счёт партии")]
+        [SerializeField] private TMP_Text _headline;
+
+        [Tooltip("Блок «Дальше»: ради чего играть следующую партию")]
+        [SerializeField] private UiLabelPlate _nextGoal;
+
         private UiConfig _uiConfig;
         private readonly Choice<ResultsChoice> _choice = new Choice<ResultsChoice>();
 
@@ -57,6 +67,13 @@ namespace Zonk.UI.Windows
             _again = again;
             _double = doubleReward;
         }
+
+        public void EditorSetupProgress(ComicBurstView burst, TMP_Text headline, UiLabelPlate nextGoal)
+        {
+            _burst = burst;
+            _headline = headline;
+            _nextGoal = nextGoal;
+        }
 #endif
 
         [Zenject.Inject]
@@ -71,6 +88,10 @@ namespace Zonk.UI.Windows
         {
             _lineTemplate.gameObject.SetActive(false);
             _rewardTemplate.gameObject.SetActive(false);
+            if (_burst != null)
+                _burst.gameObject.SetActive(false);
+            if (_nextGoal != null)
+                _nextGoal.gameObject.SetActive(false);
             if (_stars != null)
                 _stars.gameObject.SetActive(false);
             if (_playerLevel != null)
@@ -93,6 +114,14 @@ namespace Zonk.UI.Windows
             _again.SetVisible(canAgain);
             _double.SetVisible(canDouble);
 
+            if (_headline != null)
+            {
+                var scores = new string[match.Players.Count];
+                for (var i = 0; i < scores.Length; i++)
+                    scores[i] = match.Players[i].Score.ToString();
+                _headline.text = string.Join(" : ", scores);
+            }
+
             foreach (var player in match.Players)
                 Spawn(_lineTemplate, _lines).text = T("results.line", player.Name, player.Score, player.BestTurn, player.ZonkCount);
 
@@ -103,6 +132,31 @@ namespace Zonk.UI.Windows
             }
 
             ShowRewards(rewards);
+        }
+
+        /// <summary>Плашка-взрыв поверх итогов. Кнопки под ней работают: не надо ждать конца показа.</summary>
+        public UniTask PlayBurstAsync(string word, string caption, Color color, bool fire, float hold, CancellationToken ct)
+        {
+            return _burst != null ? _burst.PlayAsync(word, caption, color, fire, hold, ct) : UniTask.CompletedTask;
+        }
+
+        /// <summary>Блок «Дальше»: ближайшая цель игрока. Пусто — блока нет.</summary>
+        public void SetNextGoal(string title, string text)
+        {
+            if (_nextGoal == null)
+                return;
+
+            _nextGoal.gameObject.SetActive(!string.IsNullOrEmpty(text));
+            if (!string.IsNullOrEmpty(text))
+                _nextGoal.Label.text = "<b><color=#" + ColorUtility.ToHtmlStringRGB(UiColors.Bad) + ">" + title + "</color></b>\n" + text;
+        }
+
+        /// <summary>Строка про заработанное за партию: достижение, задание, сундук. Цвет — как у важности.</summary>
+        public void AddLine(string text, Color color)
+        {
+            var line = Spawn(_lineTemplate, _lines);
+            line.text = text;
+            line.color = color;
         }
 
         public void ShowRewards(IReadOnlyList<GrantedReward> rewards)
@@ -116,17 +170,29 @@ namespace Zonk.UI.Windows
             if (rewards == null)
                 return;
 
+            // Монеты одной строкой: «+30, +30, +60» читается хуже, чем «+120».
+            var totals = new Dictionary<CurrencyConfig, int>();
+            var order = new List<CurrencyConfig>();
             foreach (var reward in rewards)
             {
-                string text;
-                if (reward.Currency != null)
-                    text = "+" + reward.Amount + " " + T(reward.Currency.NameKey);
-                else if (reward.Item != null)
-                    text = T("results.unlocked", RewardNames.Describe(reward.Item, T));
-                else
+                if (reward.Currency == null)
                     continue;
+                if (!totals.ContainsKey(reward.Currency))
+                {
+                    totals[reward.Currency] = 0;
+                    order.Add(reward.Currency);
+                }
 
-                Spawn(_rewardTemplate, _rewards).text = text;
+                totals[reward.Currency] += reward.Amount;
+            }
+
+            foreach (var currency in order)
+                Spawn(_rewardTemplate, _rewards).text = "+" + totals[currency] + " " + T(currency.NameKey);
+
+            foreach (var reward in rewards)
+            {
+                if (reward.Item != null)
+                    Spawn(_rewardTemplate, _rewards).text = T("results.unlocked", RewardNames.Describe(reward.Item, T));
             }
         }
 

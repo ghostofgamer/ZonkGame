@@ -19,7 +19,15 @@ namespace Zonk.UI.Views
         [SerializeField] private TMP_Text _status;
         [SerializeField] private StarsView _stars;
 
+        [Tooltip("Рамка выбранного соперника")]
+        [SerializeField] private GameObject _selection;
+
 #if UNITY_EDITOR
+        public void EditorSetupSelection(GameObject selection)
+        {
+            _selection = selection;
+        }
+
         public void EditorSetup(Button button, Image background, Image portrait, TMP_Text name, TMP_Text status, StarsView stars)
         {
             _button = button;
@@ -59,6 +67,13 @@ namespace Zonk.UI.Views
             _button.onClick.RemoveAllListeners();
             if (onClick != null)
                 _button.onClick.AddListener(onClick);
+            SetSelected(false);
+        }
+
+        public void SetSelected(bool selected)
+        {
+            if (_selection != null)
+                _selection.SetActive(selected);
         }
     }
 }

@@ -512,6 +512,24 @@ namespace Zonk.Core.Match
             Phase = MatchPhase.AwaitingRoll;
         }
 
+#if UNITY_EDITOR
+        /// <summary>Только для проверки в редакторе: закончить партию победой игрока winner с разрывом margin очков.</summary>
+        public void DebugFinish(int winner, int margin)
+        {
+            var best = 0;
+            foreach (var player in _players)
+            {
+                if (player.Index != winner && player.Score > best)
+                    best = player.Score;
+            }
+
+            var target = _players[winner];
+            target.Score = Math.Max(target.Score, Math.Max(best + margin, Rules.TargetScore));
+            target.BestTurn = Math.Max(target.BestTurn, margin);
+            Finish();
+        }
+#endif
+
         private void Finish()
         {
             Phase = MatchPhase.Finished;

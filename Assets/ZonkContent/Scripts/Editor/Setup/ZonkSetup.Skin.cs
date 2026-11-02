@@ -414,6 +414,8 @@ namespace Zonk.Editor.Setup
                 SkinPrefab(AssetDatabase.GUIDToAssetPath(guid), map);
 
             AddComicToHud(plate, row, burst);
+            UpgradeResults(burst);
+            UpgradeOpponentRowPart();
             UpgradeHudPanelPart();
             UpgradeShopCardPart();
             UpgradeHudLayout();

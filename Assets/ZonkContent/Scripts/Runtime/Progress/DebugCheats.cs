@@ -8,6 +8,17 @@ namespace Zonk.Progress
     {
 #if UNITY_EDITOR
         public const string UnlockAllKey = "Zonk.Cheats.UnlockAll";
+
+        /// <summary>Разрыв в очках при мгновенном конце партии: поражение покажет «Не хватило N очков».</summary>
+        public const int ForcedMargin = 350;
+
+        /// <summary>Мгновенная победа (true) или поражение текущей партии. Слушает MatchRunner, пока партия идёт.</summary>
+        public static event System.Action<bool> MatchResultRequested;
+
+        public static void RequestMatchResult(bool localWins)
+        {
+            MatchResultRequested?.Invoke(localWins);
+        }
 #endif
 
         public static bool UnlockAll

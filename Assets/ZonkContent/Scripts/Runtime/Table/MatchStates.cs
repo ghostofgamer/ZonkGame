@@ -37,6 +37,7 @@ namespace Zonk.Table
         private readonly ITalents _talents;
         private readonly IWallet _wallet;
         private bool _chestEarned;
+        private readonly PlayerLevelConfig _levelConfig;
         private readonly CurrencyConfig _coinsCurrency;
 
         public MatchAftermath(UiKit kit, TableView table, MatchPresenter presenter, RewardGranter granter,
@@ -52,6 +53,7 @@ namespace Zonk.Table
             _records = records;
             _level = level;
             _coinsCurrency = config != null ? config.Coins : null;
+            _levelConfig = config != null ? config.PlayerLevel : null;
             _quests = quests;
             _mastery = mastery;
             _kit = kit;
@@ -68,7 +70,7 @@ namespace Zonk.Table
         public async UniTask<ResultsChoice> ShowAsync(MatchOutcome outcome, IReadOnlyList<MatchParticipant> participants,
             IReadOnlyList<Reward> rewards, string interstitialTrigger, bool canAgain, CancellationToken ct,
             IReadOnlyList<GrantedReward> alreadyGranted = null, IReadOnlyList<string> notes = null, int starMask = 0,
-            int starCount = 0, string againText = null)
+            int starCount = 0, string againText = null, string nextGoal = null)
         {
             var match = outcome.Match;
             var winner = outcome.Winner >= 0 ? participants[outcome.Winner] : null;
@@ -91,8 +93,13 @@ namespace Zonk.Table
             }
 
             await _presenter.ShowResultAsync(localWon || !vsAi, ct);
-            if (localWon && vsAi && _talents != null && _talents.Value(TalentEffect.WinCelebration) > 0f)
+            // Салют на каждой победе. Талант «Праздник победы» добавляет к нему второй.
+            if (localWon && vsAi)
+            {
                 _presenter.Celebrate();
+                if (_talents != null && _talents.Value(TalentEffect.WinCelebration) > 0f)
+                    _presenter.Celebrate();
+            }
 
             // Опыт игрока — за любую партию против соперника (за проигрыш тоже), не за игру вдвоём.
             var xp = vsAi ? RecordLocalMatch(outcome, participants, localWon) : default(XpGain?);
@@ -106,39 +113,60 @@ namespace Zonk.Table
             await _saves.SaveNowAsync(ct);
 
             var canDouble = HasCurrency(rewards) && localWon && _rewards.CanOffer;
+            var lost = vsAi && !localWon && !outcome.Surrendered;
+
+            // Поражение: насколько близко было, и кнопка реванша вместо «Ещё раз» (если режим не задал свою).
+            var allNotes = new List<string>();
+            if (lost && winner != null)
+                allNotes.Add(_kit.T("results.short", ScoreGap(match, participants, outcome.Winner)));
+            if (notes != null)
+                allNotes.AddRange(notes);
+            if (lost && string.IsNullOrEmpty(againText))
+                againText = _kit.T("results.rematch");
+
             ResultsChoice choice;
-            var screen = await _ui.OpenAsync<ResultsWindow>(ct, w => w.Setup(match, title, color, granted, canDouble, canAgain, notes, againText));
+            var screen = await _ui.OpenAsync<ResultsWindow>(ct, w => w.Setup(match, title, color, granted, canDouble, canAgain, allNotes, againText));
             screen.PlayCoinsGained(granted, _coinsCurrency);
             screen.ShowStars(starMask, starCount);
             if (xp.HasValue)
                 screen.ShowXp(xp.Value, _level);
-            try
-            {
-                while (true)
-                {
-                    choice = await screen.WaitChoiceAsync(ct);
-                    if (choice != ResultsChoice.DoubleReward)
-                        break;
 
-                    var result = await _rewards.RequestAsync("double_reward", ct);
-                    screen.HideDouble();
-                    if (result.IsGranted())
+            var levelUps = _level != null ? _level.TakeLevelUps() : null;
+            RememberUnlocks(levelUps);
+            ShowProgressLines(screen);
+            if (vsAi)
+                screen.SetNextGoal(_kit.T("results.next"), NextGoalText(nextGoal));
+
+            using (var intro = CancellationTokenSource.CreateLinkedTokenSource(ct))
+            {
+                PlayIntroAsync(screen, title, color, localWon || !vsAi, levelUps, intro.Token).Forget();
+                try
+                {
+                    while (true)
                     {
-                        var extra = _granter.Grant(CurrencyOnly(rewards));
-                        granted.AddRange(extra);
-                        screen.ShowRewards(granted);
-                        _table.Sound.Play(Sfx.Coin);
+                        choice = await screen.WaitChoiceAsync(ct);
+                        if (choice != ResultsChoice.DoubleReward)
+                            break;
+
+                        var result = await _rewards.RequestAsync("double_reward", ct);
+                        screen.HideDouble();
+                        if (result.IsGranted())
+                        {
+                            var extra = _granter.Grant(CurrencyOnly(rewards));
+                            granted.AddRange(extra);
+                            screen.ShowRewards(granted);
+                            _table.Sound.Play(Sfx.Coin);
+                        }
                     }
                 }
-            }
-            finally
-            {
-                await _ui.CloseAsync(screen, CancellationToken.None);
+                finally
+                {
+                    intro.Cancel();
+                    await _ui.CloseAsync(screen, CancellationToken.None);
+                }
             }
 
             _presenter.EndMatch();
-
-            await ShowProgressNoticesAsync(ct);
 
             // Естественная пауза между партиями: общий слой сам решит, пора ли показывать рекламу.
             if (!string.IsNullOrEmpty(interstitialTrigger))
@@ -147,58 +175,159 @@ namespace Zonk.Table
             return choice;
         }
 
-        /// <summary>Сообщения после партии: новый уровень игрока, выполненные задания, новые уровни мастерства костей.</summary>
-        private async UniTask ShowProgressNoticesAsync(CancellationToken ct)
+        /// <summary>Режимы, открытые этой партией: меню предложит их попробовать, когда игрок туда вернётся.</summary>
+        private readonly List<GameFeature> _pendingUnlocks = new List<GameFeature>();
+
+        public bool TakePendingUnlock(out GameFeature feature)
         {
+            feature = default;
+            if (_pendingUnlocks.Count == 0)
+                return false;
+
+            feature = _pendingUnlocks[0];
+            _pendingUnlocks.RemoveAt(0);
+            return true;
+        }
+
+        public static string ModeKey(GameFeature feature)
+        {
+            return feature == GameFeature.Tower ? "mode.tower" : "mode.endlessRun";
+        }
+
+        private void RememberUnlocks(List<PlayerLevelUp> levelUps)
+        {
+            if (levelUps == null || _level == null)
+                return;
+
+            foreach (var levelUp in levelUps)
+            {
+                foreach (GameFeature feature in System.Enum.GetValues(typeof(GameFeature)))
+                {
+                    if (_level.UnlockLevel(feature) == levelUp.Level)
+                        _pendingUnlocks.Add(feature);
+                }
+            }
+        }
+
+        private static int ScoreGap(ZonkMatch match, IReadOnlyList<MatchParticipant> participants, int winner)
+        {
+            for (var i = 0; i < participants.Count; i++)
+            {
+                if (participants[i].Controller == ControllerKind.Local)
+                    return Mathf.Max(0, match.Players[winner].Score - match.Players[i].Score);
+            }
+
+            return 0;
+        }
+
+        /// <summary>Победа и новые уровни поверх итогов. Кнопки работают сразу, ждать показ не нужно.</summary>
+        private async UniTaskVoid PlayIntroAsync(ResultsWindow screen, string title, Color color, bool fire, List<PlayerLevelUp> levelUps,
+            CancellationToken ct)
+        {
+            try
+            {
+                await screen.PlayBurstAsync(title, null, color, fire, 0.7f, ct);
+                if (levelUps == null)
+                    return;
+
+                foreach (var levelUp in levelUps)
+                {
+                    _table.Sound.Play(Sfx.Coin);
+                    await screen.PlayBurstAsync(_kit.T("level.up", levelUp.Level), RewardNames.Granted(levelUp.Rewards, _kit.T), UiColors.Gold, true, 1.3f, ct);
+                }
+            }
+            catch (System.OperationCanceledException)
+            {
+            }
+        }
+
+        /// <summary>Заработанное за партию — строками в итогах, а не надписями по очереди на пустом столе.</summary>
+        private void ShowProgressLines(ResultsWindow screen)
+        {
+            var lines = new List<string>();
             if (_achievements != null)
             {
                 _achievements.Check();
                 foreach (var unlock in _achievements.TakeUnlocked())
                 {
-                    _table.Sound.Play(Sfx.Coin);
                     var text = _kit.T("achievement.unlocked", RewardNames.AchievementTitle(unlock.Achievement, _kit.T));
                     var rewards = RewardNames.Granted(unlock.Rewards, _kit.T);
-                    if (!string.IsNullOrEmpty(rewards))
-                        text += "\n" + rewards;
-                    await Toast.ShowAsync(_kit, _table.UiRoot, text, UiColors.Gold, 1.6f, ct);
+                    lines.Add(string.IsNullOrEmpty(rewards) ? text : text + " " + rewards);
                 }
             }
 
             if (_chestEarned)
             {
                 _chestEarned = false;
-                _table.Sound.Play(Sfx.Coin);
-                await Toast.ShowAsync(_kit, _table.UiRoot, _kit.T("chest.earned"), UiColors.Gold, 1.2f, ct);
-            }
-
-            if (_level != null)
-            {
-                foreach (var levelUp in _level.TakeLevelUps())
-                {
-                    _table.Sound.Play(Sfx.Coin);
-                    var text = _kit.T("level.up", levelUp.Level);
-                    var rewards = RewardNames.Granted(levelUp.Rewards, _kit.T);
-                    if (!string.IsNullOrEmpty(rewards))
-                        text += "\n" + rewards;
-                    await Toast.ShowAsync(_kit, _table.UiRoot, text, UiColors.Gold, 1.6f, ct);
-                }
+                lines.Add(_kit.T("chest.earned"));
             }
 
             foreach (var quest in _quests.TakeCompleted())
-            {
-                _table.Sound.Play(Sfx.Coin);
-                await Toast.ShowAsync(_kit, _table.UiRoot, _kit.T("quests.completed", quest.Describe(_kit.T)),
-                    UiColors.Gold, 1.1f, ct);
-            }
+                lines.Add(_kit.T("quests.completed", quest.Describe(_kit.T)));
 
             foreach (var levelUp in _mastery.TakeLevelUps())
             {
                 var info = _mastery.GetLevelInfo(levelUp.Level);
-                _table.Sound.Play(Sfx.Coin);
-                await Toast.ShowAsync(_kit, _table.UiRoot,
-                    _kit.T("mastery.levelUp", _kit.T(levelUp.Die.NameKey), info != null ? _kit.T(info.NameKey) : levelUp.Level.ToString()),
-                    info != null ? info.Color : UiColors.Gold, 1.2f, ct);
+                lines.Add(_kit.T("mastery.levelUp", _kit.T(levelUp.Die.NameKey), info != null ? _kit.T(info.NameKey) : levelUp.Level.ToString()));
             }
+
+            if (lines.Count > 0)
+                _table.Sound.Play(Sfx.Coin);
+
+            // Окно не резиновое: показываем первые, про остальные говорим числом. Всё уже выдано.
+            const int visible = 4;
+            for (var i = 0; i < lines.Count && i < visible; i++)
+                screen.AddLine(lines[i], UiColors.Gold);
+            if (lines.Count > visible)
+                screen.AddLine(_kit.T("results.more", lines.Count - visible), UiColors.TextMuted);
+        }
+
+        /// <summary>Блок «Дальше»: следующий соперник (режим передаёт сам) и ближайшая цель по уровню.</summary>
+        private string NextGoalText(string nextGoal)
+        {
+            var levelGoal = LevelGoalText();
+            if (string.IsNullOrEmpty(nextGoal))
+                return levelGoal;
+            return string.IsNullOrEmpty(levelGoal) ? nextGoal : nextGoal + "\n" + levelGoal;
+        }
+
+        private string LevelGoalText()
+        {
+            var config = _levelConfig;
+            if (config == null || _level == null)
+                return null;
+
+            var current = _level.Level;
+            if (config.MaxLevel > 0 && current >= config.MaxLevel)
+                return null;
+
+            // Ближайший рубеж с наградой и ближайшее открытие режима: что раньше, то и цель.
+            PlayerLevelMilestone milestone = null;
+            foreach (var entry in config.Milestones)
+            {
+                if (entry != null && entry.Level > current && entry.Rewards.Count > 0 && (milestone == null || entry.Level < milestone.Level))
+                    milestone = entry;
+            }
+
+            var unlockLevel = int.MaxValue;
+            var unlockFeature = default(GameFeature);
+            foreach (GameFeature feature in System.Enum.GetValues(typeof(GameFeature)))
+            {
+                var at = _level.UnlockLevel(feature);
+                if (at > current && at < unlockLevel)
+                {
+                    unlockLevel = at;
+                    unlockFeature = feature;
+                }
+            }
+
+            long Left(int level) => System.Math.Max(0L, Zonk.Core.Progress.PlayerLevelMath.TotalXpFor(level, config.FirstLevelXp, config.LevelXpGrowth) - _level.Xp);
+
+            if (unlockLevel != int.MaxValue && (milestone == null || unlockLevel <= milestone.Level))
+                return _kit.T("results.nextMode", Left(unlockLevel), unlockLevel, _kit.T(ModeKey(unlockFeature)));
+            if (milestone != null)
+                return _kit.T("results.nextReward", Left(milestone.Level), milestone.Level, RewardNames.List(milestone.Rewards, _kit.T));
+            return _kit.T("results.nextLevel", Left(current + 1), current + 1);
         }
 
         /// <summary>Партия местного игрока против соперника: статистика и опыт (победа или проигрыш, очки, босс).</summary>
@@ -557,7 +686,8 @@ namespace Zonk.Table
             }
 
             var choice = await _aftermath.ShowAsync(outcome, players, rewards, mode != null ? mode.InterstitialTrigger : null,
-                true, ct, stakeRewards, notes, won ? _progress.GetStarMask(opponent) : 0, won ? StarsText.MaxStars(opponent) : 0);
+                true, ct, stakeRewards, notes, won ? _progress.GetStarMask(opponent) : 0, won ? StarsText.MaxStars(opponent) : 0,
+                nextGoal: won ? NextOpponentText(chapter) : null);
 
             _dresser.ApplyEquipped();
 
@@ -568,6 +698,18 @@ namespace Zonk.Table
             }
 
             return choice == ResultsChoice.Again;
+        }
+
+        /// <summary>Следующий соперник главы, которого ещё не победили; все побеждены — пусто.</summary>
+        private string NextOpponentText(ChapterConfig chapter)
+        {
+            foreach (var opponent in chapter.Opponents)
+            {
+                if (opponent != null && _progress.GetState(chapter, opponent) == OpponentState.Available)
+                    return _kit.T("results.nextOpponent", _kit.T(opponent.NameKey));
+            }
+
+            return null;
         }
 
         /// <summary>

@@ -47,6 +47,7 @@ namespace Zonk.UI.Windows
         private GameConfig _config;
         private int _chapterIndex;
         private OpponentConfig _selected;
+        private readonly List<KeyValuePair<OpponentConfig, OpponentRowView>> _rows = new List<KeyValuePair<OpponentConfig, OpponentRowView>>();
         private IDieMastery _mastery;
         private IWallet _wallet;
         private IInventory _inventory;
@@ -315,6 +316,7 @@ namespace Zonk.UI.Windows
                     Destroy(child.gameObject);
             }
 
+            _rows.Clear();
             OpponentConfig firstAvailable = null;
             foreach (var opponent in Chapter.Opponents)
             {
@@ -381,6 +383,7 @@ namespace Zonk.UI.Windows
             row.gameObject.SetActive(true);
             row.Setup(T(opponent.NameKey), status, opponent.Portrait, _progress.GetStarMask(opponent), StarsText.MaxStars(opponent),
                 _config.Ui, color, interactable, onClick);
+            _rows.Add(new KeyValuePair<OpponentConfig, OpponentRowView>(opponent, row));
         }
 
         /// <summary>Строка в старом префабе окна: кнопка-шаблон, всё одной строкой текста.</summary>
@@ -423,6 +426,9 @@ namespace Zonk.UI.Windows
         private void Select(OpponentConfig opponent)
         {
             _selected = opponent;
+            for (var i = 0; i < _rows.Count; i++)
+                _rows[i].Value.SetSelected(_rows[i].Key == opponent);
+
             if (opponent == null)
             {
                 if (_portrait != null)

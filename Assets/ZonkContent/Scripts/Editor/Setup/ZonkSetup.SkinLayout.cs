@@ -65,6 +65,140 @@ namespace Zonk.Editor.Setup
             }).GetComponent<UiLabelPlate>();
         }
 
+        /// <summary>Строка соперника: золотая рамка выбранного, как у карточки магазина.</summary>
+        private static void UpgradeOpponentRowPart()
+        {
+            var path = PartsFolder + "/OpponentRow.prefab";
+            if (IsLocked(path) || AssetDatabase.LoadAssetAtPath<GameObject>(path) == null)
+                return;
+
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                if (FindDeep(root.transform, "Selection") != null)
+                    return;
+
+                var frameRect = UiRect("Selection", root.transform);
+                Stretch(frameRect);
+                frameRect.SetAsFirstSibling();
+                var frame = frameRect.gameObject.AddComponent<Image>();
+                frame.sprite = ComicSpriteAsset("UI_Plate");
+                frame.type = Image.Type.Sliced;
+                frame.fillCenter = false;
+                frame.pixelsPerUnitMultiplier = 2.5f;
+                frame.color = _ui.Palette.Gold;
+                frame.raycastTarget = false;
+                frameRect.gameObject.SetActive(false);
+                root.GetComponent<OpponentRowView>().EditorSetupSelection(frameRect.gameObject);
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        /// <summary>Блок «Дальше»: светлая табличка с целью игрока. Переиспользуемая деталь.</summary>
+        private static UiLabelPlate NextGoalPart()
+        {
+            return Part("NextGoal", () =>
+            {
+                var root = UiRect("NextGoal", null);
+                root.sizeDelta = new Vector2(800f, 112f);
+                var image = root.gameObject.AddComponent<Image>();
+                image.sprite = ComicSpriteAsset("UI_Plate");
+                image.type = Image.Type.Sliced;
+                image.color = Paper;
+                image.raycastTarget = false;
+                var group = root.gameObject.AddComponent<CanvasGroup>();
+                group.blocksRaycasts = false;
+                group.interactable = false;
+                Height(root, 112f);
+
+                var label = UiText("Label", root, _ui.BoldFont, 26f, Ink);
+                AutoSize(label, 16f, 26f);
+                label.fontSharedMaterial = _ui.BoldFont.material;
+                label.rectTransform.anchorMin = Vector2.zero;
+                label.rectTransform.anchorMax = Vector2.one;
+                label.rectTransform.offsetMin = new Vector2(22f, 18f);
+                label.rectTransform.offsetMax = new Vector2(-26f, -10f);
+
+                root.gameObject.AddComponent<UiLabelPlate>().EditorSetup(label, group);
+                return root.gameObject;
+            }).GetComponent<UiLabelPlate>();
+        }
+
+        /// <summary>Итоги партии: крупный счёт, блок «Дальше», плашка-взрыв поверх окна.</summary>
+        private static void UpgradeResults(GameObject burst)
+        {
+            var path = Prefabs + "/UI/ResultsWindow.prefab";
+            if (IsLocked(path) || AssetDatabase.LoadAssetAtPath<GameObject>(path) == null)
+                return;
+
+            var goalPart = NextGoalPart();
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var window = root.GetComponent<Zonk.UI.Windows.ResultsWindow>();
+                var title = FindDeep(root.transform, "Title");
+                var buttons = FindDeep(root.transform, "Menu");
+                if (window == null || title == null || buttons == null)
+                    return;
+
+                var column = (RectTransform)title.parent;
+                var row = buttons.parent;
+                if (FindDeep(root.transform, "Headline") == null)
+                {
+                    var headline = UiText("Headline", column, _ui.DisplayFont, 86f, Color.white);
+                    ComicText(headline, false);
+                    Height(headline, 96f);
+                    headline.transform.SetSiblingIndex(title.GetSiblingIndex() + 1);
+
+                    var goal = (GameObject)PrefabUtility.InstantiatePrefab(goalPart.gameObject, column);
+                    goal.name = "NextGoal";
+                    goal.transform.SetSiblingIndex(row.GetSiblingIndex());
+
+                    if (column.parent is RectTransform panel && panel.sizeDelta.y > 0f)
+                        panel.sizeDelta = new Vector2(panel.sizeDelta.x, 1000f);
+
+                    var burstObject = Nest(burst, root.transform, "ComicBurst");
+                    Place((RectTransform)burstObject.transform, new Vector2(0.5f, 0.62f), new Vector2(1000f, 430f));
+                    burstObject.SetActive(false);
+
+                    window.EditorSetupProgress(burstObject.GetComponent<ComicBurstView>(), headline, goal.GetComponent<UiLabelPlate>());
+                }
+
+                // Пустое место — над «Дальше», а кнопки всегда внизу окна: при коротких итогах они не висят в середине.
+                if (FindDeep(root.transform, "Spacer") == null)
+                {
+                    var goalRow = FindDeep(root.transform, "NextGoal");
+                    var spacer = UiRect("Spacer", column);
+                    spacer.gameObject.AddComponent<LayoutElement>().flexibleHeight = 1f;
+                    spacer.SetSiblingIndex(goalRow != null ? goalRow.GetSiblingIndex() : row.GetSiblingIndex());
+                }
+
+                // Полоса опыта крупнее: это главное на экране итогов после счёта.
+                var level = FindDeep(root.transform, "PlayerLevel");
+                if (level != null)
+                {
+                    Height(level.GetComponent<RectTransform>(), 92f);
+                    var caption = FindDeep(level, "Caption");
+                    if (caption != null)
+                    {
+                        var captionText = caption.GetComponent<TMPro.TMP_Text>();
+                        captionText.fontSizeMin = 18f;
+                        captionText.fontSizeMax = 30f;
+                    }
+                }
+
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
         /// <summary>Карточка магазина: иконка главная, выбор — золотая рамка, а не бледная заливка поверх всего.</summary>
         private static void UpgradeShopCardPart()
         {

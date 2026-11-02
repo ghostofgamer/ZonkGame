@@ -71,11 +71,14 @@ namespace Zonk.Table
         private readonly IPlayerLevel _level;
         private readonly UiKit _kit;
         private readonly MatchPresenter _presenter;
+        private readonly MatchAftermath _aftermath;
         private bool _first = true;
 
         public MenuState(IUiService ui, TableView table, StageDresser dresser, IPlatformService platform, LoadingScreenHolder loading,
-            ShopFocus focus, ShopService shop, TutorialDirector tutorial, IPlayerLevel level, UiKit kit, MatchPresenter presenter)
+            ShopFocus focus, ShopService shop, TutorialDirector tutorial, IPlayerLevel level, UiKit kit, MatchPresenter presenter,
+            MatchAftermath aftermath)
         {
+            _aftermath = aftermath;
             _presenter = presenter;
             _level = level;
             _kit = kit;
@@ -123,6 +126,16 @@ namespace Zonk.Table
             }
 
             _platform.NotifyGameplayStop();
+
+            // Партия открыла режим: сразу предложить попробовать.
+            if (_aftermath.TakePendingUnlock(out var unlocked))
+            {
+                var name = _kit.T(MatchAftermath.ModeKey(unlocked));
+                var answer = await ModeWindows.AskAsync(_ui, _kit.T("level.unlockedTitle", name), null, _kit.T("level.unlockedBody"),
+                    _kit.T("level.tryIt"), null, _kit.T("ui.later"), ct);
+                if (answer == ChallengeChoice.Primary)
+                    return unlocked == GameFeature.Tower ? TableStateIds.Tower : TableStateIds.EndlessRun;
+            }
 
             // Оплаченное, но не выданное (пакеты монет, награды наборов) — до показа кошелька.
             _shop.SyncPurchases();

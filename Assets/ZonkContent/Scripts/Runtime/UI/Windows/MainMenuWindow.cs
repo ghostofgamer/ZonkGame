@@ -259,6 +259,9 @@ namespace Zonk.UI.Windows
 
             var locked = _level != null && !_level.IsUnlocked(feature);
             button.SetText(locked ? T("level.lockedButton", T(key), _level.UnlockLevel(feature)) : T(key));
+            // Закрытый режим видно сразу: серая кнопка с уровнем.
+            if (locked)
+                button.SetColor(UiColors.ButtonMuted);
         }
 
         public UniTask<MainMenuChoice> WaitChoiceAsync(CancellationToken ct)

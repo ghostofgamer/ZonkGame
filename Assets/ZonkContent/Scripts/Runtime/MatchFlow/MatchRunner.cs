@@ -120,6 +120,23 @@ namespace Zonk.MatchFlow
                 hud.SurrenderRequested += OnSurrender;
                 _chat.Received += OnPhraseReceived;
 
+#if UNITY_EDITOR
+                // Меню Zonk/Tools/Cheats: мгновенная победа или поражение, чтобы проверять итоги, не играя партию.
+                var forced = false;
+                void OnForceResult(bool localWins)
+                {
+                    if (forced || match.Phase == MatchPhase.Finished)
+                        return;
+
+                    forced = true;
+                    var local = LocalSpeaker(match, participants);
+                    match.DebugFinish(localWins ? local : (local == 0 ? 1 : 0), DebugCheats.ForcedMargin);
+                    surrenderCts.Cancel();
+                }
+
+                DebugCheats.MatchResultRequested += OnForceResult;
+#endif
+
                 try
                 {
                     _reactions.Fire(-1, MatchEventType.MatchStarted, MatchEventType.MatchStarted);
@@ -135,8 +152,18 @@ namespace Zonk.MatchFlow
                     // Сдался местный игрок: победа остальным, партия закрывается без исключения.
                     outcome.Winner = LocalSpeaker(match, participants) == 0 ? 1 : 0;
                 }
+#if UNITY_EDITOR
+                catch (OperationCanceledException) when (forced && !ct.IsCancellationRequested)
+                {
+                    outcome.Winner = match.Winner != null ? match.Winner.Index : -1;
+                    hud.Refresh(match);
+                }
+#endif
                 finally
                 {
+#if UNITY_EDITOR
+                    DebugCheats.MatchResultRequested -= OnForceResult;
+#endif
                     // Партия кончилась любым путём: окно «Сдаться?» не должно остаться поверх итогов.
                     surrenderAskCts.Cancel();
                     _tutorial.Hide();

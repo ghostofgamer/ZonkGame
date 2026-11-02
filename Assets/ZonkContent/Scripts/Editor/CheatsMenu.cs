@@ -32,6 +32,26 @@ namespace Zonk.Editor
             return true;
         }
 
+        // Горячие клавиши: F7 и F8, когда игра запущена.
+        [MenuItem(Root + "Win Current Match _F7", priority = 10)]
+        private static void WinMatch()
+        {
+            DebugCheats.RequestMatchResult(true);
+        }
+
+        [MenuItem(Root + "Lose Current Match _F8", priority = 11)]
+        private static void LoseMatch()
+        {
+            DebugCheats.RequestMatchResult(false);
+        }
+
+        [MenuItem(Root + "Win Current Match _F7", true)]
+        [MenuItem(Root + "Lose Current Match _F8", true)]
+        private static bool ValidateMatchResult()
+        {
+            return Application.isPlaying;
+        }
+
         [MenuItem(Root + "+10000 Coins", priority = 20)]
         private static void AddCoins()
         {
