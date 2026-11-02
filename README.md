@@ -2373,3 +2373,8 @@ analytics.SetUserProperty("chapter", 3);   // свойство игрока: с�
 - Комната `Tools/Blender/zonk_room.py -- --bake`: настоящий свет (камин, лампа, луна через проём) считает Cycles и запекает в `Art/Textures/Environments/Home_Room.png` (2048) и `Home_Props.png` (1024). Модель `Art/Models/Environments/Room_Home.fbx`: 5 348 треугольников, 2 материала без расчёта света.
 - Живые части поверх: огонь и свечи (`WorldFlipbook`, те же кадры, что в интерфейсе), дымок (`Zonk/SmokeWisp`), отсвет камина на полу (`WorldGlowPulse`). Применяется `Zonk/Art/Apply Home Room`, префаб `Env_Home` остаётся тем же файлом.
 - `Lighting_Home`: свет на столе и костях вечерний.
+
+### 2026-11-02 (магазин: слова и рамка)
+
+- Вместо «Надеть / Надето» теперь «Выбрать / Выбрано» на всех языках (`shop.equip`, `shop.equipped`).
+- Карточка: рамка выбранного тонкая и под текстом, не закрывает «Есть» и «Выбрано». Применяется `Zonk/Setup/Apply Comic UI`.

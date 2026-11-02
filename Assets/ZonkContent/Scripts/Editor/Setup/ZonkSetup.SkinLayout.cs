@@ -80,21 +80,23 @@ namespace Zonk.Editor.Setup
                 var name = FindDeep(root.transform, "Name") as RectTransform;
                 var price = FindDeep(root.transform, "Price") as RectTransform;
                 var state = FindDeep(root.transform, "State") as RectTransform;
-                if (icon == null || selection == null || name == null || price == null || state == null || Mathf.Approximately(icon.sizeDelta.x, 140f))
+                if (icon == null || selection == null || name == null || price == null || state == null || Mathf.Approximately(icon.sizeDelta.x, 128f))
                     return;
 
-                Corner(icon, new Vector2(0.5f, 1f), new Vector2(140f, 140f), new Vector2(0f, -6f));
-                Anchor(name, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 72f), new Vector2(-20f, 36f));
-                Anchor(price, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 42f), new Vector2(-20f, 28f));
-                Anchor(state, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 20f), new Vector2(-20f, 26f));
+                Corner(icon, new Vector2(0.5f, 1f), new Vector2(128f, 128f), new Vector2(0f, -8f));
+                Anchor(name, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 84f), new Vector2(-28f, 36f));
+                Anchor(price, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 56f), new Vector2(-28f, 28f));
+                Anchor(state, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 32f), new Vector2(-28f, 26f));
                 state.GetComponent<TMPro.TMP_Text>().color = _ui.Palette.Text;
 
+                // Рамка тонкая и под текстом: толстая закрывала «Есть» и «Выбрано».
                 var frame = selection.GetComponent<Image>();
                 frame.sprite = ComicSpriteAsset("UI_Plate");
                 frame.type = Image.Type.Sliced;
                 frame.fillCenter = false;
+                frame.pixelsPerUnitMultiplier = 2.5f;
                 frame.color = _ui.Palette.Gold;
-                selection.SetAsLastSibling();
+                selection.SetAsFirstSibling();
                 PrefabUtility.SaveAsPrefabAsset(root, path);
             }
             finally
