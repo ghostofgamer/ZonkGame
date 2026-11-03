@@ -226,7 +226,9 @@ namespace Zonk.Table
         {
             try
             {
+                screen.SetTitleVisible(false);
                 await screen.PlayBurstAsync(title, null, color, fire, 0.7f, ct);
+                screen.SetTitleVisible(true);
                 if (levelUps == null)
                     return;
 

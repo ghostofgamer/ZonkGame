@@ -102,7 +102,10 @@ namespace Zonk.Presentation
             _table.North.Hand.SnapToRest();
 
             if (north != null && north.Opponent != null)
+            {
                 _table.Opponent.Show(north.Opponent);
+                _table.Opponent.YieldPropTo(_table.Stage);
+            }
             else
                 _table.Opponent.Hide();
         }

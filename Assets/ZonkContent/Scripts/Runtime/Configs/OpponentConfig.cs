@@ -31,6 +31,13 @@ namespace Zonk.Configs
         [Tooltip("Аксессуар на голову тени: шляпа, повязка")]
         public GameObject Accessory;
 
+        [Tooltip("Деталь на груди тени: шарф, фартук, ремень сумки (Prefabs/OppKit)")]
+        public GameObject ChestPiece;
+
+        [Tooltip("Предмет соперника на столе: половник, письмо, кружка (Prefabs/OppKit). Модель уже лежит как надо, начало координат на столешнице")]
+        public GameObject HeldProp;
+
+
         public bool IsBoss;
 
         [Header("Грозная версия босса")]

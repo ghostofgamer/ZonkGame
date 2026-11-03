@@ -39,6 +39,22 @@ namespace Zonk.Editor.Setup
             BuildEverything();
         }
 
+        /// <summary>
+        /// Одна команда после правок вида: оформление окон, комната, детали соперников, сцены.
+        /// Что уже применено, не меняется; настройки UiConfig, цены и контент не сбрасываются.
+        /// </summary>
+        [MenuItem("Zonk/Setup/Apply All Visuals", priority = 3)]
+        public static void ApplyAllVisualsMenu()
+        {
+            ApplyComicUiMenu();
+            ApplyHomeRoomMenu();
+            ApplyOpponentKitMenu();
+            var content = BuildContent(BuildArt());
+            BuildScenes(content);
+            AssetDatabase.SaveAssets();
+            Debug.Log("[Zonk] All visuals applied");
+        }
+
         [MenuItem("Zonk/Setup/Rebuild Scenes", priority = 1)]
         public static void RebuildScenesMenu()
         {

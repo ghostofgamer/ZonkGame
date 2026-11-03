@@ -122,8 +122,13 @@ namespace Zonk.UI.Windows
                 _headline.text = string.Join(" : ", scores);
             }
 
+            // С крупным счётом очки в строках не повторяем.
             foreach (var player in match.Players)
-                Spawn(_lineTemplate, _lines).text = T("results.line", player.Name, player.Score, player.BestTurn, player.ZonkCount);
+            {
+                Spawn(_lineTemplate, _lines).text = _headline != null
+                    ? T("results.lineShort", player.Name, player.BestTurn, player.ZonkCount)
+                    : T("results.line", player.Name, player.Score, player.BestTurn, player.ZonkCount);
+            }
 
             if (notes != null)
             {
@@ -138,6 +143,13 @@ namespace Zonk.UI.Windows
         public UniTask PlayBurstAsync(string word, string caption, Color color, bool fire, float hold, CancellationToken ct)
         {
             return _burst != null ? _burst.PlayAsync(word, caption, color, fire, hold, ct) : UniTask.CompletedTask;
+        }
+
+        /// <summary>На время плашки заголовок прячется: то же слово дважды выглядит ошибкой. Место в окне он держит.</summary>
+        public void SetTitleVisible(bool visible)
+        {
+            if (_title != null)
+                _title.enabled = visible;
         }
 
         /// <summary>Блок «Дальше»: ближайшая цель игрока. Пусто — блока нет.</summary>

@@ -210,6 +210,9 @@ namespace Zonk.Editor.Setup
             go.name = name;
             go.transform.SetParent(parent, false);
             go.transform.SetPositionAndRotation(rest.position, rest.rotation);
+            // Модель — правая кисть. Левая — её зеркало: большой палец смотрит ко второй руке, как у человека.
+            if (!rightHanded)
+                go.transform.localScale = new Vector3(-1f, 1f, 1f);
             var hand = go.GetComponent<HandView>();
             hand.EditorSetup(hand.Grip, rest, rightHanded);
             PrefabUtility.RecordPrefabInstancePropertyModifications(hand);

@@ -16,7 +16,7 @@ namespace Zonk.Editor.Setup
         private static readonly Quaternion SmokeTilt = Quaternion.Euler(20f, 0f, 0f);
 
         // Голова в локальных координатах соперника: так она в кадре партии над столом и ниже верхнего края экрана.
-        private static readonly Vector3 ShadowHeadPoint = new Vector3(0f, 0.63f, -0.3f);
+        private static readonly Vector3 ShadowHeadPoint = new Vector3(0f, 0.63f, -0.02f);
 
         private static Material ShadowSmokeMaterial()
         {
@@ -76,7 +76,7 @@ namespace Zonk.Editor.Setup
             quad.transform.localRotation = SmokeTilt;
 
             // От головы вниз по плоскости: голова на единицу выше центра плоскости.
-            quad.transform.localPosition = ShadowHeadPoint + new Vector3(0f, 0f, 0.3f) - SmokeTilt * new Vector3(0f, SmokeUnit, 0f);
+            quad.transform.localPosition = ShadowHeadPoint + new Vector3(0f, 0f, 0.02f) - SmokeTilt * new Vector3(0f, SmokeUnit, 0f);
 
             var renderer = quad.GetComponent<MeshRenderer>();
             renderer.sharedMaterial = ShadowSmokeMaterial();

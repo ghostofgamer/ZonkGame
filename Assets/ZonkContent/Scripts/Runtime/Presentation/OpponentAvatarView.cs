@@ -52,7 +52,18 @@ namespace Zonk.Presentation
         private static readonly int EyeAngleId = Shader.PropertyToID("_EyeAngle");
         private static readonly int EyeShiftId = Shader.PropertyToID("_EyeShift");
 
+        [Header("Детали соперника: профессию показывают они, дым у всех общий")]
+        [SerializeField] private Transform _chestAnchor;
+
+        [Tooltip("Точка на столе, где лежит предмет соперника")]
+        [SerializeField] private Transform _propAnchor;
+
+        [Tooltip("Безделушка игрока ближе этого к точке предмета: предмет соперника не ставится, чтобы они не пересекались")]
+        [SerializeField] private float _propClearance = 0.6f;
+
         private GameObject _accessory;
+        private GameObject _chestPiece;
+        private GameObject _heldProp;
         private Vector3 _bodyRest;
         private Quaternion _headRest;
         private MaterialPropertyBlock _block;
@@ -80,6 +91,12 @@ namespace Zonk.Presentation
             _wristRight = wristRight;
         }
 
+        public void EditorSetupParts(Transform chestAnchor, Transform propAnchor)
+        {
+            _chestAnchor = chestAnchor;
+            _propAnchor = propAnchor;
+        }
+
         public void EditorSetCamera(Camera camera)
         {
             _camera = camera;
@@ -89,6 +106,7 @@ namespace Zonk.Presentation
         private void Awake()
         {
             _bodyRest = _body.localPosition;
+
             _headRest = _head.localRotation;
             _block = new MaterialPropertyBlock();
         }
@@ -96,6 +114,16 @@ namespace Zonk.Presentation
         private void OnDisable()
         {
             StopIdle();
+        }
+
+        /// <summary>Убрать предмет со стола, если его место занято безделушкой игрока (дополнительное место стоит там же).</summary>
+        public void YieldPropTo(CosmeticStage stage)
+        {
+            if (_heldProp == null || stage == null || !stage.HasSpotItemNear(_propAnchor.position, _propClearance))
+                return;
+
+            Destroy(_heldProp);
+            _heldProp = null;
         }
 
         public void Show(OpponentConfig opponent)
@@ -118,11 +146,33 @@ namespace Zonk.Presentation
             if (opponent != null && opponent.Accessory != null)
                 _accessory = Instantiate(opponent.Accessory, _accessoryAnchor, false);
 
+            if (_chestPiece != null)
+                Destroy(_chestPiece);
+            if (opponent != null && opponent.ChestPiece != null && _chestAnchor != null)
+                _chestPiece = Instantiate(opponent.ChestPiece, _chestAnchor, false);
+
+            PlaceProp(opponent);
+
             if (_gestureHand != null)
                 _gestureHand.SetLook(opponent != null ? opponent.HandSkin : null, opponent != null ? opponent.HandLook : null,
                     opponent != null ? opponent.HandSleeve : null, opponent != null ? opponent.HandWrist : null);
 
             StartIdle();
+        }
+
+        /// <summary>
+        /// Предмет соперника на столе: модель уже лежит как надо, начало координат на столешнице.
+        /// </summary>
+        private void PlaceProp(OpponentConfig opponent)
+        {
+            if (_heldProp != null)
+                Destroy(_heldProp);
+            _heldProp = null;
+
+            if (opponent == null || opponent.HeldProp == null || _propAnchor == null)
+                return;
+
+            _heldProp = Instantiate(opponent.HeldProp, _propAnchor, false);
         }
 
         public void Hide()

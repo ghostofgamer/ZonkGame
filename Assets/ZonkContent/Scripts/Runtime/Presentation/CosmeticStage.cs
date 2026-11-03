@@ -160,6 +160,18 @@ namespace Zonk.Presentation
             }
         }
 
+        /// <summary>Стоит ли вещь на дополнительном месте рядом с точкой стола.</summary>
+        public bool HasSpotItemNear(Vector3 point, float radius)
+        {
+            foreach (var anchor in _anchors)
+            {
+                if (anchor != null && anchor.Spot > 0 && anchor.Instance != null && (anchor.transform.position - point).sqrMagnitude < radius * radius)
+                    return true;
+            }
+
+            return false;
+        }
+
         /// <summary>Якорь места (ракурс магазина смотрит на него); нет — null.</summary>
         public Transform SpotAnchor(string slotId, int spot)
         {

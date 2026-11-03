@@ -75,12 +75,22 @@ namespace Zonk.Editor.Setup
             var root = PrefabUtility.LoadPrefabContents(path);
             try
             {
-                if (FindDeep(root.transform, "Selection") != null)
+                // Рамка поверх всего в строке: портрет и звёзды её не перекрывают.
+                var existing = FindDeep(root.transform, "Selection");
+                if (existing != null)
+                {
+                    if (existing.GetSiblingIndex() != root.transform.childCount - 1)
+                    {
+                        existing.SetAsLastSibling();
+                        PrefabUtility.SaveAsPrefabAsset(root, path);
+                    }
+
                     return;
+                }
 
                 var frameRect = UiRect("Selection", root.transform);
                 Stretch(frameRect);
-                frameRect.SetAsFirstSibling();
+                frameRect.SetAsLastSibling();
                 var frame = frameRect.gameObject.AddComponent<Image>();
                 frame.sprite = ComicSpriteAsset("UI_Plate");
                 frame.type = Image.Type.Sliced;

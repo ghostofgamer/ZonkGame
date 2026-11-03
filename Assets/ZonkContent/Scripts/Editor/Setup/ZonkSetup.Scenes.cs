@@ -321,15 +321,23 @@ namespace Zonk.Editor.Setup
 
             var head = Empty("Head", body.transform, ShadowHeadPoint);
             head.transform.localScale = Vector3.one * 1.25f;
-            var accessory = Empty("AccessoryAnchor", head.transform, new Vector3(0f, 0.34f, 0f));
+            // Чуть выше точки посадки: козырёк и край шапки не закрывают глаза при взгляде камеры сверху.
+            var accessory = Empty("AccessoryAnchor", head.transform, new Vector3(0f, 0.42f, 0f));
+            // Детали в метрах, голова увеличена: масштаб обратно и чуть меньше головы дыма. Голова на плоскости дыма: шапка не наезжает на глаза.
+            accessory.transform.localScale = Vector3.one * 0.85f / 1.25f;
+            var chestAnchor = Empty("ChestAnchor", body.transform, ShadowHeadPoint + new Vector3(0f, -0.45f, -0.3f));
 
             var handRest = Empty("GestureHandRest", root.transform, new Vector3(0.9f, 0.16f, -0.8f), new Vector3(0f, 200f, 0f));
-            var hand = BuildHand("GestureHand", root.transform, handRest.transform);
+            // С точки зрения соперника эта рука левая (справа на экране игрока), дальняя рука партии — правая.
+            var hand = BuildHand("GestureHand", root.transform, handRest.transform, false);
             var slam = Empty("SlamPoint", root.transform, new Vector3(0.7f, 0.15f, -1.1f));
 
             var avatar = root.AddComponent<OpponentAvatarView>();
             avatar.EditorSetup(body.transform, head.transform, accessory.transform, hand, new Renderer[] { smoke }, slam.transform);
             avatar.EditorSetupSmoke(smoke, northHand, hand);
+            // Предмет на столе: место напротив стакана соперника, зеркально (точно на столешнице и свободно).
+            var propAnchor = Empty("PropAnchor", root.transform, new Vector3(2.15f, 0f, -1.65f));
+            avatar.EditorSetupParts(chestAnchor.transform, propAnchor.transform);
             root.SetActive(false);
             return avatar;
         }
