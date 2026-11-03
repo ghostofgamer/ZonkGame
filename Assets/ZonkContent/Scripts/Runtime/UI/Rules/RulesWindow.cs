@@ -81,6 +81,11 @@ namespace Zonk.UI.Rules
             _rowTemplate.gameObject.SetActive(false);
         }
 
+        public override void OnBackPressed()
+        {
+            RequestClose();
+        }
+
         protected override void OnShowing()
         {
             if (Localization != null)

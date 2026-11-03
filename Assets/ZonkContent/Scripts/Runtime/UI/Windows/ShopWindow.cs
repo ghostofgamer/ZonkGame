@@ -22,6 +22,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private RectTransform _tabs;
         [SerializeField] private UiButtonView _tabTemplate;
         [SerializeField] private UiButtonView _back;
+
+        protected override UiButtonView BackButton => _back;
+
         [SerializeField] private RectTransform _items;
         [SerializeField] private UiButtonView _cardTemplate;
 

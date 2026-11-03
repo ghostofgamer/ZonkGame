@@ -11,6 +11,7 @@ using Zonk.Core.Progress;
 using Zonk.Presentation;
 using Zonk.Progress;
 using Zonk.UI;
+using Zonk.UI.Rules;
 using Zonk.UI.Windows;
 
 namespace Zonk.MatchFlow
@@ -22,11 +23,22 @@ namespace Zonk.MatchFlow
         public int Winner = -1;
         public bool Surrendered;
 
+        /// <summary>Местный игрок вышел в меню без поражения: RunAsync завершается MatchAbandonedException.</summary>
+        public bool Abandoned;
+
         /// <summary>Режим партии для статистики (ID состояния стола: campaign, tower, endless_run); пусто — не задан.</summary>
         public string Mode;
 
         /// <summary>Сколько секунд шла партия (без загрузки).</summary>
         public float Seconds;
+    }
+
+    /// <summary>
+    /// Игрок вышел из партии в меню из окна паузы. Партия не считается: ни итогов, ни статистики, ни опыта.
+    /// Режим её не ловит: TableFlow возвращает в меню, меню убирает стол (как после ошибки, но без возврата ставки и энергии).
+    /// </summary>
+    public sealed class MatchAbandonedException : Exception
+    {
     }
 
     /// <summary>
@@ -52,7 +64,7 @@ namespace Zonk.MatchFlow
         private readonly IPlayerRecords _records;
         private readonly ITalents _talents;
         private readonly Zonk.Table.TutorialDirector _tutorial;
-        private bool _askingSurrender;
+        private bool _paused;
 
         public MatchRunner(TableView table, MatchPresenter presenter, ReactionDirector reactions, IChatChannel chat, UiKit kit,
             GameConfig config, IGameSettings settings, ContentDatabase content, IUiService ui, IQuestService quests,
@@ -111,13 +123,21 @@ namespace Zonk.MatchFlow
                     _reactions.Fire(from, null, MatchEventType.PhraseReceived);
                 }
 
-                void OnSurrender()
+                void OnPause()
                 {
-                    AskSurrenderAsync(surrenderCts, outcome, surrenderAskCts.Token).Forget();
+                    PauseAsync(surrenderCts, outcome, VsAi(participants), surrenderAskCts.Token).Forget();
+                }
+
+                // Свернули приложение или скрыли вкладку: партия ждёт. Во время рекламы время уже стоит, окно не нужно.
+                void OnFocusChanged(bool hasFocus)
+                {
+                    if (!hasFocus && Time.timeScale > 0f)
+                        OnPause();
                 }
 
                 hud.PhraseChosen += OnPhraseChosen;
-                hud.SurrenderRequested += OnSurrender;
+                hud.PauseRequested += OnPause;
+                Application.focusChanged += OnFocusChanged;
                 _chat.Received += OnPhraseReceived;
 
 #if UNITY_EDITOR
@@ -152,6 +172,10 @@ namespace Zonk.MatchFlow
                     // Сдался местный игрок: победа остальным, партия закрывается без исключения.
                     outcome.Winner = LocalSpeaker(match, participants) == 0 ? 1 : 0;
                 }
+                catch (OperationCanceledException) when (outcome.Abandoned && !ct.IsCancellationRequested)
+                {
+                    // Исключение для режима — ниже, когда HUD уже закрыт.
+                }
 #if UNITY_EDITOR
                 catch (OperationCanceledException) when (forced && !ct.IsCancellationRequested)
                 {
@@ -164,15 +188,19 @@ namespace Zonk.MatchFlow
 #if UNITY_EDITOR
                     DebugCheats.MatchResultRequested -= OnForceResult;
 #endif
-                    // Партия кончилась любым путём: окно «Сдаться?» не должно остаться поверх итогов.
+                    // Партия кончилась любым путём: окно паузы не должно остаться поверх итогов.
                     surrenderAskCts.Cancel();
                     _tutorial.Hide();
                     hud.PhraseChosen -= OnPhraseChosen;
-                    hud.SurrenderRequested -= OnSurrender;
+                    hud.PauseRequested -= OnPause;
+                    Application.focusChanged -= OnFocusChanged;
                     _chat.Received -= OnPhraseReceived;
                     await _ui.CloseAsync(hud, CancellationToken.None);
                 }
             }
+
+            if (outcome.Abandoned)
+                throw new MatchAbandonedException();
 
             outcome.Seconds = Time.realtimeSinceStartup - startedAt;
             return outcome;
@@ -184,13 +212,21 @@ namespace Zonk.MatchFlow
             if (_talents == null || _talents.Value(TalentEffect.BestMoveHint) <= 0f || !_settings.BestMoveHint)
                 return null;
 
-            var vsAi = false;
-            foreach (var participant in participants)
-                vsAi |= participant.Controller == ControllerKind.Ai;
-            if (!vsAi)
+            if (!VsAi(participants))
                 return null;
 
             return _config.HintAi != null ? _config.HintAi.ToProfile() : AiProfile.CreateDefault();
+        }
+
+        private static bool VsAi(IReadOnlyList<MatchParticipant> participants)
+        {
+            for (var i = 0; i < participants.Count; i++)
+            {
+                if (participants[i].Controller == ControllerKind.Ai)
+                    return true;
+            }
+
+            return false;
         }
 
         private List<IPlayerController> CreateControllers(IReadOnlyList<MatchParticipant> participants, MatchHudWindow hud, ulong seed)
@@ -389,21 +425,21 @@ namespace Zonk.MatchFlow
         }
 
         /// <summary>
-        /// Окно «Сдаться?». Пока оно открыто, партия стоит (Time.timeScale = 0: ИИ и анимации ждут, окна идут в реальном
-        /// времени). Второе нажатие второго окна не открывает. ct отменяется концом партии: тогда окно закрывается без сдачи.
+        /// Пауза. Пока окно открыто, партия стоит (Time.timeScale = 0: ИИ и анимации ждут, окна идут в реальном времени).
+        /// Второе нажатие второго окна не открывает. ct отменяется концом партии: тогда окно закрывается без последствий.
         /// </summary>
-        private async UniTaskVoid AskSurrenderAsync(CancellationTokenSource surrender, MatchOutcome outcome, CancellationToken ct)
+        private async UniTaskVoid PauseAsync(CancellationTokenSource match, MatchOutcome outcome, bool vsAi, CancellationToken ct)
         {
-            if (_askingSurrender)
+            if (_paused)
                 return;
 
-            _askingSurrender = true;
+            _paused = true;
             var timeScale = Time.timeScale;
             Time.timeScale = 0f;
-            var confirmed = false;
+            var choice = PauseChoice.Resume;
             try
             {
-                confirmed = await ConfirmWindow.AskAsync(_ui, _kit.T("match.surrenderConfirm"), ct);
+                choice = await AskPauseChoiceAsync(vsAi, ct);
             }
             catch (OperationCanceledException)
             {
@@ -412,15 +448,61 @@ namespace Zonk.MatchFlow
             finally
             {
                 Time.timeScale = timeScale;
-                _askingSurrender = false;
+                _paused = false;
             }
 
-            // Пока окно закрывалось, партия могла кончиться: источник отмены уже уничтожен, сдаваться некому.
-            if (!confirmed || ct.IsCancellationRequested)
+            // Пока окно закрывалось, партия могла кончиться: источник отмены уже уничтожен.
+            if (choice == PauseChoice.Resume || ct.IsCancellationRequested)
                 return;
 
-            outcome.Surrendered = true;
-            surrender.Cancel();
+            outcome.Surrendered = choice == PauseChoice.Surrender;
+            outcome.Abandoned = choice == PauseChoice.ExitToMenu;
+            match.Cancel();
+        }
+
+        private async UniTask<PauseChoice> AskPauseChoiceAsync(bool vsAi, CancellationToken ct)
+        {
+            var window = await _ui.OpenAsync<PauseWindow>(ct);
+            try
+            {
+                while (true)
+                {
+                    var choice = await window.WaitChoiceAsync(ct);
+                    switch (choice)
+                    {
+                        case PauseChoice.Rules:
+                            await ShowRulesAsync(ct);
+                            break;
+                        case PauseChoice.ExitToMenu:
+                            if (await ConfirmWindow.AskAsync(_ui, _kit.T(vsAi ? "match.exitConfirm" : "match.exitConfirmHotSeat"), ct))
+                                return choice;
+                            break;
+                        case PauseChoice.Surrender:
+                            if (await ConfirmWindow.AskAsync(_ui, _kit.T("match.surrenderConfirm"), ct))
+                                return choice;
+                            break;
+                        default:
+                            return choice;
+                    }
+                }
+            }
+            finally
+            {
+                await _ui.CloseAsync(window, CancellationToken.None);
+            }
+        }
+
+        private async UniTask ShowRulesAsync(CancellationToken ct)
+        {
+            var rules = await _ui.OpenAsync<RulesWindow>(ct);
+            try
+            {
+                await rules.WaitCloseRequestAsync(ct);
+            }
+            finally
+            {
+                await _ui.CloseAsync(rules, CancellationToken.None);
+            }
         }
 
         /// <summary>Бросок местного игрока в статистику: сколько костей брошено, сколько из них обычных, единицы и пятёрки на обычных.</summary>

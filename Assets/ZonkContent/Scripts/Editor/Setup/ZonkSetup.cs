@@ -46,6 +46,8 @@ namespace Zonk.Editor.Setup
         [MenuItem("Zonk/Setup/Apply All Visuals", priority = 3)]
         public static void ApplyAllVisualsMenu()
         {
+            // Новые окна создаются до оформления: иначе первый запуск оставит их без комикс-стиля.
+            BuildWindows(BuildContent(BuildArt()).Ui);
             ApplyComicUiMenu();
             ApplyHomeRoomMenu();
             ApplyOpponentKitMenu();

@@ -14,6 +14,9 @@ namespace Zonk.Presentation
     /// </summary>
     public sealed class OpponentAvatarView : MonoBehaviour
     {
+        /// <summary>Глаза босса: значение по умолчанию в сцене и на снятых портретах.</summary>
+        public static readonly Color DefaultBossEyes = new Color(1f, 0.2f, 0.1f, 1f);
+
         private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
 
         [SerializeField] private Transform _body;
@@ -41,7 +44,7 @@ namespace Zonk.Presentation
         [SerializeField] private float _smokeUnit = 0.9f;
 
         [Header("Глаза")]
-        [SerializeField] private Color _bossEyes = new Color(1f, 0.2f, 0.1f, 1f);
+        [SerializeField] private Color _bossEyes = DefaultBossEyes;
         [SerializeField] private float _lookAmount = 0.12f;
 
         private static readonly int WristLeftId = Shader.PropertyToID("_WristL");

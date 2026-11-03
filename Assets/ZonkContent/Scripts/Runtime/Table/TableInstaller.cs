@@ -27,6 +27,7 @@ namespace Zonk.Table
             Container.Bind<UiKit>().AsSingle();
             Container.Bind<RectTransform>().WithId(UiService.UiRootId).FromInstance(_table.UiRoot);
             Container.BindInterfacesTo<UiService>().AsSingle();
+            Container.BindInterfacesTo<UiBackButton>().AsSingle();
 
             Container.BindInterfacesAndSelfTo<MatchPresenter>().AsSingle();
             Container.Bind<ReactionDirector>().AsSingle();

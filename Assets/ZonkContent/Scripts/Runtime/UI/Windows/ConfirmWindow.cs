@@ -13,6 +13,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _yes;
         [SerializeField] private UiButtonView _no;
 
+        protected override UiButtonView BackButton => _no;
+
+
         private readonly Choice<bool> _answer = new Choice<bool>();
 
 #if UNITY_EDITOR

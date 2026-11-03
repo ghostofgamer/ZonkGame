@@ -32,6 +32,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _buy;
         [SerializeField] private UiButtonView _back;
 
+        protected override UiButtonView BackButton => _back;
+
+
         private ISeasonPass _season;
         private IPurchaseFlow _purchases;
         private UiKit _kit;

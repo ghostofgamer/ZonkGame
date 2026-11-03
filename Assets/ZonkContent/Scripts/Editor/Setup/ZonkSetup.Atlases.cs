@@ -13,7 +13,8 @@ namespace Zonk.Editor.Setup
     /// весят меньше, чем по отдельности.
     /// - Atlas_UI: значки из Art/Sprites (монета, звёзды, сундук, кубок, грани костей, книга правил) и иконки талантов.
     /// - Atlas_Look: аватары и рамки игрока.
-    /// Портреты соперников и текстуры 3D-моделей в атласы не входят. Новые картинки этих папок попадают в атлас сами
+    /// - Atlas_Portraits: портреты соперников (список кампании). Atlas_Icons: иконки магазина (сетка карточек).
+    /// Текстуры 3D-моделей в атласы не входят. Новые картинки этих папок попадают в атлас сами
     /// (папка — целиком; картинки в корне Sprites — добавляются при каждом запуске генератора).
     /// </summary>
     public static partial class ZonkSetup
@@ -44,6 +45,14 @@ namespace Zonk.Editor.Setup
             AddFolder(look, AvatarsFolder);
             AddFolder(look, FramesFolder);
             Atlas("Atlas_Look", look);
+
+            var portraits = new List<Object>();
+            AddFolder(portraits, PortraitsFolder);
+            Atlas("Atlas_Portraits", portraits);
+
+            var icons = new List<Object>();
+            AddFolder(icons, IconsFolder);
+            Atlas("Atlas_Icons", icons);
         }
 
         /// <summary>

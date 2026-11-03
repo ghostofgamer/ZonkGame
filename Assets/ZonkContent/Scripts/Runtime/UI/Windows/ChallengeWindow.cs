@@ -29,6 +29,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _secondary;
         [SerializeField] private UiButtonView _back;
 
+        protected override UiButtonView BackButton => _back;
+
+
         private readonly Choice<ChallengeChoice> _choice = new Choice<ChallengeChoice>();
 
         // Левый отступ текста с портретом (из префаба): без портрета текст расширяется на его место.

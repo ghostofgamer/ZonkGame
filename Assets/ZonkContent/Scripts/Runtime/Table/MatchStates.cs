@@ -638,7 +638,7 @@ namespace Zonk.Table
                     SharedRules = opponent.Modifiers,
                 }, ct);
             }
-            catch (System.Exception e) when (!(e is System.OperationCanceledException && ct.IsCancellationRequested))
+            catch (System.Exception e) when (!(e is System.OperationCanceledException && ct.IsCancellationRequested) && !(e is MatchAbandonedException))
             {
                 // Партия сорвалась не по вине игрока: ставка и энергия возвращаются. Дальше TableFlow вернёт в меню,
                 // меню уберёт стол и вернёт локацию игрока.

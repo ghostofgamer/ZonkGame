@@ -4,6 +4,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using Zenject;
 using Zonk.Configs;
@@ -32,7 +33,8 @@ namespace Zonk.UI.Windows
         [SerializeField] private TMP_Text _hint;
         [SerializeField] private UiButtonView _roll;
         [SerializeField] private UiButtonView _bank;
-        [SerializeField] private UiButtonView _surrender;
+        [FormerlySerializedAs("_surrender")]
+        [SerializeField] private UiButtonView _pause;
         [SerializeField] private UiButtonView _phrasesButton;
         [SerializeField] private RectTransform _phrasesPanel;
         [SerializeField] private UiButtonView _phraseTemplate;
@@ -68,7 +70,7 @@ namespace Zonk.UI.Windows
         private readonly NumberTemplate _bankText = new NumberTemplate();
 
         public event Action<PhraseConfig> PhraseChosen;
-        public event Action SurrenderRequested;
+        public event Action PauseRequested;
 
         [Inject]
         public void Construct(UiKit kit, GameConfig config)
@@ -80,14 +82,14 @@ namespace Zonk.UI.Windows
 
 #if UNITY_EDITOR
         public void EditorSetup(HudPlayerPanel[] players, TMP_Text turn, TMP_Text hint, UiButtonView roll, UiButtonView bank,
-            UiButtonView surrender, UiButtonView phrasesButton, RectTransform phrasesPanel, UiButtonView phraseTemplate)
+            UiButtonView pause, UiButtonView phrasesButton, RectTransform phrasesPanel, UiButtonView phraseTemplate)
         {
             _players = players;
             _turn = turn;
             _hint = hint;
             _roll = roll;
             _bank = bank;
-            _surrender = surrender;
+            _pause = pause;
             _phrasesButton = phrasesButton;
             _phrasesPanel = phrasesPanel;
             _phraseTemplate = phraseTemplate;
@@ -124,7 +126,7 @@ namespace Zonk.UI.Windows
             _phrasesPanel.gameObject.SetActive(false);
             _roll.OnClick(() => _action.Set(HudAction.Roll));
             _bank.OnClick(() => _action.Set(HudAction.Bank));
-            _surrender.OnClick(() => SurrenderRequested?.Invoke());
+            _pause.OnClick(() => PauseRequested?.Invoke());
             _phrasesButton.OnClick(() => _phrasesPanel.gameObject.SetActive(!_phrasesPanel.gameObject.activeSelf));
             HideButtons();
         }
@@ -136,7 +138,7 @@ namespace Zonk.UI.Windows
             _bank.SetColor(UiColors.Bank);
             _roll.SetText(T("match.roll"));
             _bank.SetText(T("match.bank"));
-            _surrender.SetText(T("match.surrender"));
+            _pause.SetText(T("match.pause"));
             _phrasesButton.SetText(T("match.phrases"));
 
             foreach (var phrase in phrases)
@@ -358,6 +360,11 @@ namespace Zonk.UI.Windows
             _bank.Interactable = canBank;
             // Меняется на каждый выбор кости: число без сборки строки, текст — только если очки изменились.
             _bankText.Set(_bank.Label, T("match.bankScore"), bankScore);
+        }
+
+        public override void OnBackPressed()
+        {
+            PauseRequested?.Invoke();
         }
 
         public void HideButtons()

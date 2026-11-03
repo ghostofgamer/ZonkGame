@@ -311,6 +311,18 @@ namespace Zonk.Editor.Setup
             return hand;
         }
 
+        /// <summary>Точки деталей соперника: общие для сцены и съёмки портретов.</summary>
+        private static void BuildOpponentAnchors(Transform body, out GameObject head, out GameObject accessory, out GameObject chestAnchor)
+        {
+            head = Empty("Head", body, ShadowHeadPoint);
+            head.transform.localScale = Vector3.one * 1.25f;
+            // Чуть выше точки посадки: козырёк и край шапки не закрывают глаза при взгляде камеры сверху.
+            accessory = Empty("AccessoryAnchor", head.transform, new Vector3(0f, 0.42f, 0f));
+            // Детали в метрах, голова увеличена: масштаб обратно и чуть меньше головы дыма. Голова на плоскости дыма: шапка не наезжает на глаза.
+            accessory.transform.localScale = Vector3.one * 0.85f / 1.25f;
+            chestAnchor = Empty("ChestAnchor", body, ShadowHeadPoint + new Vector3(0f, -0.45f, -0.3f));
+        }
+
         /// <summary>Соперник напротив: дымная тень (одна плоскость, шейдер Zonk/ShadowSmoke), точка аксессуара, свободная рука для жестов.</summary>
         private static OpponentAvatarView BuildOpponent(HandView northHand)
         {
@@ -319,13 +331,7 @@ namespace Zonk.Editor.Setup
             var body = Empty("Body", root.transform, Vector3.zero);
             var smoke = BuildShadowSmoke(body.transform);
 
-            var head = Empty("Head", body.transform, ShadowHeadPoint);
-            head.transform.localScale = Vector3.one * 1.25f;
-            // Чуть выше точки посадки: козырёк и край шапки не закрывают глаза при взгляде камеры сверху.
-            var accessory = Empty("AccessoryAnchor", head.transform, new Vector3(0f, 0.42f, 0f));
-            // Детали в метрах, голова увеличена: масштаб обратно и чуть меньше головы дыма. Голова на плоскости дыма: шапка не наезжает на глаза.
-            accessory.transform.localScale = Vector3.one * 0.85f / 1.25f;
-            var chestAnchor = Empty("ChestAnchor", body.transform, ShadowHeadPoint + new Vector3(0f, -0.45f, -0.3f));
+            BuildOpponentAnchors(body.transform, out var head, out var accessory, out var chestAnchor);
 
             var handRest = Empty("GestureHandRest", root.transform, new Vector3(0.9f, 0.16f, -0.8f), new Vector3(0f, 200f, 0f));
             // С точки зрения соперника эта рука левая (справа на экране игрока), дальняя рука партии — правая.

@@ -5,6 +5,7 @@ using Base.Services.Saves;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using Zenject;
+using Zonk.MatchFlow;
 
 namespace Zonk.Table
 {
@@ -89,6 +90,11 @@ namespace Zonk.Table
                 {
                     // Закрылась сцена. Любая другая отмена внутри состояния — ошибка: ниже, возврат в меню.
                     return;
+                }
+                catch (MatchAbandonedException)
+                {
+                    // Игрок вышел из партии в меню: не ошибка.
+                    current = TableStateIds.Menu;
                 }
                 catch (Exception e)
                 {

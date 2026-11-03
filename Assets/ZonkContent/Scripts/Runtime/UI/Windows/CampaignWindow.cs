@@ -40,6 +40,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private RectTransform _stakeList;
         [SerializeField] private UiButtonView _stakeTemplate;
         [SerializeField] private UiButtonView _back;
+
+        protected override UiButtonView BackButton => _back;
+
         [SerializeField] private UiButtonView _play;
 
         private readonly Choice<OpponentConfig> _choice = new Choice<OpponentConfig>();

@@ -29,6 +29,9 @@ namespace Zonk.UI.Windows
 
         [SerializeField] private UiButtonView _back;
 
+        protected override UiButtonView BackButton => _back;
+
+
         [Tooltip("Кнопка текущего языка (копия Parts/LanguageButton). Пусто — выбора языка в окне нет")]
         [SerializeField] private LanguageButtonView _language;
 

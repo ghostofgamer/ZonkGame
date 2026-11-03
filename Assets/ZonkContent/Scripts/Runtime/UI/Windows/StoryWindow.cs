@@ -16,6 +16,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private TMP_Text _text;
         [SerializeField] private Image _portrait;
         [SerializeField] private UiButtonView _skip;
+
+        protected override UiButtonView BackButton => _skip;
+
         [SerializeField] private UiButtonView _next;
 
         private readonly Choice<bool> _nextPressed = new Choice<bool>();

@@ -29,6 +29,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _presetTemplate;
         [SerializeField] private UiButtonView _allStandard;
         [SerializeField] private UiButtonView _back;
+
+        protected override UiButtonView BackButton => _back;
+
         [SerializeField] private RectTransform _items;
 
         [Tooltip("Префаб карточки (Prefabs/UI/Parts/ShopCard): кость, её мастерство, «в наборе»")]

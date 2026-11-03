@@ -29,6 +29,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _open;
         [SerializeField] private UiButtonView _back;
 
+        protected override UiButtonView BackButton => _back;
+
+
         [Header("Анимация")]
         [SerializeField] private float _shakeDuration = 0.8f;
         [SerializeField] private float _shakeAngle = 12f;

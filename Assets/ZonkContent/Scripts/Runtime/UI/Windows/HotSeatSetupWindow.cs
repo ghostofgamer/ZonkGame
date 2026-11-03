@@ -23,6 +23,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _specialDice;
         [SerializeField] private PlayerSetupPanel[] _players = new PlayerSetupPanel[2];
         [SerializeField] private UiButtonView _back;
+
+        protected override UiButtonView BackButton => _back;
+
         [SerializeField] private UiButtonView _start;
 
         private readonly Choice<bool> _choice = new Choice<bool>();

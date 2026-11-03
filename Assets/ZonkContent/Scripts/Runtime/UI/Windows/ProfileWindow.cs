@@ -28,6 +28,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private StatRowView _rowTemplate;
         [SerializeField] private UiButtonView _back;
 
+        protected override UiButtonView BackButton => _back;
+
+
         [Header("Вкладки (необязательно)")]
         [SerializeField] private UiButtonView _statsTab;
         [SerializeField] private UiButtonView _lookTab;

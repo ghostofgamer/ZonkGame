@@ -13,6 +13,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private TMP_Text _text;
         [SerializeField] private UiButtonView _ok;
 
+        protected override UiButtonView BackButton => _ok;
+
+
 #if UNITY_EDITOR
         public void EditorSetup(TMP_Text text, UiButtonView ok)
         {

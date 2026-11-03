@@ -32,6 +32,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private TMP_Text _me;
         [SerializeField] private UiButtonView _back;
 
+        protected override UiButtonView BackButton => _back;
+
+
         private readonly List<UiButtonView> _tabButtons = new List<UiButtonView>();
         private readonly List<GameObject> _rows = new List<GameObject>();
         private ContentDatabase _content;

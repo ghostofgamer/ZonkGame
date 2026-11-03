@@ -36,6 +36,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private PlayerLevelView _playerLevel;
 
         [SerializeField] private UiButtonView _menu;
+
+        protected override UiButtonView BackButton => _menu;
+
         [SerializeField] private UiButtonView _again;
         [SerializeField] private UiButtonView _double;
 

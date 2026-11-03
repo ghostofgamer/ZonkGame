@@ -19,6 +19,9 @@ namespace Zonk.UI
         /// <summary>Создать окно из префаба и показать. setup вызывается до анимации показа: заполнить окно данными.</summary>
         UniTask<T> OpenAsync<T>(CancellationToken ct, Action<T> setup = null) where T : UiWindow;
         UniTask CloseAsync(UiWindow window, CancellationToken ct);
+
+        /// <summary>Открытое последним окно; нет окон — null.</summary>
+        UiWindow Top { get; }
     }
 
     public sealed class UiService : IUiService, IDisposable
@@ -37,6 +40,8 @@ namespace Zonk.UI
 
         /// <summary>ID биндинга корневого RectTransform, в котором создаются окна.</summary>
         public const string UiRootId = "UiRoot";
+
+        public UiWindow Top => _open.Count > 0 ? _open[_open.Count - 1] : null;
 
         public async UniTask<T> OpenAsync<T>(CancellationToken ct, Action<T> setup = null) where T : UiWindow
         {

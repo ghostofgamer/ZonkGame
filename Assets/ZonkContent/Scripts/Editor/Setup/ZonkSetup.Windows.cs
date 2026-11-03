@@ -22,7 +22,7 @@ namespace Zonk.Editor.Setup
         {
             "LoadingScreen", "RulesWindow", "MainMenuWindow", "SettingsWindow", "ConfirmWindow", "StoryWindow", "ResultsWindow",
             "HotSeatSetupWindow", "CampaignWindow", "ShopWindow", "MatchHudWindow", "QuestsWindow", "LeaderboardWindow", "TutorialTipWindow", "LanguageWindow",
-            "ChallengeWindow", "PerkChoiceWindow", "ProfileWindow", "ChestWindow", "SeasonWindow", "DiceWindow",
+            "ChallengeWindow", "PerkChoiceWindow", "ProfileWindow", "ChestWindow", "SeasonWindow", "DiceWindow", "PauseWindow",
         };
 
         private static UiConfig _ui;
@@ -42,6 +42,7 @@ namespace Zonk.Editor.Setup
             WindowPrefab<MainMenuWindow>("MainMenuWindow", slideLeft, slideOutLeft, false, BuildMainMenu);
             WindowPrefab<SettingsWindow>("SettingsWindow", popupIn, popupOut, true, BuildSettings);
             WindowPrefab<ConfirmWindow>("ConfirmWindow", popupIn, popupOut, true, BuildConfirm);
+            WindowPrefab<PauseWindow>("PauseWindow", popupIn, popupOut, true, BuildPause);
             WindowPrefab<StoryWindow>("StoryWindow", slideBottom, slideOutBottom, false, BuildStory);
             WindowPrefab<ResultsWindow>("ResultsWindow", popupIn, popupOut, true, BuildResults);
             WindowPrefab<HotSeatSetupWindow>("HotSeatSetupWindow", popupIn, popupOut, true, BuildHotSeat);
@@ -153,6 +154,28 @@ namespace Zonk.Editor.Setup
 
             var window = root.gameObject.AddComponent<SettingsWindow>();
             window.EditorSetup(title, sound, music, speed, back, language, vibration);
+            return window;
+        }
+
+        private static PauseWindow BuildPause(RectTransform root)
+        {
+            Dim(root, 0.6f);
+            var panel = CenterPanel(root, new Vector2(640f, 720f));
+            var column = Column(panel, 18, 32);
+            var title = Text("Title", column, _ui.BoldFont, 44, _ui.Palette.Gold);
+            Height(title, 80);
+
+            var resume = ButtonView("Resume", column, 30, _ui.Palette.ButtonAccent);
+            var sound = ButtonView("Sound", column, 28, _ui.Palette.Button);
+            var music = ButtonView("Music", column, 28, _ui.Palette.Button);
+            var rules = ButtonView("Rules", column, 28, _ui.Palette.Button);
+            var exit = ButtonView("Exit", column, 28, _ui.Palette.ButtonMuted);
+            var surrender = ButtonView("Surrender", column, 28, _ui.Palette.ButtonMuted);
+            foreach (var button in new[] { resume, sound, music, rules, exit, surrender })
+                Height(button, 72);
+
+            var window = root.gameObject.AddComponent<PauseWindow>();
+            window.EditorSetup(title, resume, sound, music, rules, exit, surrender);
             return window;
         }
 

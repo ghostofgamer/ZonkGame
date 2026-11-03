@@ -20,6 +20,9 @@ namespace Zonk.UI.Windows
         [SerializeField] private LanguageButtonView _buttonPrefab;
         [SerializeField] private UiButtonView _close;
 
+        protected override UiButtonView BackButton => _close;
+
+
         private readonly Choice<string> _choice = new Choice<string>();
         private UiConfig _ui;
 

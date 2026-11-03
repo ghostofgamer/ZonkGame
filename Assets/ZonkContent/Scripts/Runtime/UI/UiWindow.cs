@@ -4,6 +4,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using Zenject;
 using Zonk.UI.Transitions;
+using Zonk.UI.Views;
 
 namespace Zonk.UI
 {
@@ -97,6 +98,20 @@ namespace Zonk.UI
 
             gameObject.SetActive(false);
             Target.Reset();
+        }
+
+        /// <summary>Кнопка, которую нажимает «Назад» Android и Escape. Нет — кнопка «Назад» в этом окне ничего не делает.</summary>
+        protected virtual UiButtonView BackButton => null;
+
+        /// <summary>Окно показано и принимает нажатия: на время анимации «Назад» не действует.</summary>
+        public bool AcceptsBack => Group.interactable;
+
+        /// <summary>Нажата кнопка «Назад». По умолчанию — как нажатие BackButton, если она видна и доступна.</summary>
+        public virtual void OnBackPressed()
+        {
+            var button = BackButton;
+            if (button != null && button.isActiveAndEnabled && button.Interactable)
+                button.Button.onClick.Invoke();
         }
 
         /// <summary>Окно просит закрыть себя (кнопка «Закрыть»). Закрывает тот, кто открыл, через IUiService.</summary>
