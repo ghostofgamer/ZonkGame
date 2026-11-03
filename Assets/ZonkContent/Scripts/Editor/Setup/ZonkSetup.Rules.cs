@@ -323,6 +323,7 @@ namespace Zonk.Editor.Setup
             rect.gameObject.AddComponent<Image>().color = color;
             var button = rect.gameObject.AddComponent<Button>();
             var label = UiText("Label", rect, font, size, textColor);
+            label.text = text;
             Stretch(label.rectTransform);
             return button;
         }

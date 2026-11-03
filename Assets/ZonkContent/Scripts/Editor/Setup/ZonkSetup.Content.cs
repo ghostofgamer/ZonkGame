@@ -612,11 +612,21 @@ namespace Zonk.Editor.Setup
             }
 
             // Новые моменты обучения — и в уже созданный ассет, если их там нет.
-            foreach (var trigger in new[] { TutorialTrigger.ManualRoll, TutorialTrigger.EndlessRun, TutorialTrigger.Tower })
+            foreach (var trigger in new[] { TutorialTrigger.ManualRoll, TutorialTrigger.EndlessRun, TutorialTrigger.Tower, TutorialTrigger.ManualRollShake })
             {
                 if (tutorial.Find(trigger) != null)
                     continue;
                 tutorial.Steps.Add(new TutorialStep { Trigger = trigger, TextKey = "tutorial." + trigger });
+                EditorUtility.SetDirty(tutorial);
+            }
+
+            // Шаги с целью: короткая надпись над стрелкой. Ручную правку не затираем.
+            foreach (var trigger in new[] { TutorialTrigger.BeforeFirstRoll, TutorialTrigger.ChooseDice, TutorialTrigger.AfterKeep, TutorialTrigger.ManualRoll, TutorialTrigger.ManualRollShake })
+            {
+                var step = tutorial.Find(trigger);
+                if (step == null || !string.IsNullOrEmpty(step.CaptionKey))
+                    continue;
+                step.CaptionKey = "tutorial.caption." + trigger;
                 EditorUtility.SetDirty(tutorial);
             }
 

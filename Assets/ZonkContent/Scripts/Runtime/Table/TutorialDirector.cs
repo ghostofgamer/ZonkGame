@@ -3,6 +3,7 @@ using System.Threading;
 using Base.Services.Analytics;
 using Base.Services.Saves;
 using Cysharp.Threading.Tasks;
+using UnityEngine;
 using Zonk.Configs;
 using Zonk.Progress;
 using Zonk.UI;
@@ -23,6 +24,7 @@ namespace Zonk.Table
         private readonly UiKit _kit;
         private readonly IAnalytics _analytics;
         private TutorialTipWindow _tip;
+        private bool _suspended;
         private CancellationTokenSource _tipCts;
 
         public TutorialDirector(IUiService ui, GameConfig config, ISaveStore saves, UiKit kit, IAnalytics analytics)
@@ -40,18 +42,63 @@ namespace Zonk.Table
 
         private TutorialSave Data => _saves.Get<TutorialSave>(SaveKeys.Tutorial);
 
+        /// <summary>Подсказка видна или убрана: HUD прячет свою строку подсказки, чтобы они не спорили и не наезжали друг на друга.</summary>
+        public event Action<bool> TipVisibleChanged;
+
+        /// <summary>Спрятать подсказку на время окна поверх партии (пауза). Подсказка, открытая в это время, тоже ждёт.</summary>
+        public void Suspend(bool suspended)
+        {
+            _suspended = suspended;
+            if (_tip != null)
+                _tip.gameObject.SetActive(!suspended);
+        }
+
         /// <summary>Показать подсказку момента, если она есть и ещё не показывалась.</summary>
         public void Show(TutorialTrigger trigger)
         {
+            if (TakeText(trigger, out var text))
+                ShowTipAsync(text, null, null, null, false, default, 0f, null).Forget();
+        }
+
+        /// <summary>То же с кругом и стрелкой на элементе интерфейса.</summary>
+        public void ShowPointing(TutorialTrigger trigger, RectTransform target, RectTransform second = null, object captionArg = null)
+        {
+            if (TakeText(trigger, out var text))
+                ShowTipAsync(text, Caption(trigger, captionArg), target, second, false, default, 0f, null).Forget();
+        }
+
+        /// <summary>То же с кругом и стрелкой на точке стола, радиус в метрах.</summary>
+        public void ShowPointing(TutorialTrigger trigger, Vector3 point, float radius, Camera camera)
+        {
+            if (TakeText(trigger, out var text))
+                ShowTipAsync(text, Caption(trigger, null), null, null, true, point, radius, camera).Forget();
+        }
+
+        private string Caption(TutorialTrigger trigger, object arg)
+        {
+            var key = _config.Tutorial.Find(trigger).CaptionKey;
+            if (string.IsNullOrEmpty(key))
+                return string.Empty;
+
+            return arg != null ? _kit.T(key, arg) : _kit.T(key);
+        }
+
+        /// <summary>Подсказка момента будет показана: есть в конфиге и ещё не показывалась. Чтобы не считать цель стрелки зря.</summary>
+        public bool ShouldShow(TutorialTrigger trigger)
+        {
             var step = _config.Tutorial != null ? _config.Tutorial.Find(trigger) : null;
-            if (step == null || string.IsNullOrEmpty(step.TextKey) || !_saves.IsLoaded)
-                return;
+            return step != null && !string.IsNullOrEmpty(step.TextKey) && _saves.IsLoaded &&
+                   (!Data.Seen.Contains(TriggerId(trigger)) || ReplayInEditor());
+        }
+
+        private bool TakeText(TutorialTrigger trigger, out string text)
+        {
+            text = null;
+            if (!ShouldShow(trigger))
+                return false;
 
             var id = TriggerId(trigger);
             var data = Data;
-            if (data.Seen.Contains(id) && !ReplayInEditor())
-                return;
-
             if (!data.Seen.Contains(id))
             {
                 data.Seen.Add(id);
@@ -61,7 +108,8 @@ namespace Zonk.Table
                 _analytics?.Track("tutorial", "step", id);
             }
 
-            ShowTipAsync(_kit.T(step.TextKey)).Forget();
+            text = _kit.T(_config.Tutorial.Find(trigger).TextKey);
+            return true;
         }
 
         /// <summary>Подсказка момента уже показывалась игроку.</summary>
@@ -81,17 +129,28 @@ namespace Zonk.Table
             Hide();
         }
 
-        private async UniTaskVoid ShowTipAsync(string text)
+        private async UniTaskVoid ShowTipAsync(string text, string caption, RectTransform target, RectTransform second, bool hasPoint, Vector3 point, float radius, Camera camera)
         {
             // Прежняя подсказка закрывается: видна только последняя.
             Hide();
             var cts = new CancellationTokenSource();
             _tipCts = cts;
+            TipVisibleChanged?.Invoke(true);
             TutorialTipWindow tip = null;
             try
             {
-                tip = await _ui.OpenAsync<TutorialTipWindow>(cts.Token, w => w.Setup(text));
+                tip = await _ui.OpenAsync<TutorialTipWindow>(cts.Token, w =>
+                {
+                    w.Setup(text);
+                    w.SetCaption(caption);
+                    if (target != null)
+                        w.PointAt(target, second);
+                    else if (hasPoint)
+                        w.PointAt(point, radius, camera);
+                });
                 _tip = tip;
+                if (_suspended)
+                    tip.gameObject.SetActive(false);
                 await tip.WaitCloseRequestAsync(cts.Token);
             }
             catch (OperationCanceledException)
@@ -104,7 +163,10 @@ namespace Zonk.Table
                 if (_tip == tip)
                     _tip = null;
                 if (_tipCts == cts)
+                {
                     _tipCts = null;
+                    TipVisibleChanged?.Invoke(false);
+                }
                 cts.Dispose();
             }
         }

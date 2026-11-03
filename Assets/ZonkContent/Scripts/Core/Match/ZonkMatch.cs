@@ -31,6 +31,8 @@ namespace Zonk.Core.Match
         private readonly List<KeepOption> _optionPool = new List<KeepOption>();
         private readonly List<MatchModifier> _modifiers;
         private readonly ScoreCalculator[] _calculators;
+        private const int MaxProtectedRerolls = 64;
+        private bool _protectNextRoll;
         private readonly IReadOnlyList<MatchModifier>[] _playerModifiers;
         private int _finalRoundStarter = -1;
 
@@ -151,6 +153,15 @@ namespace Zonk.Core.Match
             return turnScore >= Rules.MinBankScore;
         }
 
+        /// <summary>
+        /// Следующий бросок не будет Зонком: при Зонке кости перебрасываются той же ГСЧ партии. Только первый бросок обучения,
+        /// иначе новичок не увидит выбор костей. В балансе и обычных партиях не участвует.
+        /// </summary>
+        public void ProtectNextRollFromZonk()
+        {
+            _protectNextRoll = true;
+        }
+
         public RollOutcome Roll()
         {
             if (Phase != MatchPhase.AwaitingRoll && Phase != MatchPhase.AwaitingDecision)
@@ -172,6 +183,19 @@ namespace Zonk.Core.Match
                 rolled.Add(die);
                 counts[face]++;
             }
+
+            for (var attempt = 0; _protectNextRoll && attempt < MaxProtectedRerolls && !Calculator.HasAnyScoreCounts(counts); attempt++)
+            {
+                Array.Clear(counts, 0, counts.Length);
+                for (var i = 0; i < rolled.Count; i++)
+                {
+                    var face = dice[rolled[i]].Roll(_random);
+                    _faces[rolled[i]] = face;
+                    counts[face]++;
+                }
+            }
+
+            _protectNextRoll = false;
 
             var outcome = new RollOutcome
             {

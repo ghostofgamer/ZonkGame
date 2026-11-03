@@ -43,6 +43,37 @@ namespace Zonk.Tests
         }
 
         [Test]
+        public void ProtectedRollIsNeverZonk()
+        {
+            var plainZonks = 0;
+            for (ulong seed = 1; seed <= 5000; seed++)
+            {
+                var plain = new ZonkMatch(StandardSettings(seed));
+                plainZonks += plain.Roll().IsZonk ? 1 : 0;
+
+                var match = new ZonkMatch(StandardSettings(seed));
+                match.ProtectNextRollFromZonk();
+                Assert.IsFalse(match.Roll().IsZonk, "seed " + seed);
+            }
+
+            Assert.Greater(plainZonks, 0, "Без защиты Зонк на шести костях встречается");
+        }
+
+        private static MatchSettings StandardSettings(ulong seed)
+        {
+            return new MatchSettings
+            {
+                Rules = RuleSet.CreateClassic(),
+                Players = new List<PlayerSetup>
+                {
+                    new PlayerSetup("A", PlayerSetup.StandardDice()),
+                    new PlayerSetup("B", PlayerSetup.StandardDice()),
+                },
+                Seed = seed,
+            };
+        }
+
+        [Test]
         public void WithoutHotDiceAllKeptDiceEndTheTurnEvenBelowEntryScore()
         {
             var rules = RuleSet.CreateClassic();

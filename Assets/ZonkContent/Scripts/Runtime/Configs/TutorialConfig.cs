@@ -31,6 +31,8 @@ namespace Zonk.Configs
         EndlessRun,
         /// <summary>Первый вход в башню.</summary>
         Tower,
+        /// <summary>Игрок взял стакан в первый раз: потрясти и толкнуть.</summary>
+        ManualRollShake,
     }
 
     [Serializable]
@@ -40,6 +42,9 @@ namespace Zonk.Configs
 
         [Tooltip("Ключ текста подсказки в Texts.csv")]
         public string TextKey;
+
+        [Tooltip("Короткая надпись над стрелкой (подсказка с целью). Пусто — без надписи")]
+        public string CaptionKey;
     }
 
     /// <summary>
@@ -50,6 +55,9 @@ namespace Zonk.Configs
     public sealed class TutorialConfig : ScriptableObject
     {
         public List<TutorialStep> Steps = new List<TutorialStep>();
+
+        [Tooltip("Радиус круга в середине лотка на шаге «потрясите и толкните», метры")]
+        public float ShakeFocusRadius = 0.45f;
 
         public TutorialStep Find(TutorialTrigger trigger)
         {

@@ -48,6 +48,7 @@ namespace Zonk.UI.Windows
         [SerializeField] private UiButtonView _shop;
         [SerializeField] private UiButtonView _settings;
         [SerializeField] private UiButtonView _rules;
+        private Sprite _rulesIcon;
         [SerializeField] private UiButtonView _quests;
 
         [Tooltip("Значок на кнопке заданий: есть награда, которую можно забрать")]
@@ -125,6 +126,26 @@ namespace Zonk.UI.Windows
 #endif
 
         [Inject]
+        public void InjectRulesIcon(GameConfig config)
+        {
+            _rulesIcon = config != null && config.Ui != null ? config.Ui.RulesIcon : null;
+        }
+
+        /// <summary>Значок книги из UiConfig: оформление кнопок не должно его подменять.</summary>
+        private void ApplyRulesIcon()
+        {
+            if (_rulesIcon == null || _rules.Background == null)
+                return;
+
+            _rules.Background.sprite = _rulesIcon;
+            _rules.Background.type = UnityEngine.UI.Image.Type.Simple;
+            _rules.Background.preserveAspect = true;
+            _rules.Background.color = Color.white;
+            if (_rules.Label != null)
+                _rules.Label.color = Color.white;
+        }
+
+        [Inject]
         public void Construct(IQuestService quests, MenuAdRewards adRewards, ContentDatabase content, IInventory inventory, UiKit kit,
             ShopService shop, PlayerStats stats, [InjectOptional] IPlayerLevel level,
             [InjectOptional] IChestService chests, [InjectOptional] ISeasonPass seasonPass)
@@ -148,6 +169,7 @@ namespace Zonk.UI.Windows
             _shop.OnClick(() => _choice.Set(MainMenuChoice.Shop));
             _settings.OnClick(() => _choice.Set(MainMenuChoice.Settings));
             _rules.OnClick(() => _choice.Set(MainMenuChoice.Rules));
+            ApplyRulesIcon();
             if (_quests != null)
                 _quests.OnClick(() => _choice.Set(MainMenuChoice.Quests));
             if (_offer != null)

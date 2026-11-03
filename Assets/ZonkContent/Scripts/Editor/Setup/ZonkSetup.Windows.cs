@@ -563,6 +563,142 @@ namespace Zonk.Editor.Setup
         }
 
         /// <summary>Подсказка обучения: табличка сверху под счётом, без затемнения — нажатия мимо проходят в игру.</summary>
+        /// <summary>
+        /// Затемнение с кругом, стрелка, надпись и компактная табличка в окне подсказки: в уже созданный префаб, один раз.
+        /// Без SerializedObject: он при записи вернул бы поля, заданные здесь напрямую.
+        /// </summary>
+        private static void AddTutorialPointer()
+        {
+            var sprite = TutorialArrowSprite();
+            var material = TutorialSpotlightMaterial();
+            var path = Prefabs + "/UI/TutorialTipWindow.prefab";
+            if (AssetDatabase.LoadAssetAtPath<GameObject>(path) == null || SkipIfLocked(path))
+                return;
+
+            var root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                var window = root.GetComponent<TutorialTipWindow>();
+                if (window == null)
+                    return;
+
+                // Обычная подсказка: над кнопками партии, на месте строки подсказки. Сверху табличка закрывала лицо соперника.
+                var tipPanel = (RectTransform)root.transform.Find("Panel");
+                Corner(tipPanel, new Vector2(0.5f, 0f), new Vector2(780f, 112f), new Vector2(0f, 126f));
+                if (window.EditorHasFocus)
+                {
+                    PrefabUtility.SaveAsPrefabAsset(root, path);
+                    return;
+                }
+
+                foreach (var old in new[] { "Spotlight", "Pointer" })
+                {
+                    var found = root.transform.Find(old);
+                    if (found != null)
+                        Object.DestroyImmediate(found.gameObject);
+                }
+
+                // Затемнение под табличкой и с запасом за края: под вырезы телефона (окно внутри безопасной зоны).
+                var dim = UiRect("Spotlight", root.transform);
+                Stretch(dim);
+                dim.offsetMin = new Vector2(-400f, -400f);
+                dim.offsetMax = new Vector2(400f, 400f);
+                dim.SetAsFirstSibling();
+                var dimImage = dim.gameObject.AddComponent<Image>();
+                dimImage.material = material;
+                dimImage.raycastTarget = false;
+
+                var pointer = UiRect("Pointer", root.transform);
+                pointer.anchorMin = pointer.anchorMax = new Vector2(0.5f, 0.5f);
+                pointer.pivot = new Vector2(0.5f, 0f);
+                pointer.sizeDelta = new Vector2(84f, 84f);
+
+                var arrow = UiRect("Arrow", pointer);
+                Stretch(arrow);
+                var image = arrow.gameObject.AddComponent<Image>();
+                image.sprite = sprite;
+                image.raycastTarget = false;
+                arrow.gameObject.AddComponent<UiSway>().EditorSetup(0f, 12f, 0f, 3f, 0f);
+
+                var caption = UiText("Caption", pointer, _ui.BoldFont, 42, _ui.Palette.Text);
+                ComicText(caption, false);
+                caption.alignment = TMPro.TextAlignmentOptions.Bottom;
+                caption.raycastTarget = false;
+                caption.enableAutoSizing = true;
+                caption.fontSizeMin = 26;
+                caption.fontSizeMax = 42;
+                var captionRect = caption.rectTransform;
+                captionRect.anchorMin = captionRect.anchorMax = new Vector2(0.5f, 1f);
+                captionRect.pivot = new Vector2(0.5f, 0f);
+                captionRect.sizeDelta = new Vector2(640f, 110f);
+                captionRect.anchoredPosition = new Vector2(0f, 16f);
+
+                var panel = tipPanel;
+                var text = panel.Find("Text").GetComponent<TMPro.TextMeshProUGUI>();
+                AutoSize(text, 16, 24);
+                Anchor(text.rectTransform, Vector2.zero, Vector2.one, new Vector2(-92f, 0f), new Vector2(-224f, -16f));
+                Corner((RectTransform)panel.Find("Ok"), new Vector2(1f, 0.5f), new Vector2(168f, 60f), new Vector2(-14f, 0f));
+
+                window.EditorSetupFocus(pointer, dimImage, caption, panel.gameObject);
+                PrefabUtility.SaveAsPrefabAsset(root, path);
+                Debug.Log("[Zonk] TutorialTipWindow: focus added");
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+        }
+
+        /// <summary>Материал затемнения. Числа ставятся здесь один раз при создании, дальше правятся в материале.</summary>
+        private static Material TutorialSpotlightMaterial()
+        {
+            var path = Root + "/Art/Shaders/M_UiSpotlight.mat";
+            var material = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (material == null)
+            {
+                AssetDatabase.Refresh();
+                material = new Material(Shader.Find("Zonk/UiSpotlight")) { name = "M_UiSpotlight" };
+                AssetDatabase.CreateAsset(material, path);
+            }
+
+            return material;
+        }
+
+        /// <summary>Стрелка вниз: жёлтая заливка и тёмный контур, как плашки комикса. Свою картинку можно положить поверх файла.</summary>
+        private static Sprite TutorialArrowSprite()
+        {
+            var path = Root + "/Art/Sprites/TutorialArrow.png";
+            if (!System.IO.File.Exists(path))
+            {
+                const int size = 128;
+                var pixels = new Color[size * size];
+                var fill = new Color(1f, 0.78f, 0.18f);
+                var ink = new Color(0.1f, 0.07f, 0.05f);
+                for (var y = 0; y < size; y++)
+                for (var x = 0; x < size; x++)
+                {
+                    var color = InsideArrow(x, y, 0f) ? fill : InsideArrow(x, y, 7f) ? ink : new Color(ink.r, ink.g, ink.b, 0f);
+                    pixels[y * size + x] = color;
+                }
+
+                SavePng(path, TextureFrom(size, size, pixels));
+            }
+
+            return SpriteAt(path);
+        }
+
+        private static bool InsideArrow(float x, float y, float grow)
+        {
+            const float center = 64f;
+            const float tip = 14f;
+            const float headTop = 62f;
+            const float headHalf = 46f;
+            var side = Mathf.Abs(x - center);
+            var shaft = side <= 18f + grow && y >= headTop - grow && y <= 116f + grow;
+            var head = y >= tip - grow * 1.5f && y <= headTop + grow && side <= (y - tip) / (headTop - tip) * headHalf + grow * 1.5f;
+            return shaft || head;
+        }
+
         private static TutorialTipWindow BuildTutorialTip(RectTransform root)
         {
             var panel = PanelAt(root);

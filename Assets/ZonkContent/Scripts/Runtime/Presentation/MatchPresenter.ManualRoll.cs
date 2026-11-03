@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using Zonk.Core.Match;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
@@ -51,6 +52,47 @@ namespace Zonk.Presentation
 
         /// <summary>Последний бросок был сделан своей рукой (для заданий).</summary>
         public bool LastRollManual { get; private set; }
+
+        /// <summary>Игрок держит стакан и ещё не отпустил.</summary>
+        public bool IsHoldingCup => _manualActive && !_manualReleased;
+
+        /// <summary>
+        /// Кость с очками для обучения: сначала та, что даёт очки сама (единица, пятёрка), иначе часть комбинации.
+        /// Из подходящих — ближе всех к камере партии: надпись над ней помещается на экране.
+        /// </summary>
+        public Vector3 ScoringDieFocus(ZonkMatch match, out float radius)
+        {
+            match.MarkScoringDice(_usefulDice);
+            var best = Vector3.zero;
+            var found = false;
+            var bestAlone = false;
+            for (var slot = 0; slot < Dice.Dice.Count; slot++)
+            {
+                if (!match.IsInHand(slot) || match.Faces[slot] <= 0 || !_usefulDice[slot])
+                    continue;
+
+                var alone = match.Faces[slot] == 1 || match.Faces[slot] == 5;
+                var position = Dice[slot].transform.position;
+                if (!found || (alone && !bestAlone) || (alone == bestAlone && position.z < best.z))
+                {
+                    best = position;
+                    bestAlone = alone;
+                }
+
+                found = true;
+            }
+
+            radius = _table.Tray.DieSize;
+            return found ? best : _table.Tray.Center;
+        }
+
+        /// <summary>Центр и радиус стакана игрока на столе: на него показывает обучение.</summary>
+        public Vector3 CupFocus(int player, out float radius)
+        {
+            var bounds = CupBounds(CupOf(_table.SeatOf(player)));
+            radius = Mathf.Max(bounds.extents.x, bounds.extents.y, bounds.extents.z);
+            return bounds.center;
+        }
 
         /// <summary>
         /// Ждать, пока игрок зажмёт свой стакан. canGrab — можно ли сейчас бросать (выбор костей допускает бросок);

@@ -72,6 +72,23 @@ namespace Zonk.UI.Windows
         public event Action<PhraseConfig> PhraseChosen;
         public event Action PauseRequested;
 
+        private bool _hintHidden;
+
+        /// <summary>Кнопка «Бросить»: на неё показывает обучение.</summary>
+        public RectTransform RollButton => (RectTransform)_roll.transform;
+
+        /// <summary>Кнопка «Забрать»: на неё показывает обучение.</summary>
+        public RectTransform BankButton => (RectTransform)_bank.transform;
+
+        /// <summary>Спрятать строку подсказки на время подсказки обучения: она стоит на том же месте.</summary>
+        public void SetHintHidden(bool hidden)
+        {
+            _hintHidden = hidden;
+            _hint.gameObject.SetActive(!hidden);
+            if (_hintPlate != null)
+                _hintPlate.SetActive(!hidden && !string.IsNullOrEmpty(_hint.text));
+        }
+
         [Inject]
         public void Construct(UiKit kit, GameConfig config)
         {
@@ -300,7 +317,7 @@ namespace Zonk.UI.Windows
             _hint.text = text;
             // Подложка видна только с текстом: подсказка читается на любом фоне стола.
             if (_hintPlate != null)
-                _hintPlate.SetActive(!string.IsNullOrEmpty(text));
+                _hintPlate.SetActive(!_hintHidden && !string.IsNullOrEmpty(text));
         }
 
         /// <summary>Перед каждым броском: только «Бросить» (стакан можно взять и рукой — MatchPresenter.WaitGrabAsync).</summary>

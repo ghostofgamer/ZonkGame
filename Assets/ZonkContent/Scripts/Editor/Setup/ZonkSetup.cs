@@ -48,6 +48,7 @@ namespace Zonk.Editor.Setup
         {
             // Новые окна создаются до оформления: иначе первый запуск оставит их без комикс-стиля.
             BuildWindows(BuildContent(BuildArt()).Ui);
+            AddTutorialPointer();
             ApplyComicUiMenu();
             ApplyHomeRoomMenu();
             ApplyOpponentKitMenu();
@@ -114,6 +115,7 @@ namespace Zonk.Editor.Setup
             AddHandSkinsToProfile();
             AddMetaButtonsToMainMenu();
             AddDiceEditing();
+            AddTutorialPointer();
             UpgradeShopDetails();
             UpgradeShopTabs();
             ImportComicSprites();

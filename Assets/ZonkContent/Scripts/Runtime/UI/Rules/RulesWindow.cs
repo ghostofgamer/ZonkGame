@@ -78,6 +78,10 @@ namespace Zonk.UI.Rules
             _previous.onClick.AddListener(() => TurnAsync(-1).Forget());
             _next.onClick.AddListener(() => TurnAsync(1).Forget());
             _close.onClick.AddListener(RequestClose);
+            // Старые префабы собраны с пустой подписью кнопки.
+            var closeLabel = _close.GetComponentInChildren<TMP_Text>(true);
+            if (closeLabel != null && string.IsNullOrEmpty(closeLabel.text))
+                closeLabel.text = "\u00D7";
             _rowTemplate.gameObject.SetActive(false);
         }
 
