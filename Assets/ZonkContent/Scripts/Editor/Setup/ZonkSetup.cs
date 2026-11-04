@@ -52,6 +52,7 @@ namespace Zonk.Editor.Setup
             ApplyComicUiMenu();
             ApplyHomeRoomMenu();
             ApplyTavernRoomMenu();
+            ApplyBeachRoomMenu();
             ApplyOpponentKitMenu();
             var content = BuildContent(BuildArt());
             BuildScenes(content);

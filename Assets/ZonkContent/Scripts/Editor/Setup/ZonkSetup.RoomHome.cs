@@ -50,7 +50,7 @@ namespace Zonk.Editor.Setup
         }
 
         /// <summary>Запечённая комната в префаб локации: прежнее содержимое заменяется, сам файл и ссылки на него те же.</summary>
-        private static void ApplyBakedRoom(string path, string modelPath, string script, Material room, Material props, System.Action<Transform> addLive)
+        private static void ApplyBakedRoom(string path, string modelPath, string script, Material room, Material props, System.Action<Transform> addLive, Material sway = null, Material sky = null)
         {
             if (IsLocked(path) || AssetDatabase.LoadAssetAtPath<GameObject>(path) == null)
                 return;
@@ -86,7 +86,9 @@ namespace Zonk.Editor.Setup
                 instance.name = "Room";
                 foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
                 {
-                    renderer.sharedMaterial = renderer.name.Contains("Props") ? props : room;
+                    renderer.sharedMaterial = renderer.name.Contains("Sway") ? (sway != null ? sway : props)
+                        : renderer.name.Contains("SkyBack") && sky != null ? sky
+                        : renderer.name.Contains("Props") ? props : room;
                     renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                     renderer.receiveShadows = false;
                 }

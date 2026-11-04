@@ -401,6 +401,9 @@ namespace Zonk.Presentation
 
                 RenderSettings.ambientSkyColor = _ambientSky + color * (intensity * 0.35f * k);
                 RenderSettings.ambientEquatorColor = _ambientEquator + color * (intensity * 0.25f * k);
+
+                // Запечённая комната тоже вспыхивает: отрицательное затемнение осветляет текстуру.
+                Shader.SetGlobalColor(BakedDarkenId, _bakedDarken - color * (intensity * 0.4f * k));
                 await UniTask.Yield(PlayerLoopTiming.Update);
                 if (ct.IsCancellationRequested)
                     break;
@@ -416,6 +419,7 @@ namespace Zonk.Presentation
 
             RenderSettings.ambientSkyColor = _ambientSky;
             RenderSettings.ambientEquatorColor = _ambientEquator;
+            Shader.SetGlobalColor(BakedDarkenId, _bakedDarken);
         }
 
         private static void Cancel(ref CancellationTokenSource cts)

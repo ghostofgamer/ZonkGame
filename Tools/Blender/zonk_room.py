@@ -627,6 +627,9 @@ def render(path, camera_unity, target_unity, fov, samples):
     print("[zonk_room] wrote", path)
 
 
+# Задник уличной локации (zonk_places.backdrop): не запекается, в игру идёт своей картинкой.
+SKY_PIXELS = None
+
 ROOM_PARTS = ("Floor", "Back", "Left", "Right", "Front", "Ceiling", "CeilBeam", "Wains")
 BAKE_EXPOSURE = 1.75
 
@@ -711,7 +714,7 @@ def bake_and_export(samples, preview):
     bake_location("Home", "Room_Home.fbx", room, lights, views, samples, preview)
 
 
-def bake_location(prefix, model_file, build, build_lights, views, samples, preview):
+def bake_location(prefix, model_file, build, build_lights, views, samples, preview, props_size=1024):
     """Запекание локации: комната и предметы — в две текстуры, выгрузка одной модели. Живые части добавляет генератор."""
     models = os.path.join(ART, "Models", "Environments")
     textures = os.path.join(ART, "Textures", "Environments")
@@ -719,7 +722,7 @@ def bake_location(prefix, model_file, build, build_lights, views, samples, previ
     os.makedirs(textures, exist_ok=True)
 
     build()
-    built = [o for o in bpy.data.objects if o.type == "MESH" and not o.name.startswith("FlameQuad")]
+    built = [o for o in bpy.data.objects if o.type == "MESH" and not o.name.startswith("FlameQuad") and not o.name.startswith("SkyBack")]
     for obj in list(bpy.data.objects):
         if obj.name.startswith("FlameQuad"):
             obj.hide_render = True
@@ -747,11 +750,17 @@ def bake_location(prefix, model_file, build, build_lights, views, samples, previ
     scene.cycles.max_bounces = 5
 
     room_path = bake_group(room_objects, prefix + "_Room", 2048, samples, textures)
-    props_path = bake_group(prop_objects, prefix + "_Props", 1024, samples, textures)
+    props_path = bake_group(prop_objects, prefix + "_Props", props_size, samples, textures)
 
     # Склейка в две сетки: две текстуры, два вызова отрисовки. В модели только развёртка запекания.
     joined = []
-    for objects, name, path in ((room_objects, "Room", room_path), (prop_objects, "Props", props_path)):
+    # Детали Sway* запечены вместе с предметами, но в игре отдельной сеткой: качаются в шейдере Zonk/BakedSway.
+    sway_objects = [o for o in prop_objects if o.name.startswith("Sway")]
+    static_props = [o for o in prop_objects if not o.name.startswith("Sway")]
+    groups = [(room_objects, "Room", room_path), (static_props, "Props", props_path)]
+    if sway_objects:
+        groups.append((sway_objects, "Sway", props_path))
+    for objects, name, path in groups:
         bpy.ops.object.select_all(action="DESELECT")
         for obj in objects:
             obj.select_set(True)
@@ -768,6 +777,17 @@ def bake_location(prefix, model_file, build, build_lights, views, samples, previ
         for polygon in merged.data.polygons:
             polygon.material_index = 0
         joined.append(merged)
+
+    sky = [o for o in bpy.data.objects if o.name.startswith("SkyBack")]
+    if sky and SKY_PIXELS is not None:
+        height, width = SKY_PIXELS.shape[:2]
+        out = bpy.data.images.new("Out_Sky", width, height, alpha=False)
+        out.colorspace_settings.name = "Non-Color"
+        out.pixels.foreach_set(np.flipud(np.dstack([SKY_PIXELS, np.ones((height, width))])).astype(np.float32).ravel())
+        out.filepath_raw = os.path.join(textures, prefix + "_Sky.png")
+        out.file_format = "PNG"
+        out.save()
+        joined.append(sky[0])
 
     triangles = 0
     for merged in joined:
