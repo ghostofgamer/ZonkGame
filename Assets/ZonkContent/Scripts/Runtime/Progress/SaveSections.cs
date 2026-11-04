@@ -381,5 +381,8 @@ namespace Zonk.Progress
     public sealed class TutorialSave
     {
         public List<string> Seen = new List<string>();
+
+        /// <summary>Партия обучения пройдена: меню открыто целиком.</summary>
+        public bool Completed;
     }
 }

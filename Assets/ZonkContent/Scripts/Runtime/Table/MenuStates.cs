@@ -142,9 +142,11 @@ namespace Zonk.Table
 
             // Первый показ меню: экран загрузки из Bootstrap уходит, когда стол уже одет и камера на месте.
             var loading = _loading.HideAsync(ct);
-            var menu = await _ui.OpenAsync<MainMenuWindow>(ct);
+            var tutorialOnly = _tutorial.NeedsFirstMatch;
+            var menu = await _ui.OpenAsync<MainMenuWindow>(ct, w => w.TutorialOnly = tutorialOnly);
             await loading;
-            _tutorial.ShowPointing(TutorialTrigger.MainMenu, menu.CampaignButton);
+            if (tutorialOnly)
+                _tutorial.ShowPointing(TutorialTrigger.MainMenu, menu.CampaignButton);
             ShowMissedLevelItems(ct);
 
             MainMenuChoice choice;
@@ -159,6 +161,9 @@ namespace Zonk.Table
                 _ui.CloseAsync(menu, CancellationToken.None).Forget();
                 _tutorial.Hide();
             }
+
+            if (tutorialOnly)
+                return TableStateIds.Tutorial;
 
             switch (choice)
             {

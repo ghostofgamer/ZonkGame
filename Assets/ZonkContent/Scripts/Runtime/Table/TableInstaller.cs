@@ -57,6 +57,7 @@ namespace Zonk.Table
             Container.Bind<ITableState>().To<ChestState>().AsSingle();
             Container.Bind<ITableState>().To<SeasonState>().AsSingle();
             Container.Bind<ITableState>().To<DiceState>().AsSingle();
+            Container.Bind<ITableState>().To<TutorialState>().AsSingle();
 
             Container.BindInterfacesTo<TableFlow>().AsSingle();
         }

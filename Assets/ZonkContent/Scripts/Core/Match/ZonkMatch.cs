@@ -173,12 +173,13 @@ namespace Zonk.Core.Match
             var counts = _countsBuffer;
             Array.Clear(counts, 0, counts.Length);
             var dice = CurrentPlayer.Dice;
+            var script = CurrentPlayer.TakeScriptedRoll();
             for (var die = 0; die < DiceCount; die++)
             {
                 if (!_inHand[die])
                     continue;
 
-                var face = dice[die].Roll(_random);
+                var face = script != null && rolled.Count < script.Count ? script[rolled.Count] : dice[die].Roll(_random);
                 _faces[die] = face;
                 rolled.Add(die);
                 counts[face]++;

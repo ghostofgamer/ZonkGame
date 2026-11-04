@@ -82,6 +82,8 @@ namespace Zonk.UI.Windows
                     _secondary.SetText(secondary);
             }
 
+            // Без подписи кнопки «Назад» нет: окно с одним выбором.
+            _back.SetVisible(!string.IsNullOrEmpty(back));
             _back.SetText(back);
             if (_scroll != null)
             {

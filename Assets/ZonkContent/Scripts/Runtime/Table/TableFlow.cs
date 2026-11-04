@@ -26,6 +26,7 @@ namespace Zonk.Table
         public const string Chest = "chest";
         public const string Season = "season";
         public const string Dice = "dice";
+        public const string Tutorial = "tutorial";
     }
 
     /// <summary>

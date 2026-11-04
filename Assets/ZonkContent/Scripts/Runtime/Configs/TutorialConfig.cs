@@ -47,9 +47,22 @@ namespace Zonk.Configs
         public string CaptionKey;
     }
 
+    /// <summary>Заданный бросок партии обучения: грань на каждую кость в руке, по порядку.</summary>
+    [Serializable]
+    public sealed class ScriptedRoll
+    {
+        public int[] Faces;
+
+        public ScriptedRoll(params int[] faces)
+        {
+            Faces = faces;
+        }
+    }
+
     /// <summary>
-    /// Обучение: подсказки поверх настоящей партии, каждая один раз, когда впервые случается её момент.
-    /// Не останавливают игру. Новая подсказка — строка в списке (и ключ текста), без кода.
+    /// Обучение: при первом запуске в меню только кнопка обучения, партия с заданными бросками (TutorialState).
+    /// Шаги с целью идут только в ней, остальные подсказки — один раз, когда впервые случается их момент.
+    /// Новая подсказка — строка в списке (и ключ текста), без кода.
     /// </summary>
     [CreateAssetMenu(menuName = "Zonk/Tutorial", fileName = "Tutorial")]
     public sealed class TutorialConfig : ScriptableObject
@@ -58,6 +71,36 @@ namespace Zonk.Configs
 
         [Tooltip("Радиус круга в середине лотка на шаге «потрясите и толкните», метры")]
         public float ShakeFocusRadius = 0.45f;
+
+        [Header("Партия обучения")]
+        [Tooltip("Соперник партии обучения")]
+        public OpponentConfig Opponent;
+
+        [Tooltip("Цель партии: короткая, чтобы закончить за 2–3 хода")]
+        public int TargetScore = 1500;
+
+        [Tooltip("Броски игрока по порядку. Когда кончатся — обычный ГСЧ")]
+        public List<ScriptedRoll> PlayerRolls = new List<ScriptedRoll>
+        {
+            new ScriptedRoll(5, 5, 5, 2, 3, 4),
+            new ScriptedRoll(1, 2, 6, 3, 4, 4),
+            new ScriptedRoll(1, 1, 1, 5, 5, 2),
+        };
+
+        [Tooltip("Броски соперника по порядку: два Зонка, чтобы новичок увидел Зонк и выиграл")]
+        public List<ScriptedRoll> OpponentRolls = new List<ScriptedRoll>
+        {
+            new ScriptedRoll(2, 3, 4, 6, 2, 3),
+            new ScriptedRoll(3, 4, 6, 2, 6, 4),
+        };
+
+        public static IReadOnlyList<IReadOnlyList<int>> Faces(List<ScriptedRoll> rolls)
+        {
+            var result = new List<IReadOnlyList<int>>(rolls.Count);
+            foreach (var roll in rolls)
+                result.Add(roll.Faces);
+            return result;
+        }
 
         public TutorialStep Find(TutorialTrigger trigger)
         {

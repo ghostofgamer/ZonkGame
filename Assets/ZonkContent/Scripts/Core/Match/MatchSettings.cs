@@ -35,6 +35,12 @@ namespace Zonk.Core.Match
         /// </summary>
         public int ZonkSaves { get; set; }
 
+        /// <summary>
+        /// Заранее заданные броски: только партия обучения. Каждый бросок берёт следующую строку, по грани на кость в руке;
+        /// когда строки кончились — обычный ГСЧ партии. Пусто — как обычно.
+        /// </summary>
+        public IReadOnlyList<IReadOnlyList<int>> ScriptedRolls { get; set; }
+
         public static IReadOnlyList<DieSpec> StandardDice()
         {
             var dice = new DieSpec[ZonkMatch.DiceCount];

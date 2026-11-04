@@ -59,6 +59,23 @@ namespace Zonk.Tests
             Assert.Greater(plainZonks, 0, "Без защиты Зонк на шести костях встречается");
         }
 
+        [Test]
+        public void ScriptedRollsGoFirstThenRandom()
+        {
+            var settings = StandardSettings(7);
+            settings.Players[0].ScriptedRolls = new[] { (IReadOnlyList<int>)new[] { 5, 5, 5, 2, 3, 4 }, new[] { 1, 2 } };
+            var match = new ZonkMatch(settings);
+
+            var first = match.Roll();
+            CollectionAssert.AreEqual(new[] { 5, 5, 5, 2, 3, 4 }, first.Faces);
+
+            match.Keep(new[] { 0, 1, 2 });
+            var second = match.Roll();
+            Assert.AreEqual(1, second.Faces[3]);
+            Assert.AreEqual(2, second.Faces[4]);
+            Assert.That(second.Faces[5], Is.InRange(1, 6), "Граней в строке меньше костей: остальные бросает ГСЧ");
+        }
+
         private static MatchSettings StandardSettings(ulong seed)
         {
             return new MatchSettings

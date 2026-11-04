@@ -25,6 +25,7 @@ namespace Zonk.Table
         private readonly UiKit _kit;
         private readonly IAnalytics _analytics;
         private readonly HashSet<string> _replayed = new HashSet<string>();
+        private bool _replayCompleted;
         private TutorialTipWindow _tip;
         private bool _suspended;
         private CancellationTokenSource _tipCts;
@@ -96,7 +97,50 @@ namespace Zonk.Table
         public bool ShouldShow(TutorialTrigger trigger)
         {
             var step = _config.Tutorial != null ? _config.Tutorial.Find(trigger) : null;
+            if (IsGuidedStep(trigger) && !Guided)
+                return false;
+
             return step != null && !string.IsNullOrEmpty(step.TextKey) && _saves.IsLoaded && !IsSeen(TriggerId(trigger));
+        }
+
+        /// <summary>Идёт партия обучения: шаги с целью работают только в ней и не мешают обычным партиям и игре вдвоём.</summary>
+        public bool Guided { get; set; }
+
+        private static bool IsGuidedStep(TutorialTrigger trigger)
+        {
+            return trigger == TutorialTrigger.BeforeFirstRoll || trigger == TutorialTrigger.ChooseDice || trigger == TutorialTrigger.AfterKeep ||
+                   trigger == TutorialTrigger.ManualRoll || trigger == TutorialTrigger.ManualRollShake;
+        }
+
+        /// <summary>
+        /// Обучение ещё не пройдено: в меню только его кнопка. Сохранения, где выбор костей и решение уже показывались
+        /// (игрок дошёл до них, в том числе из прежней версии обучения), считаются прошедшими: второй раз не запираем.
+        /// </summary>
+        public bool NeedsFirstMatch
+        {
+            get
+            {
+                if (!_saves.IsLoaded)
+                    return false;
+                if (ReplayInEditor())
+                    return !_replayCompleted;
+
+                var data = Data;
+                return !data.Completed && !data.Seen.Contains(TriggerId(TutorialTrigger.AfterKeep));
+            }
+        }
+
+        /// <summary>Партия обучения сыграна до конца.</summary>
+        public void CompleteFirstMatch()
+        {
+            _replayCompleted = true;
+            var data = Data;
+            if (data.Completed)
+                return;
+
+            data.Completed = true;
+            _saves.RequestSave();
+            _analytics?.Track("tutorial", "step", "completed");
         }
 
         /// <summary>Каждый шаг показывается один раз. Replay Tutorial не считает сохранение: шаги идут заново, но тоже по разу за запуск.</summary>

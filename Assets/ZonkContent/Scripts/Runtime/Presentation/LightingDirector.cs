@@ -57,6 +57,11 @@ namespace Zonk.Presentation
         private Color _ambientEquator;
         private Color _ambientGround;
 
+        // Затемнение запечённых комнат (Zonk/Baked): глобально, поэтому работает и для модели, которая догрузится позже.
+        // Хранится как «сколько убрать»: пока значение не задано (снимок иконки, редактор), комната как запекли.
+        private static readonly int BakedDarkenId = Shader.PropertyToID("_ZonkBakedDarken");
+        private Color _bakedDarken;
+
 #if UNITY_EDITOR
         public void EditorSetup(Light sun, Camera camera, Volume volume, CosmeticStage stage, SoundPlayer sound, Light tableLight = null)
         {
@@ -336,6 +341,8 @@ namespace Zonk.Presentation
             var fromFog = RenderSettings.fogColor;
             var fromDensity = RenderSettings.fogDensity;
             var fromBackground = _camera != null ? _camera.backgroundColor : profile.Background;
+            var fromDarken = _bakedDarken;
+            var toDarken = Color.white - profile.BakedTint;
 
             _sunColor = profile.SunColor;
             _sunIntensity = profile.Sun ? profile.SunIntensity : 0f;
@@ -361,6 +368,9 @@ namespace Zonk.Presentation
                 RenderSettings.fogDensity = Mathf.Lerp(fromDensity, profile.FogDensity, t);
                 if (_camera != null)
                     _camera.backgroundColor = Color.Lerp(fromBackground, profile.Background, t);
+
+                _bakedDarken = Color.Lerp(fromDarken, toDarken, t);
+                Shader.SetGlobalColor(BakedDarkenId, _bakedDarken);
 
                 if (t >= 1f)
                     return;

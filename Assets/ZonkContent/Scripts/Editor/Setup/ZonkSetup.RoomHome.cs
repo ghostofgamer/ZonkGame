@@ -34,10 +34,28 @@ namespace Zonk.Editor.Setup
         public static void ApplyHomeRoom()
         {
             var path = Prefabs + "/Environments/Env_Home.prefab";
+            var room = BakedMaterial("M_Home_Room", "Home_Room", 2048);
+            var props = BakedMaterial("M_Home_Props", "Home_Props", 1024);
+            var smoke = SmokeWispMaterial();
+            ApplyBakedRoom(path, RoomModel, "zonk_room.py", room, props, root =>
+            {
+                AddFlames(root, FireX, FireZ);
+                AddCandle(root, new Vector3(FireX - 1.35f, RoomFloor + 2.68f, 4.5f));
+                AddCandle(root, new Vector3(FireX + 1.25f, RoomFloor + 2.68f, 4.5f));
+                AddSmoke(root, smoke, FireX, FireZ);
+                AddFloorGlow(root, FireX, 2.9f);
+            });
+
+            TuneHomeLighting();
+        }
+
+        /// <summary>Запечённая комната в префаб локации: прежнее содержимое заменяется, сам файл и ссылки на него те же.</summary>
+        private static void ApplyBakedRoom(string path, string modelPath, string script, Material room, Material props, System.Action<Transform> addLive)
+        {
             if (IsLocked(path) || AssetDatabase.LoadAssetAtPath<GameObject>(path) == null)
                 return;
 
-            if (AssetImporter.GetAtPath(RoomModel) is ModelImporter model)
+            if (AssetImporter.GetAtPath(modelPath) is ModelImporter model)
             {
                 model.materialImportMode = ModelImporterMaterialImportMode.None;
                 model.importNormals = ModelImporterNormals.None;
@@ -51,16 +69,12 @@ namespace Zonk.Editor.Setup
                 model.SaveAndReimport();
             }
 
-            var modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(RoomModel);
+            var modelAsset = AssetDatabase.LoadAssetAtPath<GameObject>(modelPath);
             if (modelAsset == null)
             {
-                Debug.LogError("[Zonk] No model " + RoomModel + ": run Tools/Blender/zonk_room.py -- --bake");
+                Debug.LogError("[Zonk] No model " + modelPath + ": run Tools/Blender/" + script + " -- --bake");
                 return;
             }
-
-            var room = BakedMaterial("M_Home_Room", "Home_Room", 2048);
-            var props = BakedMaterial("M_Home_Props", "Home_Props", 1024);
-            var smoke = SmokeWispMaterial();
 
             var root = PrefabUtility.LoadPrefabContents(path);
             try
@@ -77,17 +91,13 @@ namespace Zonk.Editor.Setup
                     renderer.receiveShadows = false;
                 }
 
-                AddFire(root.transform);
-                AddSmoke(root.transform, smoke);
-                AddFloorGlow(root.transform);
+                addLive(root.transform);
                 PrefabUtility.SaveAsPrefabAsset(root, path);
             }
             finally
             {
                 PrefabUtility.UnloadPrefabContents(root);
             }
-
-            TuneHomeLighting();
         }
 
         private static Material BakedMaterial(string name, string texture, int size)
@@ -98,12 +108,13 @@ namespace Zonk.Editor.Setup
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)
             {
-                material = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { name = name };
+                material = new Material(Shader.Find("Zonk/Baked")) { name = name };
                 AssetDatabase.CreateAsset(material, path);
             }
 
+            // Прежние материалы были на URP Unlit: BakedTint профиля работает только на Zonk/Baked.
+            material.shader = Shader.Find("Zonk/Baked");
             material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath));
-            material.SetColor("_BaseColor", Color.white);
             EditorUtility.SetDirty(material);
             return material;
         }
@@ -135,8 +146,8 @@ namespace Zonk.Editor.Setup
             return go;
         }
 
-        /// <summary>Огонь в камине и на свечах: те же кадры, что огонь в интерфейсе.</summary>
-        private static void AddFire(Transform root)
+        /// <summary>Огонь в очаге: те же кадры, что огонь в интерфейсе.</summary>
+        private static void AddFlames(Transform root, float fireX, float fireZ)
         {
             var frames = FlameSprites();
             var flames = new[]
@@ -148,27 +159,27 @@ namespace Zonk.Editor.Setup
             foreach (var flame in flames)
             {
                 // Кадр огня 1.2 единицы в высоту, центр посередине.
-                var position = new Vector3(FireX + flame.x, RoomFloor + 0.28f + flame.h * 0.5f, FireZ);
+                var position = new Vector3(fireX + flame.x, RoomFloor + 0.28f + flame.h * 0.5f, fireZ);
                 var go = SpriteObject("Fire", root, position, flame.h / 1.2f, frames[0]);
                 go.AddComponent<WorldFlipbook>().EditorSetup(go.GetComponent<SpriteRenderer>(), frames, FlameFps, flame.offset);
             }
+        }
 
-            foreach (var x in new[] { FireX - 1.35f, FireX + 1.25f })
-            {
-                var position = new Vector3(x, RoomFloor + 2.68f, 4.5f);
-                var go = SpriteObject("CandleFlame", root, position, 0.09f, frames[0]);
-                go.AddComponent<WorldFlipbook>().EditorSetup(go.GetComponent<SpriteRenderer>(), frames, FlameFps, (int)(x * 3f) & 7);
-            }
+        private static void AddCandle(Transform root, Vector3 position)
+        {
+            var frames = FlameSprites();
+            var go = SpriteObject("CandleFlame", root, position, 0.09f, frames[0]);
+            go.AddComponent<WorldFlipbook>().EditorSetup(go.GetComponent<SpriteRenderer>(), frames, FlameFps, (int)(position.x * 3f) & 7);
         }
 
         /// <summary>Дымок над огнём: одна плоскость с шумом.</summary>
-        private static void AddSmoke(Transform root, Material material)
+        private static void AddSmoke(Transform root, Material material, float fireX, float fireZ)
         {
             var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
             quad.name = "FireSmoke";
             Object.DestroyImmediate(quad.GetComponent<Collider>());
             quad.transform.SetParent(root, false);
-            quad.transform.localPosition = new Vector3(FireX, RoomFloor + 1.1f, FireZ + 0.02f);
+            quad.transform.localPosition = new Vector3(fireX, RoomFloor + 1.1f, fireZ + 0.02f);
             quad.transform.localScale = new Vector3(1.3f, 1.3f, 1f);
             var renderer = quad.GetComponent<MeshRenderer>();
             renderer.sharedMaterial = material;
@@ -177,13 +188,13 @@ namespace Zonk.Editor.Setup
         }
 
         /// <summary>Живой отсвет камина на полу.</summary>
-        private static void AddFloorGlow(Transform root)
+        private static void AddFloorGlow(Transform root, float glowX, float glowZ)
         {
             var sprite = SpriteAt(Root + "/Art/Textures/Particle_SoftDot.png");
             if (sprite == null)
                 return;
 
-            var go = SpriteObject("FireGlow", root, new Vector3(FireX, RoomFloor + 0.03f, 2.9f), 1f, sprite);
+            var go = SpriteObject("FireGlow", root, new Vector3(glowX, RoomFloor + 0.03f, glowZ), 1f, sprite);
             go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             var size = sprite.bounds.size;
             go.transform.localScale = new Vector3(5f / Mathf.Max(size.x, 0.01f), 4f / Mathf.Max(size.y, 0.01f), 1f);
@@ -207,6 +218,18 @@ namespace Zonk.Editor.Setup
             profile.LampIntensity = 1f;
             profile.TableLight = 1.1f;
             profile.TableLightColor = new Color(1f, 0.84f, 0.62f);
+            EditorUtility.SetDirty(profile);
+            SetBakedTint("Lighting_HomeMidnight", new Color(0.5f, 0.56f, 0.82f));
+        }
+
+        /// <summary>Ночной вариант локации: та же запечённая комната темнее и холоднее. Ручную правку оттенка не затираем.</summary>
+        private static void SetBakedTint(string profileName, Color tint)
+        {
+            var profile = AssetDatabase.LoadAssetAtPath<LightingProfileConfig>(ConfigsFolder + "/Lighting/" + profileName + ".asset");
+            if (profile == null || profile.BakedTint != Color.white)
+                return;
+
+            profile.BakedTint = tint;
             EditorUtility.SetDirty(profile);
         }
     }

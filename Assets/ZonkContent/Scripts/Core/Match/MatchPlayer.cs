@@ -13,6 +13,16 @@ namespace Zonk.Core.Match
             Dice = setup.Dice;
             Score = System.Math.Max(0, setup.StartScore);
             ZonkSavesLeft = System.Math.Max(0, setup.ZonkSaves);
+            _scriptedRolls = setup.ScriptedRolls;
+        }
+
+        private readonly IReadOnlyList<IReadOnlyList<int>> _scriptedRolls;
+        private int _scriptedRollIndex;
+
+        /// <summary>Следующий заданный бросок обучения; null — бросает ГСЧ.</summary>
+        internal IReadOnlyList<int> TakeScriptedRoll()
+        {
+            return _scriptedRolls != null && _scriptedRollIndex < _scriptedRolls.Count ? _scriptedRolls[_scriptedRollIndex++] : null;
         }
 
         /// <summary>Сколько зарядов «спасения от Зонка» осталось в этой партии.</summary>

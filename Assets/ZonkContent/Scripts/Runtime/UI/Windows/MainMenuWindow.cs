@@ -100,6 +100,9 @@ namespace Zonk.UI.Windows
         /// <summary>Набор, который предлагает кнопка особого предложения.</summary>
         public ThemeSetConfig Offer { get; private set; }
 
+        /// <summary>Обучение не пройдено: в меню только его кнопка (на месте кампании). Задаётся до показа окна.</summary>
+        public bool TutorialOnly { get; set; }
+
         /// <summary>Кнопка кампании: на неё показывает обучение.</summary>
         public RectTransform CampaignButton => (RectTransform)_campaign.transform;
 
@@ -249,6 +252,27 @@ namespace Zonk.UI.Windows
 
             BuildAdOffers();
             RefreshAdCoinsLoopAsync(this.GetCancellationTokenOnDestroy()).Forget();
+            if (TutorialOnly)
+                HideAllButTutorial();
+        }
+
+        private void HideAllButTutorial()
+        {
+            _campaign.SetText(T("menu.tutorial"));
+            foreach (var button in new[] { _hotSeat, _shop, _settings, _rules, _quests, _offer, _leaderboards, _tower, _endlessRun, _chest, _season, _dice })
+            {
+                if (button != null)
+                    button.SetVisible(false);
+            }
+
+            if (_questsBadge != null)
+                _questsBadge.SetActive(false);
+            if (_adOffers != null)
+                _adOffers.gameObject.SetActive(false);
+            if (_playerLevel != null)
+                _playerLevel.gameObject.SetActive(false);
+            if (_avatar != null)
+                _avatar.gameObject.SetActive(false);
         }
 
         /// <summary>Готовность рекламы меняется со временем (на VK — предзагрузка): кнопка появляется, когда реклама готова.</summary>

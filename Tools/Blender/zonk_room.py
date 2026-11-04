@@ -707,18 +707,24 @@ def flat_baked(name, path):
 
 
 def bake_and_export(samples, preview):
+    views = (("mesto_dom_partiya.png", (0, 4.1, -4.9), (0, -0.2, 0.1), 48), ("mesto_dom_menu.png", (3.6, 3.2, -5.6), (-1.4, -0.2, 0.4), 42))
+    bake_location("Home", "Room_Home.fbx", room, lights, views, samples, preview)
+
+
+def bake_location(prefix, model_file, build, build_lights, views, samples, preview):
+    """Запекание локации: комната и предметы — в две текстуры, выгрузка одной модели. Живые части добавляет генератор."""
     models = os.path.join(ART, "Models", "Environments")
     textures = os.path.join(ART, "Textures", "Environments")
     os.makedirs(models, exist_ok=True)
     os.makedirs(textures, exist_ok=True)
 
-    room()
+    build()
     built = [o for o in bpy.data.objects if o.type == "MESH" and not o.name.startswith("FlameQuad")]
     for obj in list(bpy.data.objects):
         if obj.name.startswith("FlameQuad"):
             obj.hide_render = True
     table()
-    lights()
+    build_lights()
 
     # Настоящие сетки: модификаторы и трансформы применены, родитель кресла снят.
     bpy.ops.object.select_all(action="DESELECT")
@@ -740,8 +746,8 @@ def bake_and_export(samples, preview):
     scene.cycles.device = "CPU"
     scene.cycles.max_bounces = 5
 
-    room_path = bake_group(room_objects, "Home_Room", 2048, samples, textures)
-    props_path = bake_group(prop_objects, "Home_Props", 1024, samples, textures)
+    room_path = bake_group(room_objects, prefix + "_Room", 2048, samples, textures)
+    props_path = bake_group(prop_objects, prefix + "_Props", 1024, samples, textures)
 
     # Склейка в две сетки: две текстуры, два вызова отрисовки. В модели только развёртка запекания.
     joined = []
@@ -758,7 +764,7 @@ def bake_and_export(samples, preview):
             if layer.name != "Bake":
                 merged.data.uv_layers.remove(layer)
         merged.data.materials.clear()
-        merged.data.materials.append(flat_baked("M_Home_" + name, path))
+        merged.data.materials.append(flat_baked("M_" + prefix + "_" + name, path))
         for polygon in merged.data.polygons:
             polygon.material_index = 0
         joined.append(merged)
@@ -777,8 +783,8 @@ def bake_and_export(samples, preview):
     for obj in bpy.data.objects:
         if obj.name.startswith("FlameQuad"):
             obj.hide_render = False
-    render_flat(os.path.join(preview, "mesto_dom_partiya.png"), (0, 4.1, -4.9), (0, -0.2, 0.1), 48)
-    render_flat(os.path.join(preview, "mesto_dom_menu.png"), (3.6, 3.2, -5.6), (-1.4, -0.2, 0.4), 42)
+    for file_name, camera, target, fov in views:
+        render_flat(os.path.join(preview, file_name), camera, target, fov)
 
     # Выгрузка. Unity = (-bx, bz, -by), поэтому разворот на 180° вокруг вертикали: x и z как в Unity-координатах этого файла.
     bpy.ops.object.select_all(action="DESELECT")
@@ -788,7 +794,7 @@ def bake_and_export(samples, preview):
             vertex.co.x, vertex.co.y = -vertex.co.x, -vertex.co.y
         merged.data.update()
     bpy.context.view_layer.objects.active = joined[0]
-    path = os.path.join(models, "Room_Home.fbx")
+    path = os.path.join(models, model_file)
     bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={"MESH"}, axis_forward="-Z", axis_up="Y",
                              apply_unit_scale=True, apply_scale_options="FBX_SCALE_ALL", bake_space_transform=True,
                              mesh_smooth_type="OFF", use_mesh_modifiers=False, bake_anim=False, path_mode="COPY", embed_textures=False)
@@ -832,4 +838,6 @@ def main():
     render(os.path.join(folder, "room_menu.png"), (3.6, 3.2, -5.6), (-1.4, -0.2, 0.4), 42, samples)
 
 
-main()
+# Другие локации берут отсюда общие детали (zonk_tavern.py): при импорте ничего не строится.
+if __name__ == "__main__":
+    main()

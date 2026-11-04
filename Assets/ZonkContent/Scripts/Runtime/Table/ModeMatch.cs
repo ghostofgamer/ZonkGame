@@ -43,6 +43,13 @@ namespace Zonk.Table
         /// <summary>Заряды спасения от Зонка у игрока на партию (находки забега).</summary>
         public int PlayerZonkSaves;
         public IReadOnlyList<MatchModifier> EnemyModifiers;
+
+        /// <summary>Игрок ходит первым (партия обучения). Иначе первый ход случайный.</summary>
+        public bool PlayerFirst;
+
+        /// <summary>Заданные броски партии обучения; null — обычный ГСЧ.</summary>
+        public IReadOnlyList<IReadOnlyList<int>> PlayerRolls;
+        public IReadOnlyList<IReadOnlyList<int>> OpponentRolls;
     }
 
     /// <summary>Итог партии режима: для итогов (MatchAftermath) и решения режима.</summary>
@@ -65,12 +72,10 @@ namespace Zonk.Table
         private readonly IPlatformService _platform;
         private readonly IQuestService _quests;
         private readonly GameConfig _config;
-        private readonly TutorialDirector _tutorial;
 
         public ModeMatch(UiKit kit, ParticipantFactory participants, MatchRunner runner, IPlatformService platform,
-            IQuestService quests, GameConfig config, TutorialDirector tutorial)
+            IQuestService quests, GameConfig config)
         {
-            _tutorial = tutorial;
             _kit = kit;
             _participants = participants;
             _runner = runner;
@@ -110,13 +115,12 @@ namespace Zonk.Table
                 Rules = rules,
                 Players = new List<PlayerSetup>
                 {
-                    new PlayerSetup(me.Name, ParticipantFactory.Specs(me.Dice)) { Modifiers = List(setup.PlayerModifiers), StartScore = setup.PlayerStartScore, ZonkSaves = setup.PlayerZonkSaves },
-                    new PlayerSetup(enemy.Name, ParticipantFactory.Specs(enemy.Dice)) { Modifiers = List(setup.EnemyModifiers) },
+                    new PlayerSetup(me.Name, ParticipantFactory.Specs(me.Dice)) { Modifiers = List(setup.PlayerModifiers), StartScore = setup.PlayerStartScore, ZonkSaves = setup.PlayerZonkSaves, ScriptedRolls = setup.PlayerRolls },
+                    new PlayerSetup(enemy.Name, ParticipantFactory.Specs(enemy.Dice)) { Modifiers = List(setup.EnemyModifiers), ScriptedRolls = setup.OpponentRolls },
                 },
                 Modifiers = new List<MatchModifier>(List(setup.SharedRules)),
                 Seed = SplitMixRandom.NewSeed(),
-                // Новичок ходит первым: обучение начинается с его броска, а не с ожидания чужого хода.
-                FirstPlayer = _tutorial.ShouldShow(TutorialTrigger.BeforeFirstRoll) ? 0 : Random.Range(0, 2),
+                FirstPlayer = setup.PlayerFirst ? 0 : Random.Range(0, 2),
             };
 
             _platform.NotifyGameplayStart();
