@@ -21,6 +21,11 @@ namespace Zonk.Editor.Setup
         private const float FireX = 4.5f;
         private const float FireZ = 4.58f;
 
+        // Запечённые текстуры: качество Crunch, без анизотропии, сдвиг мипов в сторону резкости.
+        private const int BakedTextureQuality = 95;
+        private const int BakedTextureAniso = 1;
+        private const float BakedTextureMipBias = -0.7f;
+
         [MenuItem("Zonk/Art/Apply Home Room", priority = 46)]
         public static void ApplyHomeRoomMenu()
         {
@@ -50,7 +55,7 @@ namespace Zonk.Editor.Setup
         }
 
         /// <summary>Запечённая комната в префаб локации: прежнее содержимое заменяется, сам файл и ссылки на него те же.</summary>
-        private static void ApplyBakedRoom(string path, string modelPath, string script, Material room, Material props, System.Action<Transform> addLive, Material sway = null, Material sky = null)
+        private static void ApplyBakedRoom(string path, string modelPath, string script, Material room, Material props, System.Action<Transform> addLive, Material sway = null, Material sky = null, System.Func<string, Material> byMeshName = null)
         {
             if (IsLocked(path) || AssetDatabase.LoadAssetAtPath<GameObject>(path) == null)
                 return;
@@ -86,7 +91,9 @@ namespace Zonk.Editor.Setup
                 instance.name = "Room";
                 foreach (var renderer in instance.GetComponentsInChildren<MeshRenderer>(true))
                 {
-                    renderer.sharedMaterial = renderer.name.Contains("Sway") ? (sway != null ? sway : props)
+                    var named = byMeshName != null ? byMeshName(renderer.name) : null;
+                    renderer.sharedMaterial = named != null ? named
+                        : renderer.name.Contains("Sway") ? (sway != null ? sway : props)
                         : renderer.name.Contains("SkyBack") && sky != null ? sky
                         : renderer.name.Contains("Props") ? props : room;
                     renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -105,7 +112,14 @@ namespace Zonk.Editor.Setup
         private static Material BakedMaterial(string name, string texture, int size)
         {
             var texturePath = RoomTextures + "/" + texture + ".png";
-            ConfigureTexture(texturePath, size, 75);
+            // Камера смотрит под углом, Unity берёт уменьшенный мип и картинка мылится. Анизотропии нет (все телефоны): резкость дают сдвиг мипов и мягкое сжатие.
+            ConfigureTexture(texturePath, size, BakedTextureQuality, BakedTextureAniso);
+            if (AssetImporter.GetAtPath(texturePath) is TextureImporter importer && !Mathf.Approximately(importer.mipMapBias, BakedTextureMipBias))
+            {
+                importer.mipMapBias = BakedTextureMipBias;
+                importer.SaveAndReimport();
+            }
+
             var path = RoomTextures + "/" + name + ".mat";
             var material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)

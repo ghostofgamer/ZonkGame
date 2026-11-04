@@ -714,8 +714,12 @@ def bake_and_export(samples, preview):
     bake_location("Home", "Room_Home.fbx", room, lights, views, samples, preview)
 
 
-def bake_location(prefix, model_file, build, build_lights, views, samples, preview, props_size=1024):
-    """Запекание локации: комната и предметы — в две текстуры, выгрузка одной модели. Живые части добавляет генератор."""
+def bake_location(prefix, model_file, build, build_lights, views, samples, preview, props_size=1024, groups=None):
+    """
+    Запекание локации: комната и предметы — в свои текстуры, выгрузка одной модели. Живые части добавляет генератор.
+    groups — предметы по нескольким текстурам: список (имя, размер, условие по имени объекта). Без него — одна текстура Props.
+    Больше текстур — больше пикселей на предмет; бюджет сцены: до 8 текстур, одна 2048 на пол, остальные 1024 и меньше.
+    """
     models = os.path.join(ART, "Models", "Environments")
     textures = os.path.join(ART, "Textures", "Environments")
     os.makedirs(models, exist_ok=True)
@@ -750,17 +754,31 @@ def bake_location(prefix, model_file, build, build_lights, views, samples, previ
     scene.cycles.max_bounces = 5
 
     room_path = bake_group(room_objects, prefix + "_Room", 2048, samples, textures)
-    props_path = bake_group(prop_objects, prefix + "_Props", props_size, samples, textures)
+    prop_sets = []
+    if groups:
+        rest = list(prop_objects)
+        for group_name, size, wanted in groups:
+            members = [o for o in rest if wanted(o.name.split(".")[0])]
+            rest = [o for o in rest if o not in members]
+            if members:
+                prop_sets.append((group_name, members, bake_group(members, prefix + "_" + group_name, size, samples, textures)))
+        if rest:
+            raise Exception("Objects without a texture group: " + ", ".join(sorted({o.name.split(".")[0] for o in rest})))
+    else:
+        prop_sets.append(("Props", prop_objects, bake_group(prop_objects, prefix + "_Props", props_size, samples, textures)))
 
     # Склейка в две сетки: две текстуры, два вызова отрисовки. В модели только развёртка запекания.
     joined = []
     # Детали Sway* запечены вместе с предметами, но в игре отдельной сеткой: качаются в шейдере Zonk/BakedSway.
-    sway_objects = [o for o in prop_objects if o.name.startswith("Sway")]
-    static_props = [o for o in prop_objects if not o.name.startswith("Sway")]
-    groups = [(room_objects, "Room", room_path), (static_props, "Props", props_path)]
-    if sway_objects:
-        groups.append((sway_objects, "Sway", props_path))
-    for objects, name, path in groups:
+    meshes = [(room_objects, "Room", room_path)]
+    for group_name, members, path in prop_sets:
+        static = [o for o in members if not o.name.startswith("Sway")]
+        sway = [o for o in members if o.name.startswith("Sway")]
+        if static:
+            meshes.append((static, group_name, path))
+        if sway:
+            meshes.append((sway, "Sway", path))
+    for objects, name, path in meshes:
         bpy.ops.object.select_all(action="DESELECT")
         for obj in objects:
             obj.select_set(True)

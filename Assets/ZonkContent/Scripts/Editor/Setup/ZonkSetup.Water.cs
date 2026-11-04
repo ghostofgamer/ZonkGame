@@ -29,16 +29,32 @@ namespace Zonk.Editor.Setup
                 return;
 
             var room = BakedMaterial("M_Beach_Room", "Beach_Room", 2048);
-            var props = BakedMaterial("M_Beach_Props", "Beach_Props", 1024);
+            // Предметы в нескольких текстурах: бар, костёр с рыбой, лодка, пальмы. Имя сетки = имя группы в zonk_beach.py.
+            var bar = BakedMaterial("M_Beach_Bar", "Beach_Bar", 1024);
+            var camp = BakedMaterial("M_Beach_Camp", "Beach_Camp", 1024);
+            var boat = BakedMaterial("M_Beach_Boat", "Beach_Boat", 512);
+            var palm = BakedMaterial("M_Beach_Palm", "Beach_Palm", 512);
+            var far = BakedMaterial("M_Beach_Far", "Beach_Far", 128);
             var sky = BakedMaterial("M_Beach_Sky", "Beach_Sky", 1024);
-            var sway = SwayMaterial("M_Beach_Sway", "Beach_Props");
+            var sway = SwayMaterial("M_Beach_Sway", "Beach_Palm");
             var water = WaterMaterial();
             var smoke = SmokeWispMaterial();
-            ApplyBakedRoom(Prefabs + "/Environments/Env_Beach.prefab", BeachModel, "zonk_beach.py", room, props, root =>
+            ApplyBakedRoom(Prefabs + "/Environments/Env_Beach.prefab", BeachModel, "zonk_beach.py", room, bar, root =>
             {
                 AddWater(root, water);
                 AddSmoke(root, smoke, BeachFireX, BeachFireZ);
-            }, sway, sky);
+            }, sway, sky, meshName =>
+            {
+                if (meshName.Contains("Camp"))
+                    return camp;
+                if (meshName.Contains("Boat"))
+                    return boat;
+                if (meshName.Contains("Palm"))
+                    return palm;
+                if (meshName.Contains("Far"))
+                    return far;
+                return meshName.Contains("Bar") ? bar : null;
+            });
 
             SetBakedTint("Lighting_BeachSunset", new Color(1f, 0.62f, 0.46f));
             AssetDatabase.SaveAssets();

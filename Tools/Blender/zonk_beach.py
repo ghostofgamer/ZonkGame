@@ -45,8 +45,8 @@ def sand_image():
     top = 1 - y
     image = np.zeros((size, size, 3)) + np.array([0.90, 0.80, 0.60])
     dune = np.sin(x * 34 + np.sin(top * 9) * 2.2) + np.sin(top * 15 + np.sin(x * 21) * 2.0)
-    image[dune > 0.8] = (0.86, 0.75, 0.55)
-    image[dune < -1.0] = (0.93, 0.84, 0.65)
+    image[dune > 0.9] = (0.885, 0.785, 0.585)
+    image[dune < -1.1] = (0.915, 0.815, 0.615)
     return image
 
 
@@ -110,6 +110,18 @@ def ground(name, x0, x1, y0, y1, pixels, z=FLOOR, rough=0.9):
     for k, uv in enumerate(((0, 0), (1, 0), (1, 1), (0, 1))):
         layer.data[k].uv = uv
     return link(bpy.data.objects.new(name, mesh), image_mat(name + "Tex", pixels, rough=rough))
+
+
+def far_sand():
+    """Песок за пределами близкой площадки: ровный цвет, своя крошечная текстура."""
+    sand = mat("BeachFarSand", "#c9b27f", 1.0)
+    mesh = bpy.data.meshes.new("FarSand")
+    z = FLOOR - 0.005
+    near, far = FRONT - 3, 7.6
+    verts = [(-40, near, z), (-15, near, z), (-15, far, z), (-40, far, z), (15, near, z), (40, near, z), (40, far, z), (15, far, z)]
+    mesh.from_pydata(verts, [], [(0, 1, 2, 3), (4, 5, 6, 7)])
+    mesh.update()
+    link(bpy.data.objects.new("FarSand", mesh), sand)
 
 
 def backdrop(pixels, y=49.5, side=46.0, z0=-1.7, z1=34.0):
@@ -282,7 +294,9 @@ def rowboat(x, y, angle, boards, trim, dark):
 
 def fish_rack(x, y, wood, rope, fish, fin):
     """Сушилка: две жерди с перекладиной, на верёвках рыба хвостом вниз."""
-    width = 1.9
+    width = 2.1
+    back = mat("BeachFishBack", "#2c5f7a", 0.5)
+    eye = mat("BeachFishEye", "#111114", 0.4)
     for sign in (-1, 1):
         pole("Rack", (x + sign * width / 2, y + 0.3, FLOOR), (x + sign * width / 2, y, FLOOR + 2.15), 0.055, wood, verts=7)
         pole("Rack", (x + sign * width / 2, y - 0.3, FLOOR), (x + sign * width / 2, y, FLOOR + 2.15), 0.055, wood, verts=7)
@@ -290,11 +304,13 @@ def fish_rack(x, y, wood, rope, fish, fin):
     for i in range(6):
         fx = x - width / 2 + 0.2 + i * (width - 0.4) / 5
         hang = 0.2 + rng.rand() * 0.1
-        pole("RackRope", (fx, y, FLOOR + 2.08), (fx, y, FLOOR + 2.08 - hang), 0.008, rope, verts=4)
-        size = 0.34 + rng.rand() * 0.08
+        pole("RackRope", (fx, y, FLOOR + 2.08), (fx, y, FLOOR + 2.08 - hang), 0.016, rope, verts=5)
+        size = 0.4 + rng.rand() * 0.08
         z = FLOOR + 2.08 - hang - size
-        blob("Fish", (fx, y, z), (0.09, 0.035, size), fish, 2)
-        plate("Fish", [(fx, z - size * 0.9), (fx - 0.11, z - size * 1.28), (fx + 0.11, z - size * 1.28)], y + 0.01, 0.02, fin)
+        blob("Fish", (fx, y, z), (0.125, 0.045, size), fish, 2)
+        blob("Fish", (fx - 0.045, y - 0.015, z + 0.02), (0.05, 0.04, size * 0.88), back, 2)
+        plate("Fish", [(fx, z - size * 0.88), (fx - 0.15, z - size * 1.35), (fx + 0.15, z - size * 1.35)], y + 0.01, 0.02, fin)
+        blob("Fish", (fx + 0.02, y - 0.045, z + size * 0.72), (0.022, 0.012, 0.022), eye, 1)
 
 
 def bonfire(x, y, bark, char, stone):
@@ -309,8 +325,13 @@ def bonfire(x, y, bark, char, stone):
     for i in range(7):
         a = i * 2 * math.pi / 7 + 0.3
         pole("FireLog", (x + math.cos(a) * 0.62, y + math.sin(a) * 0.55, FLOOR + 0.05), (x + math.cos(a) * 0.05, y + math.sin(a) * 0.05, FLOOR + 0.82), 0.07, bark if i % 2 else char, verts=7)
-    embers = mat("BeachEmber", "#7a3a22", 1, emit=0.35)
-    blob("Embers", (x, y, FLOOR + 0.05), (0.55, 0.48, 0.09), embers, 2)
+    ash = mat("FireAsh", "#56514c", 0.95)
+    blob("FireAsh", (x, y, FLOOR + 0.03), (0.6, 0.52, 0.05), ash, 2)
+    coal = mat("FireCoal", "#e0501e", 1, emit=1.6)
+    for i in range(6):
+        a = rng.rand() * 6.28
+        r = rng.rand() * 0.3
+        blob("FireCoal", (x + math.cos(a) * r, y + math.sin(a) * r, FLOOR + 0.07), (0.05, 0.05, 0.03), coal, 1)
 
 
 def hanging_lantern(x, y, z, iron, chain_top):
@@ -350,7 +371,8 @@ def crab(x, y, material):
 def beach():
     """Просторный берег: бар слева, костёр и рыба справа, лодка на песке, пальмы по углам. Лишнего нет."""
     backdrop(sky_image())
-    ground("Floor", -32, 32, FRONT - 3, 7.6, sand_image())
+    ground("Floor", -15, 15, FRONT - 3, 7.6, sand_image())
+    far_sand()
 
     boards = image_mat("BeachBoards", plank_image(), rough=0.8)
     straw = image_mat("BeachStraw", thatch_image(), scale=(1.7, 1.7, 1.7), rough=1.0)
@@ -365,8 +387,8 @@ def beach():
     bark = mat("BeachBark", "#4d3420", 0.95)
     leaf = mat("BeachLeaf", "#26713a", 0.75)
     leaf2 = mat("BeachLeaf2", "#1b5c33", 0.75)
-    fish = mat("BeachFish", "#92a9ad", 0.45)
-    fin = mat("BeachFin", "#546b73", 0.6)
+    fish = mat("BeachFish", "#c8d9dc", 0.35)
+    fin = mat("BeachFin", "#e8742c", 0.6)
     red = mat("BeachRedPaint", "#8d2d25", 0.8)
 
     # Бар слева за столом: столбы, соломенная крыша, стойка из досок, полки с бутылками, кружки, фонари.
@@ -395,10 +417,10 @@ def beach():
     hanging_lantern(sx0 + 1.05, 2.25, 1.38, iron, 2.0)
     # При баре: два чурбака вместо табуретов, одна бочка, круг на столбе, попугай.
     for x in (-5.9, -4.4):
-        lathe("Stump", (x, 2.4, FLOOR), [(0.27, 0), (0.24, 0.62), (0.26, 0.66)], driftwood, segments=9)
+        lathe("BarStump", (x, 2.4, FLOOR), [(0.27, 0), (0.24, 0.62), (0.26, 0.66)], driftwood, segments=9)
     barrel((-3.35, 2.15, FLOOR), 1.0, 0.4, barrels)
     white = mat("BeachBuoyW", "#ddd5c0", 0.8)
-    torus("Buoy", (sx1 + 0.02, 1.86, 0.62), 0.27, 0.075, white, 18, 6)
+    torus("Buoy", (sx1 + 0.02, 1.84, 0.58), 0.33, 0.09, white, 18, 6)
     bpy.context.object.data.materials.append(red)
     for polygon in bpy.context.object.data.polygons:
         angle = math.atan2(polygon.center.y, polygon.center.x) + math.pi / 8
@@ -407,8 +429,8 @@ def beach():
 
     # Справа: потухший костёр с котелком и чурбаком, за ним сушилка с рыбой.
     bonfire(5.0, 1.55, bark, char, stone)
-    fish_rack(5.8, 3.85, driftwood, rope, fish, fin)
-    lathe("Stump", (3.75, 2.9, FLOOR), [(0.27, 0), (0.24, 0.5), (0.26, 0.54)], driftwood, segments=9)
+    fish_rack(5.8, 3.85, wood, rope, fish, fin)
+    lathe("CampStump", (3.75, 2.9, FLOOR), [(0.27, 0), (0.24, 0.5), (0.26, 0.54)], driftwood, segments=9)
     lathe("Pot", (5.0, 0.42, FLOOR), [(0.14, 0), (0.25, 0.09), (0.27, 0.24), (0.21, 0.36), (0.25, 0.4)], iron, segments=12)
 
     # Лодка вытащена на берег слева.
@@ -491,8 +513,9 @@ def matte():
         patch_ramp = nodes.new("ShaderNodeMapRange")
         patch_ramp.inputs["From Min"].default_value = 0.33
         patch_ramp.inputs["From Max"].default_value = 0.67
-        patch_ramp.inputs["To Min"].default_value = 0.72
-        patch_ramp.inputs["To Max"].default_value = 1.1
+        is_ground = material.name.startswith("Floor") or material.name == "BeachFarSand"
+        patch_ramp.inputs["To Min"].default_value = 0.95 if is_ground else 0.72
+        patch_ramp.inputs["To Max"].default_value = 1.03 if is_ground else 1.1
         links.new(patches.outputs["Fac"], patch_ramp.inputs["Value"])
         total = nodes.new("ShaderNodeMath")
         total.operation = "MULTIPLY"
@@ -518,12 +541,22 @@ def main():
     samples = int(argv[argv.index("--samples") + 1]) if "--samples" in argv else 48
     bpy.ops.wm.read_factory_settings(use_empty=True)
     if "--bake" in argv:
+        bar_names = ("Post", "Beam", "Thatch", "Bar", "Bottle", "Mug", "Lantern", "Barrel", "Buoy", "Parrot")
+        camp_names = ("Fire", "Rack", "Fish", "Pot", "Camp", "Crab")
+        texture_groups = (
+            ("Bar", 1024, lambda name: name.startswith(bar_names)),
+            ("Camp", 1024, lambda name: name.startswith(camp_names)),
+            ("Boat", 512, lambda name: name.startswith("Boat")),
+            ("Palm", 512, lambda name: name.startswith(("Palm", "Coconut", "SwayFrond"))),
+            ("Far", 128, lambda name: name.startswith("FarSand")),
+        )
+
         def build():
             beach()
             matte()
 
         views = (("mesto_plyazh_igra_partiya.png", (0, 4.1, -4.9), (0, -0.2, 0.1), 48), ("mesto_plyazh_igra_menu.png", (3.6, 3.2, -5.6), (-1.4, -0.2, 0.4), 42))
-        kit.bake_location("Beach", "Room_Beach.fbx", build, lights, views, samples, argv[argv.index("--bake") + 1])
+        kit.bake_location("Beach", "Room_Beach.fbx", build, lights, views, samples, argv[argv.index("--bake") + 1], groups=texture_groups)
         return
 
     folder = argv[argv.index("--render") + 1]
