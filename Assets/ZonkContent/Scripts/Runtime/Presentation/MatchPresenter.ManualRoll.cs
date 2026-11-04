@@ -57,33 +57,55 @@ namespace Zonk.Presentation
         public bool IsHoldingCup => _manualActive && !_manualReleased;
 
         /// <summary>
-        /// Кость с очками для обучения: сначала та, что даёт очки сама (единица, пятёрка), иначе часть комбинации.
-        /// Из подходящих — ближе всех к камере партии: надпись над ней помещается на экране.
+        /// Ещё не выбранные кости с очками для обучения. point — самая дальняя от камеры: на неё стрелка, и надпись над ней
+        /// не закрывает остальные. others — все остальные. Возвращает false, если выбраны все кости с очками.
         /// </summary>
-        public Vector3 ScoringDieFocus(ZonkMatch match, out float radius)
+        public bool ScoringDiceFocus(ZonkMatch match, IReadOnlyList<int> selected, List<Vector3> others, out Vector3 point, out float radius)
         {
             match.MarkScoringDice(_usefulDice);
+            others.Clear();
             var best = Vector3.zero;
             var found = false;
-            var bestAlone = false;
             for (var slot = 0; slot < Dice.Dice.Count; slot++)
             {
-                if (!match.IsInHand(slot) || match.Faces[slot] <= 0 || !_usefulDice[slot])
+                if (!match.IsInHand(slot) || match.Faces[slot] <= 0 || !_usefulDice[slot] || IsIn(selected, slot))
                     continue;
 
-                var alone = match.Faces[slot] == 1 || match.Faces[slot] == 5;
                 var position = Dice[slot].transform.position;
-                if (!found || (alone && !bestAlone) || (alone == bestAlone && position.z < best.z))
+                if (!found)
                 {
                     best = position;
-                    bestAlone = alone;
+                }
+                else if (position.z > best.z)
+                {
+                    others.Add(best);
+                    best = position;
+                }
+                else
+                {
+                    others.Add(position);
                 }
 
                 found = true;
             }
 
             radius = _table.Tray.DieSize;
-            return found ? best : _table.Tray.Center;
+            point = best;
+            return found;
+        }
+
+        private static bool IsIn(IReadOnlyList<int> list, int value)
+        {
+            if (list == null)
+                return false;
+
+            for (var i = 0; i < list.Count; i++)
+            {
+                if (list[i] == value)
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary>Центр и радиус стакана игрока на столе: на него показывает обучение.</summary>

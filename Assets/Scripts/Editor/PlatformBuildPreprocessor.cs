@@ -11,7 +11,7 @@ namespace Base.Editor
     /// <summary>
     /// Проверка перед любой сборкой (меню Build, Build Profiles, BuildScript, CLI):
     /// ровно один BASE_* define, целевая платформа соответствует площадке,
-    /// WebGL-шаблон и сжатие выставлены, нативные плагины чужих площадок выключены.
+    /// WebGL-шаблон и сжатие выставлены, нативные плагины чужих площадок выключены, Time Scale равен 1.
     /// При несоответствии сборка останавливается с понятным сообщением.
     /// </summary>
     public sealed class PlatformBuildPreprocessor : IPreprocessBuildWithReport
@@ -41,6 +41,11 @@ namespace Base.Editor
                         $"[Base] Platform {platform} requires build target {expected}, but building for {target}. " +
                         "Use menu Base/Platform to switch.");
             }
+
+            // Time Scale 0 в настройках проекта: окна работают, а всё на игровом времени стоит. Игра зависнет у всех игроков.
+            if (!Mathf.Approximately(Time.timeScale, 1f))
+                throw new BuildFailedException(
+                    $"[Base] Time Scale is {Time.timeScale}, expected 1. Fix it in Project Settings > Time.");
 
             ProjectIdentity.Apply();
 

@@ -621,7 +621,7 @@ namespace Zonk.Editor.Setup
             }
 
             // Шаги с целью: короткая надпись над стрелкой. Ручную правку не затираем.
-            foreach (var trigger in new[] { TutorialTrigger.BeforeFirstRoll, TutorialTrigger.ChooseDice, TutorialTrigger.AfterKeep, TutorialTrigger.ManualRoll, TutorialTrigger.ManualRollShake })
+            foreach (var trigger in new[] { TutorialTrigger.MainMenu, TutorialTrigger.BeforeFirstRoll, TutorialTrigger.ChooseDice, TutorialTrigger.AfterKeep, TutorialTrigger.ManualRoll, TutorialTrigger.ManualRollShake })
             {
                 var step = tutorial.Find(trigger);
                 if (step == null || !string.IsNullOrEmpty(step.CaptionKey))

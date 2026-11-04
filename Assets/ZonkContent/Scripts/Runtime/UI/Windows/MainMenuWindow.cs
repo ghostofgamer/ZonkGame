@@ -100,6 +100,9 @@ namespace Zonk.UI.Windows
         /// <summary>Набор, который предлагает кнопка особого предложения.</summary>
         public ThemeSetConfig Offer { get; private set; }
 
+        /// <summary>Кнопка кампании: на неё показывает обучение.</summary>
+        public RectTransform CampaignButton => (RectTransform)_campaign.transform;
+
 #if UNITY_EDITOR
         public void EditorSetup(TMP_Text title, UiButtonView campaign, UiButtonView hotSeat, UiButtonView shop,
             UiButtonView settings, UiButtonView rules, UiButtonView quests, GameObject questsBadge, RectTransform adOffers,

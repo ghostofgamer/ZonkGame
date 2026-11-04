@@ -1,5 +1,6 @@
 // Затемнение обучения: весь экран темнее, вокруг цели светлая рамка со скруглением (у точки на столе это круг) и пульсирующий контур.
 // Считается по UV картинки без спрайта: центр, размер и скругление ставит TutorialTipWindow, остальные числа — в материале.
+// Дополнительные круги (несколько костей сразу): _ExtraCircles, xy — центр в UV, z — радиус в долях высоты.
 Shader "Zonk/UiSpotlight"
 {
     Properties
@@ -57,6 +58,8 @@ Shader "Zonk/UiSpotlight"
             float _RingWidth;
             float _PulseSize;
             float _PulseSpeed;
+            float4 _ExtraCircles[5];
+            float _ExtraCount;
 
             v2f vert(appdata v)
             {
@@ -75,6 +78,13 @@ Shader "Zonk/UiSpotlight"
                 float corner = min(_Corner, min(_HalfSize.x, _HalfSize.y));
                 float2 box = abs(delta) - _HalfSize.xy + corner;
                 float distance = length(max(box, 0.0)) + min(max(box.x, box.y), 0.0) - corner - pulse;
+
+                int extraCount = (int)_ExtraCount;
+                for (int n = 0; n < extraCount; n++)
+                {
+                    float2 toCircle = (i.uv - _ExtraCircles[n].xy) * float2(_Aspect, 1.0);
+                    distance = min(distance, length(toCircle) - _ExtraCircles[n].z - pulse);
+                }
 
                 float dim = smoothstep(-_Soft, _Soft, distance);
                 float ring = 1.0 - smoothstep(_RingWidth, _RingWidth + _Soft, abs(distance));

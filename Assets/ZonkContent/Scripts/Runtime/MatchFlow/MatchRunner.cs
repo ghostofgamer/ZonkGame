@@ -66,6 +66,7 @@ namespace Zonk.MatchFlow
         private readonly Zonk.Table.TutorialDirector _tutorial;
         private bool _paused;
         private Action<IReadOnlyList<int>> _chooseTips;
+        private readonly List<Vector3> _tipDice = new List<Vector3>();
 
         public MatchRunner(TableView table, MatchPresenter presenter, ReactionDirector reactions, IChatChannel chat, UiKit kit,
             GameConfig config, IGameSettings settings, ContentDatabase content, IUiService ui, IQuestService quests,
@@ -260,16 +261,19 @@ namespace Zonk.MatchFlow
         private float ShakeFocusRadius => _config.Tutorial != null ? _config.Tutorial.ShakeFocusRadius : 0f;
 
         /// <summary>
-        /// Шаги выбора костей. Сначала круг на кости с очками. Как только выбор даёт очки, рамка на «Продолжить» и «Забрать»:
-        /// объяснять их можно только сейчас, после решения этих кнопок на экране уже нет.
+        /// Шаги выбора костей. Круги сразу на всех костях с очками, остальные в тени: так видно, какие дают очки. Выбранная
+        /// кость из кругов уходит. Пока выбраны не все, шаг не кончается: иначе новичок заберёт 50 там, где лежат 500.
+        /// Когда выбраны все, рамка на «Продолжить» и «Забрать»: объяснять их можно только сейчас, после решения этих кнопок
+        /// на экране уже нет. Выбрать меньше не запрещено: кнопки работают и при круге на костях.
         /// </summary>
         private void StartChooseTips(ZonkMatch match, MatchHudWindow hud)
         {
             var explainDecision = _tutorial.ShouldShow(TutorialTrigger.AfterKeep);
-            if (_tutorial.ShouldShow(TutorialTrigger.ChooseDice))
+            var guidingDice = false;
+            if (_tutorial.ShouldShow(TutorialTrigger.ChooseDice) && _presenter.ScoringDiceFocus(match, null, _tipDice, out var die, out var radius))
             {
-                var die = _presenter.ScoringDieFocus(match, out var radius);
-                _tutorial.ShowPointing(TutorialTrigger.ChooseDice, die, radius, _table.Camera.Camera);
+                guidingDice = true;
+                _tutorial.ShowPointing(TutorialTrigger.ChooseDice, die, radius, _table.Camera.Camera, _tipDice);
             }
             else if (!explainDecision)
             {
@@ -278,10 +282,22 @@ namespace Zonk.MatchFlow
 
             _chooseTips = selection =>
             {
-                if (selection.Count == 0)
+                if (!guidingDice && !explainDecision)
                     return;
 
-                _tutorial.Hide();
+                if (_presenter.ScoringDiceFocus(match, selection, _tipDice, out var next, out var nextRadius))
+                {
+                    if (guidingDice)
+                        _tutorial.MoveTip(next, nextRadius, _table.Camera.Camera, _tipDice);
+                    return;
+                }
+
+                if (guidingDice)
+                {
+                    guidingDice = false;
+                    _tutorial.Hide();
+                }
+
                 if (explainDecision && match.EvaluateSelection(selection).IsValid)
                 {
                     explainDecision = false;
@@ -315,18 +331,15 @@ namespace Zonk.MatchFlow
             {
                 _tutorial.Show(TutorialTrigger.OpponentTurn);
             }
-            else if (!progress.FirstRollTipShown && _tutorial.ShouldShow(TutorialTrigger.BeforeFirstRoll))
+            else if (_tutorial.ShouldShow(TutorialTrigger.BeforeFirstRoll))
             {
-                // Шаг 1: кнопка. Шаг 2, со следующего хода: стакан своей рукой. Кнопка работает и там: застрять негде.
-                progress.FirstRollTipShown = true;
+                // Шаг 1: кнопка. Шаг 2, перед следующим броском: стакан своей рукой. Кнопка работает и там: застрять негде.
                 _tutorial.ShowPointing(TutorialTrigger.BeforeFirstRoll, hud.RollButton, null, match.Rules.TargetScore);
                 match.ProtectNextRollFromZonk();
             }
-            else if (_presenter.ManualRollEnabled && _tutorial.WasSeen(TutorialTrigger.ChooseDice) && _tutorial.ShouldShow(TutorialTrigger.ManualRoll))
+            else
             {
-                guidingGrab = true;
-                var cup = _presenter.CupFocus(player, out var cupRadius);
-                _tutorial.ShowPointing(TutorialTrigger.ManualRoll, cup, cupRadius, _table.Camera.Camera);
+                guidingGrab = ShowGrabTip(player);
             }
 
             hud.Refresh(match);
@@ -335,17 +348,21 @@ namespace Zonk.MatchFlow
 
             // Игрок сделал то, о чём просила подсказка: она и стрелка больше не нужны.
             if (local)
-            {
-                _tutorial.Hide();
-                if (guidingGrab && _presenter.IsHoldingCup)
-                    _tutorial.ShowPointing(TutorialTrigger.ManualRollShake, _table.Tray.Center, ShakeFocusRadius, _table.Camera.Camera);
-            }
+                FinishGrabTip(guidingGrab);
 
             while (true)
             {
                 var roll = match.Roll();
                 RecordRoll(progress, player, roll);
                 await _presenter.PlayRollAsync(roll, ct);
+
+                // Кости брошены: круг над лотком с призывом трясти больше не нужен.
+                if (guidingGrab)
+                {
+                    guidingGrab = false;
+                    _tutorial.Hide();
+                }
+
                 hud.SetHint(string.Empty);
                 if (_presenter.LastRollManual && local && !progress.HotSeat)
                     _quests.Report(QuestEvent.CustomEvent(ManualRollTag));
@@ -438,8 +455,35 @@ namespace Zonk.MatchFlow
                 // «Продолжить»: оставшиеся кости — в стакан, камера — в ракурс броска, затем бросок как в начале хода:
                 // кнопкой или своей рукой.
                 await _presenter.PrepareNextRollAsync(match, ct);
+                if (local)
+                    guidingGrab = ShowGrabTip(player);
                 await controller.WaitRollAsync(match, ct);
+                if (local)
+                    FinishGrabTip(guidingGrab);
             }
+        }
+
+        /// <summary>
+        /// Шаг «потрясите стакан сами»: круг на стакане перед ближайшим броском игрока после того, как он научился выбирать
+        /// кости. Кнопка «Бросить» работает и здесь: застрять негде. Возвращает true, если шаг показан.
+        /// </summary>
+        private bool ShowGrabTip(int player)
+        {
+            if (!_presenter.ManualRollEnabled || !_tutorial.WasSeen(TutorialTrigger.ChooseDice) ||
+                !_tutorial.ShouldShow(TutorialTrigger.ManualRoll))
+                return false;
+
+            var cup = _presenter.CupFocus(player, out var radius);
+            _tutorial.ShowPointing(TutorialTrigger.ManualRoll, cup, radius, _table.Camera.Camera);
+            return true;
+        }
+
+        /// <summary>Игрок решил бросать: подсказка уходит; если он взял стакан по шагу — показать, куда толкать.</summary>
+        private void FinishGrabTip(bool guidingGrab)
+        {
+            _tutorial.Hide();
+            if (guidingGrab && _presenter.IsHoldingCup)
+                _tutorial.ShowPointing(TutorialTrigger.ManualRollShake, _table.Tray.Center, ShakeFocusRadius, _table.Camera.Camera);
         }
 
         /// <summary>
@@ -448,9 +492,6 @@ namespace Zonk.MatchFlow
         /// </summary>
         private sealed class ProgressTracking
         {
-            /// <summary>Подсказка первого броска уже была в этой партии: с Replay Tutorial она иначе шла бы каждый ход.</summary>
-            public bool FirstRollTipShown;
-
             public ProgressTracking(IReadOnlyList<MatchParticipant> participants)
             {
                 Participants = participants;

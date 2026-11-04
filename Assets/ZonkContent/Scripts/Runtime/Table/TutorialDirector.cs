@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Base.Services.Analytics;
 using Base.Services.Saves;
@@ -23,6 +24,7 @@ namespace Zonk.Table
         private readonly ISaveStore _saves;
         private readonly UiKit _kit;
         private readonly IAnalytics _analytics;
+        private readonly HashSet<string> _replayed = new HashSet<string>();
         private TutorialTipWindow _tip;
         private bool _suspended;
         private CancellationTokenSource _tipCts;
@@ -67,11 +69,18 @@ namespace Zonk.Table
                 ShowTipAsync(text, Caption(trigger, captionArg), target, second, false, default, 0f, null).Forget();
         }
 
-        /// <summary>То же с кругом и стрелкой на точке стола, радиус в метрах.</summary>
-        public void ShowPointing(TutorialTrigger trigger, Vector3 point, float radius, Camera camera)
+        /// <summary>То же с кругом и стрелкой на точке стола, радиус в метрах; others — ещё круги без стрелки.</summary>
+        public void ShowPointing(TutorialTrigger trigger, Vector3 point, float radius, Camera camera, IReadOnlyList<Vector3> others = null)
         {
             if (TakeText(trigger, out var text))
-                ShowTipAsync(text, Caption(trigger, null), null, null, true, point, radius, camera).Forget();
+                ShowTipAsync(text, Caption(trigger, null), null, null, true, point, radius, camera, others).Forget();
+        }
+
+        /// <summary>Поменять круги открытой подсказки: тот же шаг, другие цели.</summary>
+        public void MoveTip(Vector3 point, float radius, Camera camera, IReadOnlyList<Vector3> others = null)
+        {
+            if (_tip != null)
+                _tip.PointAt(point, radius, camera, others);
         }
 
         private string Caption(TutorialTrigger trigger, object arg)
@@ -87,8 +96,13 @@ namespace Zonk.Table
         public bool ShouldShow(TutorialTrigger trigger)
         {
             var step = _config.Tutorial != null ? _config.Tutorial.Find(trigger) : null;
-            return step != null && !string.IsNullOrEmpty(step.TextKey) && _saves.IsLoaded &&
-                   (!Data.Seen.Contains(TriggerId(trigger)) || ReplayInEditor());
+            return step != null && !string.IsNullOrEmpty(step.TextKey) && _saves.IsLoaded && !IsSeen(TriggerId(trigger));
+        }
+
+        /// <summary>Каждый шаг показывается один раз. Replay Tutorial не считает сохранение: шаги идут заново, но тоже по разу за запуск.</summary>
+        private bool IsSeen(string id)
+        {
+            return ReplayInEditor() ? _replayed.Contains(id) : Data.Seen.Contains(id);
         }
 
         private bool TakeText(TutorialTrigger trigger, out string text)
@@ -98,6 +112,7 @@ namespace Zonk.Table
                 return false;
 
             var id = TriggerId(trigger);
+            _replayed.Add(id);
             var data = Data;
             if (!data.Seen.Contains(id))
             {
@@ -115,7 +130,7 @@ namespace Zonk.Table
         /// <summary>Подсказка момента уже показывалась игроку.</summary>
         public bool WasSeen(TutorialTrigger trigger)
         {
-            return _saves.IsLoaded && Data.Seen.Contains(TriggerId(trigger));
+            return _saves.IsLoaded && IsSeen(TriggerId(trigger));
         }
 
         /// <summary>Убрать подсказку (конец партии, уход из меню).</summary>
@@ -129,7 +144,7 @@ namespace Zonk.Table
             Hide();
         }
 
-        private async UniTaskVoid ShowTipAsync(string text, string caption, RectTransform target, RectTransform second, bool hasPoint, Vector3 point, float radius, Camera camera)
+        private async UniTaskVoid ShowTipAsync(string text, string caption, RectTransform target, RectTransform second, bool hasPoint, Vector3 point, float radius, Camera camera, IReadOnlyList<Vector3> others = null)
         {
             // Прежняя подсказка закрывается: видна только последняя.
             Hide();
@@ -146,7 +161,7 @@ namespace Zonk.Table
                     if (target != null)
                         w.PointAt(target, second);
                     else if (hasPoint)
-                        w.PointAt(point, radius, camera);
+                        w.PointAt(point, radius, camera, others);
                 });
                 _tip = tip;
                 if (_suspended)

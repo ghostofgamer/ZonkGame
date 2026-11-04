@@ -144,7 +144,7 @@ namespace Zonk.Table
             var loading = _loading.HideAsync(ct);
             var menu = await _ui.OpenAsync<MainMenuWindow>(ct);
             await loading;
-            _tutorial.Show(TutorialTrigger.MainMenu);
+            _tutorial.ShowPointing(TutorialTrigger.MainMenu, menu.CampaignButton);
             ShowMissedLevelItems(ct);
 
             MainMenuChoice choice;

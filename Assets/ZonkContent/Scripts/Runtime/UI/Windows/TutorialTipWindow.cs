@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,6 +21,11 @@ namespace Zonk.UI.Windows
         private static readonly int HalfSizeId = Shader.PropertyToID("_HalfSize");
         private static readonly int CornerId = Shader.PropertyToID("_Corner");
         private static readonly int AspectId = Shader.PropertyToID("_Aspect");
+        private static readonly int ExtraCirclesId = Shader.PropertyToID("_ExtraCircles");
+        private static readonly int ExtraCountId = Shader.PropertyToID("_ExtraCount");
+
+        // Столько же в шейдере Zonk/UiSpotlight: шесть костей — главный круг и пять дополнительных.
+        private const int MaxExtraCircles = 5;
 
         [SerializeField] private TMP_Text _text;
         [SerializeField] private UiButtonView _ok;
@@ -46,6 +52,10 @@ namespace Zonk.UI.Windows
         [SerializeField] private float _rectCorner = 24f;
 
         private static readonly Vector3[] Corners = new Vector3[4];
+
+        private readonly Vector3[] _extraPoints = new Vector3[MaxExtraCircles];
+        private readonly Vector4[] _extraCircles = new Vector4[MaxExtraCircles];
+        private int _extraCount;
 
         private RectTransform _targetRect;
         private RectTransform _targetRectSecond;
@@ -127,12 +137,15 @@ namespace Zonk.UI.Windows
             ShowFocus();
         }
 
-        /// <summary>Цель — точка стола с радиусом в метрах.</summary>
-        public void PointAt(Vector3 point, float radius, Camera camera)
+        /// <summary>Цель — точка стола с радиусом в метрах. Стрелка на ней; others — ещё круги того же радиуса, без стрелки.</summary>
+        public void PointAt(Vector3 point, float radius, Camera camera, IReadOnlyList<Vector3> others = null)
         {
             _targetPoint = point;
             _targetRadius = radius;
             _worldCamera = camera;
+            _extraCount = others != null ? Mathf.Min(others.Count, MaxExtraCircles) : 0;
+            for (var i = 0; i < _extraCount; i++)
+                _extraPoints[i] = others[i];
             ShowFocus();
         }
 
@@ -224,6 +237,19 @@ namespace Zonk.UI.Windows
             _material.SetVector(HalfSizeId, half * toHeight);
             _material.SetFloat(CornerId, corner * toHeight);
             _material.SetFloat(AspectId, rect.width / rect.height);
+
+            for (var i = 0; i < _extraCount; i++)
+            {
+                Vector2 extra = _worldCamera.WorldToScreenPoint(_extraPoints[i]);
+                Vector2 edge = _worldCamera.WorldToScreenPoint(_extraPoints[i] + _worldCamera.transform.right * _targetRadius);
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(rectTransform, extra, uiCamera, out var extraLocal);
+                _extraCircles[i] = new Vector4((extraLocal.x - rect.xMin) / rect.width, (extraLocal.y - rect.yMin) / rect.height,
+                    Vector2.Distance(extra, edge) * _focusPadding * toHeight, 0f);
+            }
+
+            _material.SetFloat(ExtraCountId, _extraCount);
+            if (_extraCount > 0)
+                _material.SetVectorArray(ExtraCirclesId, _extraCircles);
         }
 
         /// <summary>Стрелка острием на верхний край рамки, надпись над ней, но не за краем экрана.</summary>

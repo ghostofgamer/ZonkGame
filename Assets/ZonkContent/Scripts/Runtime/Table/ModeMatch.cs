@@ -65,10 +65,12 @@ namespace Zonk.Table
         private readonly IPlatformService _platform;
         private readonly IQuestService _quests;
         private readonly GameConfig _config;
+        private readonly TutorialDirector _tutorial;
 
         public ModeMatch(UiKit kit, ParticipantFactory participants, MatchRunner runner, IPlatformService platform,
-            IQuestService quests, GameConfig config)
+            IQuestService quests, GameConfig config, TutorialDirector tutorial)
         {
+            _tutorial = tutorial;
             _kit = kit;
             _participants = participants;
             _runner = runner;
@@ -113,7 +115,8 @@ namespace Zonk.Table
                 },
                 Modifiers = new List<MatchModifier>(List(setup.SharedRules)),
                 Seed = SplitMixRandom.NewSeed(),
-                FirstPlayer = Random.Range(0, 2),
+                // Новичок ходит первым: обучение начинается с его броска, а не с ожидания чужого хода.
+                FirstPlayer = _tutorial.ShouldShow(TutorialTrigger.BeforeFirstRoll) ? 0 : Random.Range(0, 2),
             };
 
             _platform.NotifyGameplayStart();
