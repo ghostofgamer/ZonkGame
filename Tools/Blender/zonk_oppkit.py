@@ -1460,4 +1460,6 @@ def main():
         print("[zonk_oppkit]", make.__name__)
 
 
-main()
+# Без этой проверки импорт из другого скрипта (zonk_beach_life.py) перезаписывает все детали соперников.
+if __name__ == "__main__":
+    main()

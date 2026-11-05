@@ -207,46 +207,108 @@ def thatch_roof(x0, x1, y0, y1, z_high, z_low, straw, strands=48):
     return obj
 
 
-def palm(x, y, lean, height, bark, leaf, leaf2, rope):
-    """Пальма: ствол кольцами, листья перистые — стебель и листочки, а не лента."""
-    top = None
-    previous = None
-    segments = 9
-    for i in range(segments + 1):
-        t = i / segments
-        centre = (x + lean[0] * t * t, y + lean[1] * t * t, FLOOR + height * t)
-        if previous is not None:
-            r = 0.21 - 0.09 * t
-            pole("PalmTrunk", previous, centre, r, bark, verts=9)
-            torus("PalmRing", centre, r + 0.006, 0.022, bark, 9, 3, axis="Z")
-        previous = centre
-        top = centre
-    for f in range(9):
-        angle = f * 2 * math.pi / 9 + rng.rand() * 0.25
-        length = 2.3 + rng.rand() * 0.5
-        rise = 0.35 + rng.rand() * 0.35
-        material = leaf if f % 2 == 0 else leaf2
-        mesh = bpy.data.meshes.new("Frond")
-        bm = bmesh.new()
-        dir_x, dir_y = math.cos(angle), math.sin(angle)
-        side_x, side_y = -dir_y, dir_x
-        steps = 12
-        for s in range(steps):
-            t = (s + 0.5) / steps
-            r = length * t
-            px, py = top[0] + dir_x * r, top[1] + dir_y * r
-            pz = top[2] + rise * t * 2.4 - 1.7 * t * t * length * 0.55
-            size = 0.62 * math.sin(math.pi * min(t * 1.12, 1)) + 0.1
-            for sign in (-1, 1):
-                tip = (px + side_x * sign * size + dir_x * 0.2, py + side_y * sign * size + dir_y * 0.2, pz - 0.26 * size - rng.rand() * 0.06)
-                base_a = (px - dir_x * 0.07, py - dir_y * 0.07, pz)
-                base_b = (px + dir_x * 0.07, py + dir_y * 0.07, pz)
-                bm.faces.new((bm.verts.new(base_a), bm.verts.new(base_b), bm.verts.new(tip)))
-        bm.to_mesh(mesh)
-        bm.free()
-        link(bpy.data.objects.new("SwayFrond", mesh), material)
-    for dx, dy in ((0.15, 0.08), (-0.12, 0.12), (0.03, -0.16)):
-        blob("Coconut", (top[0] + dx, top[1] + dy, top[2] - 0.2), (0.13, 0.13, 0.14), bark, 2)
+def palm_trunk(x, y, lean, height, bark, bark_dark):
+    """Ствол одной сеткой: плавный изгиб, раздутое основание, кольца листовых рубцов уступами и двумя тонами."""
+    sides = 8
+    rows = 26
+    mesh = bpy.data.meshes.new("PalmTrunk")
+    bm = bmesh.new()
+    rings = []
+    for i in range(rows + 1):
+        t = i / rows
+        centre = Vector((x + lean[0] * t * t, y + lean[1] * t * t, FLOOR + height * t))
+        tangent = Vector((2 * lean[0] * t, 2 * lean[1] * t, height)).normalized()
+        turn = tangent.to_track_quat("Z", "Y")
+        radius = 0.145 * (1 - 0.5 * t) + 0.17 * math.exp(-t * 11)
+        radius *= 1.07 if i % 2 == 0 else 0.97
+        rings.append([bm.verts.new(centre + turn @ Vector((math.cos(k * 2 * math.pi / sides) * radius, math.sin(k * 2 * math.pi / sides) * radius, 0))) for k in range(sides)])
+    for i in range(rows):
+        for k in range(sides):
+            n = (k + 1) % sides
+            face = bm.faces.new((rings[i][k], rings[i][n], rings[i + 1][n], rings[i + 1][k]))
+            face.material_index = i % 2
+    bm.to_mesh(mesh)
+    bm.free()
+    obj = link(bpy.data.objects.new("PalmTrunk", mesh), bark)
+    mesh.materials.append(bark_dark)
+    return Vector((x + lean[0], y + lean[1], FLOOR + height)), Vector((2 * lean[0], 2 * lean[1], height)).normalized(), obj
+
+
+def palm_frond(top, angle, length, rise, droop, leaf, spine):
+    """
+    Лист кокосовой пальмы: стебель выгибается дугой и падает к концу, листочки растут вперёд и вниз.
+    Листочек — вытянутый ромб: узкий у стебля, широкий на трети, острый на конце. Грани смотрят вверх: их запекает солнце.
+    Цвет вершин — ветер для Zonk/BakedSway: R сколько гнётся (у ствола 0, на конце 1), G своя фаза листа, B дрожь кончиков листочков.
+    """
+    mesh = bpy.data.meshes.new("SwayFrond")
+    bm = bmesh.new()
+    wind = bm.loops.layers.float_color.new("Wind")
+    phase = rng.rand()
+    direction = Vector((math.cos(angle), math.sin(angle), 0))
+    side = Vector((-direction.y, direction.x, 0))
+
+    def spine_at(t):
+        return top + direction * (length * t) + Vector((0, 0, rise * length * t - droop * length * t * t))
+
+    def add(points, index, bends, flutters):
+        verts = [bm.verts.new(p) for p in points]
+        face = bm.faces.new(verts)
+        face.material_index = index
+        face.normal_update()
+        if face.normal.z < 0:
+            bmesh.ops.reverse_faces(bm, faces=[face])
+        for loop in face.loops:
+            k = verts.index(loop.vert)
+            loop[wind] = (bends[k], phase, flutters[k], 1.0)
+
+    steps = 7
+    for s in range(steps):
+        t0, t1 = s / steps, (s + 1) / steps
+        a, b = spine_at(t0), spine_at(t1)
+        w0, w1 = 0.042 * (1 - t0 * 0.8), 0.042 * (1 - t1 * 0.8)
+        b0, b1 = t0 ** 1.5, t1 ** 1.5
+        add((a - side * w0, a + side * w0, b + side * w1, b - side * w1), 1, (b0, b0, b1, b1), (0, 0, 0, 0))
+
+    count = 16
+    for i in range(count):
+        t = 0.1 + 0.9 * (i + 0.5) / count
+        p = spine_at(t)
+        tangent = (spine_at(min(t + 0.03, 1)) - spine_at(t - 0.03)).normalized()
+        blade = (0.34 + 0.52 * math.sin(math.pi * t ** 0.75)) * (length / 2.3)
+        slope = 1.0 - 0.72 * t
+        for sign in (-1, 1):
+            out = (tangent * (1 - slope * 0.55) + side * sign * slope + Vector((0, 0, -0.42 - 0.3 * rng.rand()))).normalized()
+            tip = p + out * blade * (0.9 + rng.rand() * 0.2)
+            wide = tangent * 0.058
+            third = p + (tip - p) * 0.34
+            bend = t ** 1.5
+            add((p, third - wide, tip, third + wide), 0, (bend, bend, bend, bend), (0, 0.3, 1, 0.3))
+    bm.to_mesh(mesh)
+    bm.free()
+    obj = link(bpy.data.objects.new("SwayFrond", mesh), leaf)
+    mesh.materials.append(spine)
+    return obj
+
+
+def palm(x, y, lean, height, spin, bark, bark_dark, leaves, spine, dead, nut, nut_green, size=1.0):
+    """
+    Кокосовая пальма: изогнутый ствол, шапка из трёх ярусов листьев (верхние торчат вверх, нижние свисают),
+    сухие листья под шапкой, гроздь кокосов. Ставить так, чтобы шапка попала в кадр: камеры смотрят сверху, выше 2.6 м не видно.
+    """
+    top, _, _ = palm_trunk(x, y, lean, height, bark, bark_dark)
+    blob("PalmCrown", tuple(top), (0.17, 0.17, 0.16), leaves[1], 2)
+    tiers = ((6, 2.05, 0.62, 0.42, 0.0), (6, 2.35, 0.3, 0.52, 0.5), (5, 2.1, 0.02, 0.62, 0.25))
+    for count, length, rise, droop, offset in tiers:
+        for f in range(count):
+            angle = spin + (f + offset) * 2 * math.pi / count + (rng.rand() - 0.5) * 0.28
+            palm_frond(top, angle, size * length * (0.92 + rng.rand() * 0.16), rise + (rng.rand() - 0.5) * 0.08, droop, leaves[f % len(leaves)], spine)
+    for f in range(2):
+        palm_frond(top - Vector((0, 0, 0.08)), spin + 1.1 + f * 2.7, size * 1.25, -0.5, 0.45, dead, dead)
+    for i in range(5):
+        a = spin + i * 2 * math.pi / 5
+        drop = 0.2 + (i % 2) * 0.08
+        size = 0.115 + rng.rand() * 0.02
+        blob("Coconut", (top[0] + math.cos(a) * 0.17, top[1] + math.sin(a) * 0.17, top[2] - drop), (size, size, size * 1.15), nut if i % 3 else nut_green, 1)
 
 
 def rowboat(x, y, angle, boards, trim, dark):
@@ -344,28 +406,13 @@ def hanging_lantern(x, y, z, iron, chain_top):
     pole("LanternChain", (x, y, z + 0.27), (x, y, chain_top), 0.012, iron, verts=3)
 
 
-def parrot(x, y, z, turn):
-    """Попугай на столбе: красный, с жёлтым и синим крылом."""
-    red = mat("BeachParrot", "#d9362b", 0.7)
-    blue = mat("BeachParrot2", "#2b6cc9", 0.7)
-    yellow = mat("BeachParrot3", "#f3c130", 0.7)
-    dark = mat("BeachBeak", "#24201c", 0.5)
-    body = blob("Parrot", (x, y, z + 0.16), (0.075, 0.09, 0.15), red, 2)
-    body.rotation_euler = (0.35, 0, turn)
-    blob("Parrot", (x, y - 0.05, z + 0.33), (0.075, 0.075, 0.08), red, 2)
-    blob("Parrot", (x, y - 0.13, z + 0.31), (0.03, 0.04, 0.035), dark, 1)
-    for sign in (-1, 1):
-        wing = blob("Parrot", (x + sign * 0.075, y + 0.02, z + 0.14), (0.025, 0.08, 0.12), blue if sign < 0 else yellow, 1)
-        wing.rotation_euler = (0.4, 0, 0)
-    tail = blob("Parrot", (x, y + 0.13, z + 0.0), (0.03, 0.05, 0.14), blue, 1)
-    tail.rotation_euler = (-0.6, 0, 0)
-
-
-def crab(x, y, material):
-    blob("Crab", (x, y, FLOOR + 0.09), (0.17, 0.13, 0.08), material, 2)
-    for sign in (-1, 1):
-        blob("Crab", (x + sign * 0.25, y - 0.1, FLOOR + 0.1), (0.075, 0.06, 0.05), material, 1)
-        pole("Crab", (x + sign * 0.14, y, FLOOR + 0.08), (x + sign * 0.26, y + 0.1, FLOOR + 0.01), 0.012, material, verts=3)
+def perch(x, y, z, wood, rope):
+    """Жёрдочка попугая на стойке: сам попугай живой, его добавляет генератор (zonk_beach_life.py)."""
+    height = 0.36
+    lathe("BarPerch", (x, y, z), [(0.14, 0), (0.13, 0.03), (0.04, 0.05)], wood, segments=10)
+    pole("BarPerch", (x, y, z), (x, y, z + height), 0.024, wood, verts=7)
+    pole("BarPerch", (x - 0.25, y, z + height), (x + 0.25, y, z + height), 0.026, wood, verts=7)
+    torus("BarPerch", (x, y, z + height - 0.05), 0.03, 0.012, rope, 8, 3, axis="Z")
 
 
 def beach():
@@ -392,7 +439,8 @@ def beach():
     red = mat("BeachRedPaint", "#8d2d25", 0.8)
 
     # Бар слева за столом: столбы, соломенная крыша, стойка из досок, полки с бутылками, кружки, фонари.
-    sx0, sx1 = -7.2, -2.7
+    # Правый столб не ближе к столу, чем −3.3: на x −2.2, z 2.3 лежит рука соперника (HandRest), рукав уходит к z 3.5.
+    sx0, sx1 = -7.8, -3.3
     for x, y in ((sx0, 2.0), (sx1, 2.0), (sx0, 4.6), (sx1, 4.6)):
         bound_pole((x, y, FLOOR), (x + (rng.rand() - 0.5) * 0.06, y, 2.1), 0.1, wood, rope)
     pole("Beam", (sx0 - 0.3, 2.0, 1.98), (sx1 + 0.3, 2.0, 2.02), 0.09, wood)
@@ -415,17 +463,17 @@ def beach():
         mug(sx0 + 0.9 + i * 0.85 + rng.rand() * 0.15, counter_y - 0.1, FLOOR + 1.24, wood, mat("BeachFoam", "#efe6cc", 0.8) if i % 2 else None)
     hanging_lantern(sx1 - 0.7, 2.25, 1.42, iron, 2.0)
     hanging_lantern(sx0 + 1.05, 2.25, 1.38, iron, 2.0)
-    # При баре: два чурбака вместо табуретов, одна бочка, круг на столбе, попугай.
-    for x in (-5.9, -4.4):
+    # При баре: два чурбака вместо табуретов, одна бочка, круг на столбе, жёрдочка попугая на стойке.
+    for x in (-6.5, -5.0):
         lathe("BarStump", (x, 2.4, FLOOR), [(0.27, 0), (0.24, 0.62), (0.26, 0.66)], driftwood, segments=9)
-    barrel((-3.35, 2.15, FLOOR), 1.0, 0.4, barrels)
+    barrel((-3.95, 2.15, FLOOR), 1.0, 0.4, barrels)
     white = mat("BeachBuoyW", "#ddd5c0", 0.8)
     torus("Buoy", (sx1 + 0.02, 1.84, 0.58), 0.33, 0.09, white, 18, 6)
     bpy.context.object.data.materials.append(red)
     for polygon in bpy.context.object.data.polygons:
         angle = math.atan2(polygon.center.y, polygon.center.x) + math.pi / 8
         polygon.material_index = int(math.floor(angle / (math.pi / 4))) % 2
-    parrot(sx1 + 0.02, 2.0, 2.12, 0.2)
+    perch(-5.63, counter_y - 0.05, FLOOR + 1.24, wood, rope)
 
     # Справа: потухший костёр с котелком и чурбаком, за ним сушилка с рыбой.
     bonfire(5.0, 1.55, bark, char, stone)
@@ -436,12 +484,18 @@ def beach():
     # Лодка вытащена на берег слева.
     rowboat(-6.6, 0.0, math.radians(72), boards, wood, dark)
 
-    # На всём берегу один краб: заметная живая деталь и никакого мусора.
-    crab(1.0, 5.05, mat("BeachCrab", "#d23a24", 0.6))
+    # Краб и попугай двигаются, их здесь нет: отдельные модели со скелетом (zonk_beach_life.py), добавляет генератор.
 
-    # Пальмы по углам: листья заходят в верхние углы кадра.
-    palm(-9.0, 4.6, (2.0, -0.4), 5.6, bark, leaf, leaf2, rope)
-    palm(8.6, 3.7, (-1.7, -0.3), 5.2, bark, leaf, leaf2, rope)
+    # Пальмы. Левая видна в меню и магазине целиком. Правая ниже, на песке за столом: крона в кадре партии и за спиной соперника.
+    # Выше кадра партии ничего не видно (на z 4 это около 1.4 м над столом), поэтому она невысокая.
+    leaves = (mat("BeachLeaf", "#3f9e3c", 0.75), mat("BeachLeaf2", "#2c8a44", 0.75), mat("BeachLeaf3", "#6aa82f", 0.75))
+    spine = mat("BeachSpine", "#a9b84a", 0.75)
+    dead = mat("BeachLeafDead", "#a5823f", 0.9)
+    bark_light = mat("BeachBarkLight", "#8a6a48", 0.95)
+    nut = mat("BeachNut", "#5e3d22", 0.8)
+    nut_green = mat("BeachNutGreen", "#7f9a35", 0.8)
+    palm(-11.6, 3.0, (1.1, -0.2), 3.3, 0.4, bark_light, bark, leaves, spine, dead, nut, nut_green)
+    palm(3.3, 3.85, (-0.55, 0.15), 2.4, 1.3, bark_light, bark, leaves, spine, dead, nut, nut_green, size=0.72)
 
 
 def lights():
@@ -541,13 +595,13 @@ def main():
     samples = int(argv[argv.index("--samples") + 1]) if "--samples" in argv else 48
     bpy.ops.wm.read_factory_settings(use_empty=True)
     if "--bake" in argv:
-        bar_names = ("Post", "Beam", "Thatch", "Bar", "Bottle", "Mug", "Lantern", "Barrel", "Buoy", "Parrot")
-        camp_names = ("Fire", "Rack", "Fish", "Pot", "Camp", "Crab")
+        bar_names = ("Post", "Beam", "Thatch", "Bar", "Bottle", "Mug", "Lantern", "Barrel", "Buoy")
+        camp_names = ("Fire", "Rack", "Fish", "Pot", "Camp")
         texture_groups = (
             ("Bar", 1024, lambda name: name.startswith(bar_names)),
             ("Camp", 1024, lambda name: name.startswith(camp_names)),
             ("Boat", 512, lambda name: name.startswith("Boat")),
-            ("Palm", 512, lambda name: name.startswith(("Palm", "Coconut", "SwayFrond"))),
+            ("Palm", 1024, lambda name: name.startswith(("Palm", "Coconut", "SwayFrond"))),
             ("Far", 128, lambda name: name.startswith("FarSand")),
         )
 
@@ -567,6 +621,8 @@ def main():
     lights()
     kit.render(os.path.join(folder, "mesto_plyazh_partiya.png"), (0, 4.1, -4.9), (0, -0.2, 0.1), 48, samples)
     kit.render(os.path.join(folder, "mesto_plyazh_menu.png"), (3.6, 3.2, -5.6), (-1.4, -0.2, 0.4), 42, samples)
+    kit.render(os.path.join(folder, "mesto_plyazh_magazin.png"), (5.2, 3.3, -8.4), (0, -1.3, 1.2), 50, samples)
+    kit.render(os.path.join(folder, "mesto_plyazh_sopernik.png"), (0, 1.55, -1.4), (0, 0.72, 2.9), 45, samples)
 
 
 if __name__ == "__main__":

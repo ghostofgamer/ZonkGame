@@ -835,7 +835,8 @@ def bake_location(prefix, model_file, build, build_lights, views, samples, previ
     path = os.path.join(models, model_file)
     bpy.ops.export_scene.fbx(filepath=path, use_selection=True, object_types={"MESH"}, axis_forward="-Z", axis_up="Y",
                              apply_unit_scale=True, apply_scale_options="FBX_SCALE_ALL", bake_space_transform=True,
-                             mesh_smooth_type="OFF", use_mesh_modifiers=False, bake_anim=False, path_mode="COPY", embed_textures=False)
+                             mesh_smooth_type="OFF", use_mesh_modifiers=False, bake_anim=False, path_mode="COPY", embed_textures=False,
+                             colors_type="LINEAR")
     print("[zonk_room] exported", path)
 
 
