@@ -129,7 +129,7 @@ def sky_image():
     return np.clip(image, 0, 1)
 
 
-def sky_dome(pixels):
+def sky_dome(pixels, moon=True):
     """
     Небо — круг вокруг корабля, а не три стены: стыков нет. Внизу уходит за край моря. Луна — диск перед ним, резкая при любой текстуре неба.
     """
@@ -172,6 +172,9 @@ def sky_dome(pixels):
     bpy.context.collection.objects.link(sky)
     mesh.materials.append(material)
     sky.visible_shadow = False
+
+    if not moon:
+        return
 
     # Луна: круг и кратеры, смотрят на корабль. Угол и высота совпадают с ореолом на панораме.
     angle = 2 * math.pi * (MOON_U - 0.5)

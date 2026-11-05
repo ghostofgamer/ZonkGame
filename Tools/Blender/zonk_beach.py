@@ -567,7 +567,7 @@ def matte():
         patch_ramp = nodes.new("ShaderNodeMapRange")
         patch_ramp.inputs["From Min"].default_value = 0.33
         patch_ramp.inputs["From Max"].default_value = 0.67
-        is_ground = material.name.startswith("Floor") or material.name == "BeachFarSand"
+        is_ground = material.name.startswith(("Floor", "GardenFarGrass")) or material.name == "BeachFarSand"
         patch_ramp.inputs["To Min"].default_value = 0.95 if is_ground else 0.72
         patch_ramp.inputs["To Max"].default_value = 1.03 if is_ground else 1.1
         links.new(patches.outputs["Fac"], patch_ramp.inputs["Value"])

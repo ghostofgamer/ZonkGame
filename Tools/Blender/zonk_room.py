@@ -632,6 +632,11 @@ SKY_PIXELS = None
 
 ROOM_PARTS = ("Floor", "Back", "Left", "Right", "Front", "Ceiling", "CeilBeam", "Wains")
 BAKE_EXPOSURE = 1.75
+# Развёртка запекания. Гладкой листве нужен угол больше и зазор шире: меньше кусков, стыков не видно. Сцена может задать свои.
+UV_ANGLE = 60
+UV_MARGIN = 0.004
+# Чем заполнять зазоры между кусками развёртки. EXTEND тянет цвет края наружу: на гладкой листве не видно стыков.
+BAKE_MARGIN_TYPE = "ADJACENT_FACES"
 
 
 def tone_map(linear):
@@ -659,7 +664,7 @@ def bake_group(objects, name, size, samples, folder):
     bpy.context.view_layer.objects.active = objects[0]
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=math.radians(60), island_margin=0.004, area_weight=0.6)
+    bpy.ops.uv.smart_project(angle_limit=math.radians(UV_ANGLE), island_margin=UV_MARGIN, area_weight=0.6)
     bpy.ops.object.mode_set(mode="OBJECT")
 
     image = bpy.data.images.new("Bake_" + name, size, size, alpha=False, float_buffer=True)
@@ -678,6 +683,7 @@ def bake_group(objects, name, size, samples, folder):
     scene.cycles.samples = samples
     scene.cycles.bake_type = "COMBINED"
     scene.render.bake.margin = 8
+    scene.render.bake.margin_type = BAKE_MARGIN_TYPE
     bpy.ops.object.bake(type="COMBINED", use_clear=True, margin=8, target="IMAGE_TEXTURES")
 
     pixels = np.empty(size * size * 4, dtype=np.float32)
