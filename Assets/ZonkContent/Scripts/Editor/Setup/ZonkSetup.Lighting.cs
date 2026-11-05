@@ -353,6 +353,58 @@ namespace Zonk.Editor.Setup
         /// </summary>
         private static GameObject RainPrefab()
         {
+            var prefab = BuildRainPrefab();
+            TuneRain(prefab);
+            return prefab;
+        }
+
+        /// <summary>
+        /// Капли рождаются не ближе 2 м от камеры и не шире нескольких пикселей: у объектива штрих становился огромной полосой.
+        /// Настройки обновляют и уже созданный префаб.
+        /// </summary>
+        private static void TuneRain(GameObject prefab)
+        {
+            var system = prefab.GetComponent<ParticleSystem>();
+            var renderer = prefab.GetComponent<ParticleSystemRenderer>();
+            if (system == null || renderer == null)
+                return;
+
+            // Струи разной толщины и скорости: одинаковые штрихи читаются как решётка.
+            var main = system.main;
+            main.startSpeed = new ParticleSystem.MinMaxCurve(13f, 19f);
+            main.startSize = new ParticleSystem.MinMaxCurve(0.005f, 0.01f);
+            main.startLifetime = 0.8f;
+            main.startColor = new Color(0.78f, 0.85f, 0.98f, 0.42f);
+
+            // Ветер: струи чуть наклонены. Растянутая частица сама разворачивается вдоль скорости.
+            var wind = system.velocityOverLifetime;
+            wind.enabled = true;
+            wind.space = ParticleSystemSimulationSpace.Local;
+            wind.x = new ParticleSystem.MinMaxCurve(-2.6f, -1.6f);
+            wind.y = new ParticleSystem.MinMaxCurve(0f, 0f);
+            wind.z = new ParticleSystem.MinMaxCurve(0f, 0f);
+
+            // Система повёрнута вниз: локальная ось Y — глубина от камеры. Коробка уходит вперёд, за спину камеры капли не попадают.
+            var shape = system.shape;
+            shape.scale = new Vector3(18f, 9f, 0.1f);
+            shape.position = new Vector3(0f, 4f, 0f);
+
+            renderer.lengthScale = 6f;
+            renderer.velocityScale = 0.04f;
+            renderer.maxParticleSize = 0.0025f;
+
+            var material = renderer.sharedMaterial;
+            if (material != null)
+            {
+                material.SetTexture("_BaseMap", RainStreakTexture());
+                EditorUtility.SetDirty(material);
+            }
+
+            PrefabUtility.SavePrefabAsset(prefab);
+        }
+
+        private static GameObject BuildRainPrefab()
+        {
             return Prefab(Prefabs + "/Effects/Rain.prefab", () =>
             {
                 var root = new GameObject("Rain");

@@ -777,7 +777,8 @@ def bake_location(prefix, model_file, build, build_lights, views, samples, previ
         if static:
             meshes.append((static, group_name, path))
         if sway:
-            meshes.append((sway, "Sway", path))
+            # Группа только из качающихся деталей — своя текстура, значит и свой материал: сетка называется по группе.
+            meshes.append((sway, "Sway" if static else "Sway" + group_name, path))
     for objects, name, path in meshes:
         bpy.ops.object.select_all(action="DESELECT")
         for obj in objects:

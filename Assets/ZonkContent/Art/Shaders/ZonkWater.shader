@@ -29,6 +29,15 @@ Shader "Zonk/Water"
         _ScaleB("Размер второй сетки", Float) = 0.19
         _LineFade("Линии гаснут к, метры от берега", Float) = 14
         _WaveSpeed("Скорость волны у берега", Float) = 0.17
+
+        [Header(Open sea)]
+        [Toggle] _OpenSea("Открытое море: берега нет, вода со всех сторон", Float) = 0
+        _OpenDepth("Глубина открытого моря, метры", Float) = 4
+        _Drift("Скорость ячеек (1 — как у берега)", Float) = 1
+        _Swell("Сила длинных волн-гребней", Range(0, 1)) = 0.4
+        _SwellSpeed("Скорость гребней", Float) = 0.9
+        _HazeFrom("Дымка от, метры", Float) = 16
+        _HazeTo("Дымка до, метры", Float) = 44
     }
 
     SubShader
@@ -61,6 +70,7 @@ Shader "Zonk/Water"
             fixed4 _Shallow, _Middle, _Deep, _Far, _Lines, _Foam, _WetSand;
             float _ShoreZ, _TideSize, _TideSpeed, _WetWidth, _SurfWidth;
             float _ScaleA, _ScaleB, _LineFade, _WaveSpeed;
+            float _OpenSea, _OpenDepth, _Drift, _Swell, _SwellSpeed, _HazeFrom, _HazeTo;
             fixed4 _ZonkBakedDarken;
 
             v2f vert(appdata v)
@@ -78,11 +88,13 @@ Shader "Zonk/Water"
                 float z = i.world.y;
                 float swing = sin(x * 0.55 + t * 0.25) * 0.28 + sin(x * 1.35 - t * 0.2) * 0.13;
                 float tide = sin(t * _TideSpeed) * _TideSize;
-                float depth = z - _ShoreZ + swing * 0.6;
-                float edge = z - _ShoreZ - tide + swing;
+                // Открытое море: глубина везде одна, край берега уведён далеко, поэтому кромки и пены нет.
+                float depth = lerp(z - _ShoreZ + swing * 0.6, _OpenDepth, _OpenSea);
+                float edge = lerp(z - _ShoreZ - tide + swing, 10.0, _OpenSea);
 
-                float a = tex2D(_Cells, float2(x * _ScaleA + t * 0.018, z * _ScaleA + t * 0.03)).r;
-                float b = tex2D(_Cells, float2(x * _ScaleB - t * 0.024 + 0.37, z * _ScaleB + t * 0.014 + 0.61)).r;
+                float drift = t * _Drift;
+                float a = tex2D(_Cells, float2(x * _ScaleA + drift * 0.018, z * _ScaleA + drift * 0.03)).r;
+                float b = tex2D(_Cells, float2(x * _ScaleB - drift * 0.024 + 0.37, z * _ScaleB + drift * 0.014 + 0.61)).r;
 
                 fixed3 color = lerp(_Shallow.rgb, _Middle.rgb, smoothstep(0.0, 2.6, depth));
                 color = lerp(color, _Deep.rgb, smoothstep(2.0, 9.0, depth));
@@ -104,7 +116,12 @@ Shader "Zonk/Water"
                 float surf = 1.0 - smoothstep(surfWidth - 0.05, surfWidth + 0.04, edge + a * 0.42);
                 color = lerp(color, _Foam.rgb, surf);
 
-                color = lerp(color, _Far.rgb, smoothstep(24.0, 60.0, depth));
+                // Гребни шторма: длинные светлые полосы катятся через всё море, ячейки делают край рваным. У берега выключены.
+                float crest = sin(z * 0.62 + x * 0.21 + t * _SwellSpeed + a * 2.6 + sin(x * 0.17 - t * 0.3) * 1.4);
+                color = lerp(color, _Lines.rgb, smoothstep(0.62, 0.95, crest) * _Swell * _OpenSea);
+
+                float haze = lerp(smoothstep(24.0, 60.0, depth), smoothstep(_HazeFrom, _HazeTo, length(i.world)), _OpenSea);
+                color = lerp(color, _Far.rgb, haze);
 
                 // За кромкой вода прозрачна, виден песок, ближе к воде он мокрый.
                 float alpha = smoothstep(-0.05, 0.05, edge);

@@ -171,6 +171,44 @@ namespace Zonk.Editor.Setup
             return material;
         }
 
+        /// <summary>
+        /// Струя дождя 16×128: белая, узкая, края по ширине мягкие, концы растворяются, плотнее у головы.
+        /// Без неё штрих частицы — сплошной прямоугольник.
+        /// </summary>
+        private static Texture2D RainStreakTexture()
+        {
+            var path = Root + "/Art/Textures/Particle_RainStreak.png";
+            var existing = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+            if (existing != null)
+                return existing;
+
+            const int width = 16;
+            const int height = 128;
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
+            for (var y = 0; y < height; y++)
+            {
+                var along = (y + 0.5f) / height;
+                // Симметрично по длине: ориентация текстуры на растянутой частице не важна.
+                var body = Mathf.Sin(along * Mathf.PI);
+                body *= body;
+                for (var x = 0; x < width; x++)
+                {
+                    var across = Mathf.Abs((x + 0.5f) / width * 2f - 1f);
+                    var side = Mathf.Clamp01(1f - across / Mathf.Lerp(0.25f, 0.9f, body));
+                    texture.SetPixel(x, y, new Color(1f, 1f, 1f, side * side * body));
+                }
+            }
+
+            EnsureFolder(ParentFolder(path));
+            SavePng(path, texture);
+            var importer = (TextureImporter)AssetImporter.GetAtPath(path);
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = true;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.SaveAndReimport();
+            return AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        }
+
         /// <summary>Мягкая белая точка 64×64 с прозрачным краем: общая текстура частиц.</summary>
         private static Texture2D SoftDotTexture()
         {

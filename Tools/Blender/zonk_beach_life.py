@@ -99,14 +99,14 @@ def assemble(name, bones, parts):
     return armature, merged
 
 
-def export(armature, mesh):
+def export(armature, mesh, prefix="Beach_"):
     os.makedirs(MODELS, exist_ok=True)
     bpy.ops.object.select_all(action="DESELECT")
     armature.select_set(True)
     mesh.select_set(True)
     bpy.context.view_layer.objects.active = armature
     bpy.ops.export_scene.fbx(
-        filepath=os.path.join(MODELS, "Beach_" + armature.name + ".fbx"),
+        filepath=os.path.join(MODELS, prefix + armature.name + ".fbx"),
         use_selection=True,
         object_types={"ARMATURE", "MESH"},
         axis_forward="-Z",

@@ -1,0 +1,58 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: M_Water_Storm
+  m_Shader: {fileID: 4800000, guid: ef7fd580e153e5244a3e1421bbb9010b, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords:
+  - _OPENSEA_ON
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _Cells:
+        m_Texture: {fileID: 2800000, guid: 0a582a738ef5e314bb90c1b574d1d251, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Drift: 3.5
+    - _HazeFrom: 14
+    - _HazeTo: 50
+    - _LineFade: 14
+    - _OpenDepth: 4
+    - _OpenSea: 1
+    - _ScaleA: 0.3
+    - _ScaleB: 0.19
+    - _ShoreZ: 5.6
+    - _SurfWidth: 0.55
+    - _Swell: 0.42
+    - _SwellSpeed: 0.95
+    - _TideSize: 0.45
+    - _TideSpeed: 0.5
+    - _WaveSpeed: 0.17
+    - _WetWidth: 1.2
+    m_Colors:
+    - _Deep: {r: 0.03, g: 0.12, b: 0.22, a: 1}
+    - _Far: {r: 0.07, g: 0.17, b: 0.25, a: 1}
+    - _Foam: {r: 1, g: 1, b: 0.97999996, a: 1}
+    - _Lines: {r: 0.17, g: 0.32, b: 0.4, a: 1}
+    - _Middle: {r: 0.04, g: 0.18, b: 0.28, a: 1}
+    - _Shallow: {r: 0.06, g: 0.24, b: 0.32, a: 1}
+    - _WetSand: {r: 0.45, g: 0.32999998, b: 0.20999995, a: 0.55}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1
