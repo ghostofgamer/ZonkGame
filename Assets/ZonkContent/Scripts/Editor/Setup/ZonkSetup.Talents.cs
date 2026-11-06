@@ -337,6 +337,7 @@ namespace Zonk.Editor.Setup
             });
 
             AddTalentBadgeToLevelPart();
+            Debug.Log("[Zonk] Profile tabs: " + RepairProfileTabs());   // страницы есть, ссылки потеряны — привязать заново
         }
 
         /// <summary>Значок «есть свободные очки» в правом верхнем углу значка уровня (деталь Parts/PlayerLevel).</summary>
