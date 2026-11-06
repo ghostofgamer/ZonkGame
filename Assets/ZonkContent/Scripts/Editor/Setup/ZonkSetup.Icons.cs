@@ -52,7 +52,16 @@ namespace Zonk.Editor.Setup
             Debug.Log("[Zonk] Location icons baked: " + baked + ". Without a model (no icon): " + string.Join(", ", skipped));
         }
 
-        public static int BakeShopIcons(out List<string> skipped, string onlyPrefix = null)
+        /// <summary>Только облик руки (кисти, рукава, запястье): после пересборки моделей в Blender, остальные иконки не трогаются.</summary>
+        [MenuItem("Zonk/Art/Bake Hand Look Icons", priority = 45)]
+        public static void BakeHandLookIconsMenu()
+        {
+            var baked = BakeShopIcons(out var skipped, "hand_", "sleeve_", "wrist_");
+            Debug.Log("[Zonk] Hand look icons baked: " + baked + ". Without a model (no icon): " + string.Join(", ", skipped));
+        }
+
+        /// <param name="onlyPrefixes">Снимать только предметы с ID на эти приставки; пусто — все.</param>
+        public static int BakeShopIcons(out List<string> skipped, params string[] onlyPrefixes)
         {
             skipped = new List<string>();
             EnsureFolder(IconsFolder);
@@ -70,7 +79,7 @@ namespace Zonk.Editor.Setup
                 foreach (var guid in AssetDatabase.FindAssets("t:ContentConfig", new[] { ConfigsFolder }))
                 {
                     var config = AssetDatabase.LoadAssetAtPath<ContentConfig>(AssetDatabase.GUIDToAssetPath(guid));
-                    if (!NeedsIcon(config) || (onlyPrefix != null && !config.Id.StartsWith(onlyPrefix)))
+                    if (!NeedsIcon(config) || !MatchesPrefix(config.Id, onlyPrefixes))
                         continue;
 
                     var subject = IconSubject(config, dieMesh, scene, out var flat);
@@ -114,6 +123,16 @@ namespace Zonk.Editor.Setup
         }
 
         /// <summary>Иконка пуста или снята раньше этим же меню. Ручную из другой папки не трогаем.</summary>
+        private static bool MatchesPrefix(string id, string[] prefixes)
+        {
+            if (prefixes == null || prefixes.Length == 0)
+                return true;
+            foreach (var prefix in prefixes)
+                if (id.StartsWith(prefix))
+                    return true;
+            return false;
+        }
+
         private static bool NeedsIcon(ContentConfig config)
         {
             Sprite icon;
