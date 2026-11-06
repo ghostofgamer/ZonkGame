@@ -50,7 +50,7 @@ TEXTURES_DIR = os.path.join(zm.PROJECT_ROOT, "Assets", "ZonkContent", "Art", "Te
 W = 0.068            # центр запястья: корпус часов (радиус до 0.085) не заходит на манжету рукава (край от 0.16)
 TOP = math.pi / 2    # тыльная сторона: циферблаты и подвески смотрят в камеру
 SEGW = 48            # граней по кругу у браслетов
-MAX_TRIS = 3000
+MAX_TRIS = 3300         # точки костей — замкнутые шайбы (донышко нужно, иначе нормали могут перевернуться)
 
 GOLD = C(1.0, 0.76, 0.25)
 GOLD_LIGHT = C(1.0, 0.9, 0.55)
@@ -169,8 +169,8 @@ def chamfer_box(k, c, ex, ey, ez, hx, hy, hz, bevel, color, bevel_color):
 def disc(k, p, n, e1, radius, height, color, seg=8, top=None):
     """Плоская шайба: точка кости, метка, кнопка."""
     e2 = n.cross(e1).normalized()
-    lathe(k, p, n, e1, e2, [(radius, 0), (radius, height), (0, height)],
-          lambda i, q: (top or color) if i == 1 else color, seg=seg)
+    lathe(k, p, n, e1, e2, [(0, 0), (radius, 0), (radius, height), (0, height)],
+          lambda i, q: (top or color) if i == 2 else color, seg=seg)       # замкнута: нормали не перевернутся
 
 
 def glint(k, p, n, e1, length, width=0.006):
