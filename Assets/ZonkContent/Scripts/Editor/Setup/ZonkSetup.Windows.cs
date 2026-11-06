@@ -109,7 +109,7 @@ namespace Zonk.Editor.Setup
             var rules = ButtonView("Rules", panel, 48, Color.white);
             rules.Background.sprite = _ui.RulesIcon;
             rules.Background.preserveAspect = true;
-            rules.SetText("?");
+            rules.SetText(string.Empty);                                   // знак вопроса нарисован в самой книжке (zonk_ui.py)
             Corner((RectTransform)rules.transform, new Vector2(1f, 1f), new Vector2(96f, 96f), new Vector2(-16f, -16f));
 
             Wallet(root);

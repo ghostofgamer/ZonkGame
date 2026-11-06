@@ -127,7 +127,7 @@ namespace Zonk.Editor.Setup
             return sprites;
         }
 
-        /// <summary>Иконка книжки: обложка, корешок, обрез страниц. Знак вопроса рисует кнопка текстом.</summary>
+        /// <summary>Иконка книжки — рисует Tools/Blender/zonk_ui.py (комикс, со знаком вопроса); здесь запасная, если файла нет.</summary>
         private static Sprite RulesIcon()
         {
             var path = Sprites + "/Icon_RulesBook.png";

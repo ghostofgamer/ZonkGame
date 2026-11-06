@@ -236,6 +236,49 @@ def spark():
     return compose((INK, outer), (ORANGE, inner), (PALE, centre))
 
 
+def capsule(x, y, ax, ay, bx, by, r):
+    """Расстояние до отрезка-капсулы (толстой линии): меньше нуля внутри."""
+    px, py, vx, vy = x - ax, y - ay, bx - ax, by - ay
+    t = np.clip((px * vx + py * vy) / (vx * vx + vy * vy), 0, 1)
+    return np.hypot(px - vx * t, py - vy * t) - r
+
+
+def question_mark(x, y, cx, cy, s):
+    """Знак вопроса высотой ~s: дуга сверху, крючок к середине, ножка, точка. Расстояние (меньше нуля внутри)."""
+    w = 0.1 * s
+    ox, oy, r = cx, cy - 0.2 * s, 0.2 * s
+    ring = np.abs(np.hypot(x - ox, y - oy) - r) - w
+    angle = np.arctan2(y - oy, x - ox)
+    ring = np.where(angle > 0.7, 1e3, ring)                                   # без нижней левой четверти
+    ex, ey = ox + r * np.cos(0.7), oy + r * np.sin(0.7)
+    hook = capsule(x, y, ex, ey, cx, cy + 0.06 * s, w)
+    stem = capsule(x, y, cx, cy + 0.06 * s, cx, cy + 0.14 * s, w)
+    dot = np.hypot(x - cx, y - (cy + 0.42 * s)) - w * 1.15
+    return np.minimum(np.minimum(np.minimum(ring, hook), stem), dot)
+
+
+def rules_book():
+    """Книжка правил 256×256: обложка с растром в тени, корешок, обрез страниц, золотой «?» с контуром, жёсткая тень."""
+    size, ink = 256, 7.0
+    x, y = grid(size, size)
+    cover = rounded_box(x, y, 52, 26, 206, 214, 14)
+    shadow = rounded_box(x, y, 64, 38, 218, 226, 14)
+    pages = rounded_box(x, y, 190, 36, 224, 204, 8)
+    spine = (x < 80)
+    red, red_dark, cream = np.array([0.84, 0.2, 0.16]), np.array([0.55, 0.1, 0.08]), np.array([0.98, 0.93, 0.8])
+    shade = (x + y) > 300                                                     # тень обложки — растр
+    cover_rgb = np.where(spine[..., None], red_dark, red)
+    cover_rgb = np.where((shade & (dots(x, y, 9, 2.6) > 0.5))[..., None], red_dark, cover_rgb)
+    lines = ((y.astype(int) // 8) % 2 == 0)
+    page_rgb = np.where(lines[..., None], cream, cream * 0.86)
+    mark = question_mark(x, y, 132, 112, 128)
+    gold_rgb = np.where((y < 80)[..., None], np.array([1.0, 0.92, 0.5]), GOLD)                # блик сверху
+    return compose((INK, smooth(0, shadow)),
+                   (INK, smooth(0, pages)), (page_rgb, smooth(-5, pages)),
+                   (INK, smooth(0, cover)), (cover_rgb, smooth(-ink, cover)),
+                   (INK, smooth(0, mark - 7)), (gold_rgb, smooth(0, mark)))
+
+
 def main():
     comic = os.path.join(SPRITES, "Comic")
     os.makedirs(comic, exist_ok=True)
@@ -247,6 +290,11 @@ def main():
     save("UI_Burst_B", burst(31), comic)
     flame_frames()
     save("UI_Spark", spark())
+    save("Icon_RulesBook", rules_book())          # знак вопроса в самой картинке: кнопка без текста
 
 
-main()
+if "--only" in sys.argv:
+    _only = sys.argv[sys.argv.index("--only") + 1]
+    save(_only, globals()[{"Icon_RulesBook": "rules_book"}[_only]]())
+else:
+    main()
