@@ -97,12 +97,16 @@ class Portrait:
         self.layers.append((INK, smooth(0, sdf - ink)))
         self.layers.append((color, smooth(0, sdf)))
         if cel is not None:
-            cx, cy, k = cel
+            # Тень полумесяцем по форме: часть фигуры, которая не попадает в ту же фигуру, сдвинутую к свету
+            # (вверх-влево). Прямая диагональ через всё лицо выглядела наклейкой (разбор 06.11).
             dark = color * 0.66 if dark is None else dark
-            t = (X - cx) * 0.75 + (Y - cy) * 0.66 - k
-            self.layers.append((dark, smooth(0, sdf) * smooth(0, -t)))
-            band = (t > -14) & (t < 0) & (dots(X, Y, 6, 1.6) > 0.5)
-            self.layers.append((dark, smooth(0, sdf) * band))
+            d = 18
+            inside = smooth(0, sdf)
+            lit = smooth(0, np.roll(sdf, (-d, -d), axis=(0, 1)))
+            self.layers.append((dark, inside * (1 - lit)))
+            lit_more = smooth(0, np.roll(sdf, (-d - 10, -d - 10), axis=(0, 1)))
+            band = (dots(X, Y, 6, 1.6) > 0.5)
+            self.layers.append((dark, inside * lit * (1 - lit_more) * band))       # растр у края тени
 
     def flat(self, sdf, color):
         """Деталь без контура (полоска, блик, пятно)."""
@@ -250,7 +254,8 @@ def avatar_panda():
             rgb(0.85, 0.1, 0.12), ink=3.5)
     for s in (-1, 1):
         p.flat(ell(C0 + s * 36, 140, 26, 30, rot=s * -30), BLACK)
-        p.eye(C0 + s * 36, 140, 13, lid=0.42, brow=22, side=s)
+        p.eye(C0 + s * 36, 140, 13, lid=0.25, brow=-22, side=s)
+        p.flat(line(C0 + s * 20, 128, C0 + s * 52, 116, 3.2), rgb(0.85, 0.85, 0.9))           # брови светлые: на чёрном пятне
     p.shape(np.maximum(np.abs(X - (C0 + 62)) - 14, np.abs(Y - 170) - 6), rgb(0.95, 0.8, 0.62), ink=2.5)  # пластырь
     p.shape(ell(C0, 168, 12, 8), BLACK, ink=2)
     p.grin(C0, 190, 26, 12)
@@ -285,7 +290,7 @@ def avatar_owl():
                   poly((C0 + 86, 110), (C0 + 74, 40), (C0 + 32, 80))), brown, cel=(C0, 150, 30))
     p.flat(ell(C0, 200, 44, 34), cream)
     for s in (-1, 1):
-        p.eye(C0 + s * 36, 132, 19, lid=0.38, brow=24, iris=rgb(1.0, 0.75, 0.15), side=s)
+        p.eye(C0 + s * 36, 132, 19, lid=0.38, brow=-18, iris=rgb(1.0, 0.75, 0.15), side=s)
         p.shape(np.abs(np.hypot(X - (C0 + s * 36), Y - 132) - 26) - 2.5, rgb(0.85, 0.65, 0.25), ink=2)
     p.shape(poly((C0 - 9, 150), (C0 + 9, 150), (C0, 170)), rgb(1.0, 0.6, 0.15), ink=3)
     for s in (-1, 1):                                                                          # бабочка
@@ -333,180 +338,244 @@ def avatar_bunny():
 # Страшные (с игровой деталью)
 # ---------------------------------------------------------------------------
 
-def flame_tongues(p, cx, base, width, height, seed, outer, inner):
-    """Языки пламени вверх от линии base: несколько вытянутых капель."""
+def flame_tongues(p, cx, base, width, height, seed, outer, inner, count=7):
+    """Языки пламени вверх от линии base: изогнутые капли (круг снизу, острый кончик), внутри — светлое ядро."""
     rng = np.random.RandomState(seed)
-    shapes_o, shapes_i = [], []
-    for q in range(7):
-        x0 = cx - width / 2 + width * (q + 0.5) / 7 + rng.uniform(-6, 6)
-        h = height * rng.uniform(0.6, 1.0)
-        tip = (x0 + rng.uniform(-14, 14), base - h)
-        shapes_o.append(poly((x0 - 18, base), (x0 + 18, base), tip))
-        shapes_i.append(poly((x0 - 9, base), (x0 + 9, base), (tip[0] * 0.6 + x0 * 0.4, base - h * 0.6)))
-    p.shape(union(*shapes_o), outer, ink=4)
-    p.flat(union(*shapes_i), inner)
+    outs, ins = [], []
+    for q in range(count):
+        x0 = cx - width / 2 + width * (q + 0.5) / count + rng.uniform(-5, 5)
+        h = height * rng.uniform(0.55, 1.0)
+        lean = rng.uniform(-18, 18)
+        w = width / count * 0.8
+        body = ell(x0, base - w * 0.4, w, w * 0.9)
+        tip = poly((x0 - w * 0.95, base - w * 0.5), (x0 + w * 0.95, base - w * 0.5), (x0 + lean, base - h))
+        outs.append(union(body, tip))
+        ins.append(union(ell(x0, base - w * 0.3, w * 0.5, w * 0.45),
+                         poly((x0 - w * 0.45, base - w * 0.4), (x0 + w * 0.45, base - w * 0.4), (x0 + lean * 0.5, base - h * 0.55))))
+    p.shape(union(*outs), outer, ink=4)
+    p.flat(union(*ins), inner)
 
+
+def fang_mouth(p, cx, cy, w, h, top=5, bottom=0, gaps=(), inside=None, tooth=None):
+    """
+    Пасть: тёмное нутро, острые зубы сверху (top штук) и снизу (bottom), gaps — номера выбитых верхних зубов.
+    Вместо одинаковой «решётки» у всех — у каждого свой рот.
+    """
+    inside = rgb(0.35, 0.05, 0.08) if inside is None else inside
+    tooth = rgb(0.98, 0.96, 0.88) if tooth is None else tooth
+    mouth = ell(cx, cy, w, h)
+    p.shape(mouth, inside, ink=4)
+    teeth = []
+    for q in range(top):
+        if q in gaps:
+            continue
+        x0 = cx - w * 0.8 + w * 1.6 * (q + 0.5) / top
+        tw = w * 1.6 / top * 0.5
+        teeth.append(poly((x0 - tw, cy - h), (x0 + tw, cy - h), (x0, cy - h + h * (0.9 if q in (0, top - 1) else 0.7))))
+    for q in range(bottom):
+        x0 = cx - w * 0.6 + w * 1.2 * (q + 0.5) / bottom
+        tw = w * 1.2 / bottom * 0.5
+        teeth.append(poly((x0 - tw, cy + h), (x0 + tw, cy + h), (x0, cy + h - h * 0.75)))
+    if teeth:
+        p.layers.append((tooth, smooth(0, union(*teeth)) * smooth(0, mouth + 1)))
+
+
+def scar(p, ax, ay, bx, by):
+    """Шрам: розовая полоса и стежки поперёк."""
+    p.flat(line(ax, ay, bx, by, 3.5), rgb(0.85, 0.45, 0.5))
+    for q in range(4):
+        t = (q + 0.5) / 4
+        mx, my = ax + (bx - ax) * t, ay + (by - ay) * t
+        nx, ny = -(by - ay), bx - ax
+        n = math.hypot(nx, ny)
+        p.ink(line(mx - nx / n * 6, my - ny / n * 6, mx + nx / n * 6, my + ny / n * 6, 1.4))
+
+
+# Брови в eye(): отрицательный угол — злые (внутренний край ниже), положительный — грустные/скучающие.
 
 def avatar_skull_fire():
-    """Горящий череп: пламя сверху, пустые глазницы с огоньками, оскал, кость-кубик в зубах."""
-    bone = rgb(0.95, 0.92, 0.82)
-    p = Portrait(rgb(0.2, 0.08, 0.06), rgb(0.05, 0.01, 0.01))
-    flame_tongues(p, C0, 120, 190, 110, 3, rgb(1.0, 0.45, 0.08), rgb(1.0, 0.85, 0.3))
-    p.shape(union(ell(C0, 128, 76, 68), np.maximum(np.abs(X - C0) - 44, np.abs(Y - 192) - 26)), bone, cel=(C0, 130, 25),
-            dark=rgb(0.7, 0.66, 0.58))
+    """Горящий череп: корона пламени языками, трещина, скулы, угли в глазницах, кубик в зубах."""
+    bone, bone_dark = rgb(0.95, 0.92, 0.82), rgb(0.66, 0.6, 0.52)
+    p = Portrait(rgb(0.25, 0.08, 0.05), rgb(0.06, 0.01, 0.01))
+    flame_tongues(p, C0, 132, 200, 120, 3, rgb(1.0, 0.42, 0.06), rgb(1.0, 0.85, 0.3), count=6)
+    head = union(ell(C0, 126, 74, 66), np.maximum(np.abs(X - C0) - 42, np.abs(Y - 192) - 26))
+    p.shape(head, bone, cel=(0, 0, 0), dark=bone_dark)
     for s in (-1, 1):
-        p.shape(ell(C0 + s * 30, 132, 20, 22, rot=s * 10), BLACK, ink=2)
-        p.flat(ell(C0 + s * 30, 136, 7, 9), rgb(1.0, 0.55, 0.1))
-        p.flat(ell(C0 + s * 30, 138, 3, 4), rgb(1.0, 0.95, 0.5))
-    p.shape(poly((C0 - 9, 168), (C0 + 9, 168), (C0, 152)), BLACK, ink=1)
+        p.flat(ell(C0 + s * 52, 170, 14, 9), bone_dark)                                           # скулы
+        p.shape(ell(C0 + s * 30, 128, 21, 20, rot=s * 18), BLACK, ink=2)
+        p.flat(ell(C0 + s * 30, 132, 8, 10), rgb(1.0, 0.5, 0.08))
+        p.flat(ell(C0 + s * 30, 134, 3.5, 4.5), rgb(1.0, 0.95, 0.5))
+        p.ink(line(C0 + s * 12, 114, C0 + s * 48, 100, 4.5))                                        # злой надбровный край
+    p.ink(union(line(C0 + 10, 66, C0 + 2, 84, 2), line(C0 + 2, 84, C0 + 12, 98, 2), line(C0 + 12, 98, C0 + 4, 108, 2)))
+    p.shape(poly((C0 - 9, 166), (C0 + 9, 166), (C0, 150)), BLACK, ink=1)
     for q in range(-3, 4):
         p.ink(np.maximum(np.abs(X - (C0 + q * 12)) - 1.6, np.abs(Y - 196) - 18))
-    p.ink(np.maximum(np.abs(Y - 196) - 1.6, np.abs(X - C0) - 44))
-    p.shape(np.maximum(np.abs(X - (C0 + 52)) - 14, np.abs(Y - 204) - 14), WHITE, ink=3.5)       # кубик в зубах
+    p.ink(np.maximum(np.abs(Y - 196) - 1.6, np.abs(X - C0) - 42))
+    p.shape(np.maximum(np.abs(X - (C0 + 50)) - 15, np.abs(Y - 204) - 15), WHITE, ink=3.5, cel=(0, 0, 0),
+            dark=rgb(0.8, 0.8, 0.82))
     for dx, dy in ((-6, -6), (6, 6), (0, 0)):
-        p.flat(ell(C0 + 52 + dx, 204 + dy, 2.6, 2.6), rgb(0.85, 0.1, 0.12))
+        p.flat(ell(C0 + 50 + dx, 204 + dy, 2.8, 2.8), rgb(0.85, 0.1, 0.12))
     return p.image()
 
 
 def avatar_vampire():
-    """Вампир: бледное лицо, зачёс углом, высокий воротник, клыки, красные глаза, туз червей."""
-    skin = rgb(0.86, 0.88, 0.92)
-    p = Portrait(rgb(0.45, 0.06, 0.1), rgb(0.15, 0.0, 0.03))
-    for s in (-1, 1):                                                                           # воротник
-        p.shape(poly((C0 + s * 30, 196), (C0 + s * 118, 120), (C0 + s * 104, 240)), rgb(0.7, 0.05, 0.1), ink=4)
-    p.shape(np.maximum(ell(C0, 150, 66, 82), Y - 214), skin, cel=(C0, 150, 25), dark=rgb(0.62, 0.64, 0.75))
-    p.shape(union(np.maximum(ell(C0, 108, 72, 50), Y - 112), poly((C0 - 18, 96), (C0 + 18, 96), (C0, 128))), BLACK, ink=3)
+    """Вампир: зализанные волосы с мысом и бликом, скулы, злые красные глаза, крупные клыки, воротник."""
+    skin, skin_dark = rgb(0.86, 0.88, 0.94), rgb(0.6, 0.62, 0.74)
+    p = Portrait(rgb(0.5, 0.06, 0.1), rgb(0.15, 0.0, 0.03))
     for s in (-1, 1):
-        p.shape(poly((C0 + s * 60, 134), (C0 + s * 80, 104), (C0 + s * 70, 150)), skin, ink=3)     # острые уши
-        p.eye(C0 + s * 26, 146, 15, lid=0.45, brow=26, iris=rgb(0.9, 0.08, 0.1), side=s)
-    p.ink(line(C0, 160, C0 - 4, 178, 2))
-    p.smirk(C0, 196, 18, up=1)
+        p.shape(poly((C0 + s * 26, 200), (C0 + s * 120, 112), (C0 + s * 104, 244)), rgb(0.72, 0.05, 0.1), ink=4,
+                cel=(0, 0, 0))
+        p.flat(poly((C0 + s * 40, 204), (C0 + s * 108, 136), (C0 + s * 98, 230)), rgb(0.25, 0.02, 0.05))
+    p.shape(np.maximum(union(ell(C0, 146, 64, 74), poly((C0 - 40, 200), (C0 + 40, 200), (C0, 226))), Y - 226), skin,
+            cel=(0, 0, 0), dark=skin_dark)
     for s in (-1, 1):
-        p.shape(poly((C0 + s * 10 - 4, 190), (C0 + s * 10 + 4, 190), (C0 + s * 10, 204)), WHITE, ink=2)
+        p.shape(poly((C0 + s * 58, 134), (C0 + s * 84, 98), (C0 + s * 70, 152)), skin, ink=3)
+    hair = union(np.maximum(ell(C0, 104, 70, 46), Y - 116), poly((C0 - 22, 100), (C0 + 22, 100), (C0, 132)))
+    p.shape(hair, rgb(0.08, 0.07, 0.1), ink=3)
+    p.flat(line(C0 - 44, 92, C0 - 12, 80, 4), rgb(0.35, 0.35, 0.45))                               # блик на волосах
+    for s in (-1, 1):
+        p.eye(C0 + s * 26, 150, 15, lid=0.25, brow=-26, iris=rgb(0.95, 0.06, 0.08), side=s)
+    p.ink(line(C0 - 3, 164, C0 + 3, 180, 2.2))
+    p.ink(arc(C0, 186, 22, 30, 150, 3))
+    for s in (-1, 1):
+        p.shape(poly((C0 + s * 12 - 5, 204), (C0 + s * 12 + 5, 204), (C0 + s * 12, 222)), WHITE, ink=2.5)
+    p.flat(ell(C0 + 13, 224, 2.5, 4), rgb(0.85, 0.05, 0.08))                                      # капля
     return p.image()
 
 
 def avatar_zombie():
-    """Зомби: зелёная кожа, шов на лбу, разные глаза (один белёсый), кривой оскал, бинт."""
+    """Зомби: шов на лбу, разные глаза, бинт, кривая пасть с выбитыми зубами, торчащая косточка."""
     skin = rgb(0.55, 0.72, 0.45)
     p = Portrait(rgb(0.3, 0.42, 0.25), rgb(0.08, 0.15, 0.06))
-    p.shape(union(ell(C0, 140, 80, 88), np.maximum(np.abs(X - C0) - 60, np.abs(Y - 214) - 14)), skin, cel=(C0, 140, 25))
-    p.flat(ell(C0 - 40, 182, 22, 14), rgb(0.42, 0.58, 0.35))
-    p.shape(np.maximum(ell(C0 + 20, 82, 70, 30), Y - 88), rgb(0.25, 0.22, 0.2), ink=3)            # клочья волос
+    p.shape(union(ell(C0, 140, 80, 88), np.maximum(np.abs(X - C0) - 60, np.abs(Y - 214) - 14)), skin, cel=(0, 0, 0))
+    p.flat(ell(C0 - 42, 184, 22, 14), rgb(0.4, 0.56, 0.32))
+    p.shape(np.maximum(ell(C0 + 20, 82, 70, 30), Y - 88), rgb(0.25, 0.22, 0.2), ink=3)
     p.ink(line(C0 - 50, 108, C0 + 30, 96, 2.5))
     for q in range(6):
         x0 = C0 - 44 + q * 14
         p.ink(line(x0, 96 + q * -1.6, x0 + 4, 108 - q * 1.6, 2))
-    p.eye(C0 - 30, 140, 18, lid=0.3, brow=-18, iris=rgb(0.85, 0.2, 0.1), side=-1)
-    p.shape(ell(C0 + 32, 142, 17, 15), rgb(0.88, 0.92, 0.8), ink=3.5)                           # белёсый глаз
-    p.flat(ell(C0 + 34, 144, 5, 5), rgb(0.6, 0.7, 0.6))
-    p.shape(poly((C0 - 6, 160), (C0 + 6, 160), (C0, 172)), rgb(0.3, 0.4, 0.25), ink=2)
-    p.grin(C0 + 4, 196, 30, 14)
-    p.shape(np.maximum(np.abs(X - (C0 + 70)) - 16, np.abs(Y - 108) - 40), rgb(0.95, 0.92, 0.82), ink=3)  # бинт
+    p.eye(C0 - 30, 140, 19, lid=0.1, brow=-22, iris=rgb(0.85, 0.2, 0.1), side=-1)
+    p.shape(ell(C0 + 32, 144, 17, 15), rgb(0.88, 0.92, 0.8), ink=3.5)
+    p.flat(ell(C0 + 34, 146, 5, 5), rgb(0.6, 0.7, 0.6))
+    p.ink(line(C0 + 16, 124, C0 + 50, 130, 4))
+    p.shape(poly((C0 - 6, 162), (C0 + 6, 162), (C0, 174)), rgb(0.3, 0.4, 0.25), ink=2)
+    fang_mouth(p, C0 + 4, 198, 34, 14, top=6, bottom=3, gaps=(1, 4), inside=rgb(0.2, 0.08, 0.08), tooth=rgb(0.9, 0.86, 0.6))
+    p.shape(np.maximum(np.abs(X - (C0 + 70)) - 16, np.abs(Y - 108) - 40), rgb(0.95, 0.92, 0.82), ink=3)
     for q in range(4):
         p.ink(line(C0 + 56, 80 + q * 18, C0 + 84, 86 + q * 18, 1.3))
     return p.image()
 
 
 def avatar_ghost():
-    """Призрак: волнистый низ, чёрные глаза-провалы, рот «О», цепь с замком, полупрозрачный ореол."""
-    sheet = rgb(0.92, 0.95, 1.0)
-    p = Portrait(rgb(0.15, 0.3, 0.42), rgb(0.03, 0.08, 0.15))
-    p.flat(ell(C0, 140, 104, 100), rgb(0.35, 0.55, 0.65))
-    bottom = union(*[ell(C0 - 60 + q * 30, 214, 17, 18) for q in range(5)])
-    body = np.minimum(np.maximum(union(ell(C0, 120, 76, 78), np.maximum(np.abs(X - C0) - 76, np.abs(Y - 168) - 46)),
-                                 Y - 214), bottom)
-    p.shape(body, sheet, cel=(C0, 130, 25), dark=rgb(0.65, 0.72, 0.85))
+    """Призрак: провалы глаз со светящимися зрачками, злые брови, рот-вопль, хвост вбок, звенья цепи и замок."""
+    sheet, sheet_dark = rgb(0.9, 0.95, 1.0), rgb(0.6, 0.7, 0.86)
+    p = Portrait(rgb(0.12, 0.26, 0.38), rgb(0.02, 0.06, 0.14))
+    p.flat(ell(C0, 138, 108, 104), rgb(0.3, 0.5, 0.62))
+    tail = poly((C0 - 78, 168), (C0 + 78, 168), (C0 + 94, 236), (C0 + 40, 214), (C0 + 6, 240), (C0 - 30, 212), (C0 - 70, 232))
+    body = union(ell(C0, 118, 76, 78), np.maximum(np.abs(X - C0) - 76, np.abs(Y - 160) - 40), tail)
+    p.shape(body, sheet, cel=(0, 0, 0), dark=sheet_dark)
     for s in (-1, 1):
-        p.shape(ell(C0 + s * 28, 116, 15, 22, rot=s * -12), BLACK, ink=1)
-        p.flat(ell(C0 + s * 28 - 4, 108, 4, 5), WHITE)
-        p.ink(line(C0 + s * 14, 88 - 0, C0 + s * 44, 82 + 0, 4))
-    p.shape(ell(C0, 160, 12, 16), BLACK, ink=1)
-    for q in range(6):                                                                          # цепь
-        p.shape(np.abs(ell(C0 - 80 + q * 26, 196 + q * 4, 10, 6)) - 2.5, rgb(0.6, 0.62, 0.66), ink=2)
-    p.shape(np.maximum(np.abs(X - (C0 + 76)) - 14, np.abs(Y - 222) - 12), rgb(1.0, 0.75, 0.2), ink=3)
-    p.flat(ell(C0 + 76, 222, 3, 4), BLACK)
+        p.shape(ell(C0 + s * 28, 116, 17, 21, rot=s * -18), BLACK, ink=1)
+        p.flat(ell(C0 + s * 28, 120, 4.5, 4.5), rgb(0.5, 1.0, 0.95))
+        p.ink(line(C0 + s * 10, 92, C0 + s * 46, 82, 4.5))
+    p.shape(union(ell(C0, 166, 16, 22), poly((C0 - 14, 160), (C0 + 14, 160), (C0, 196))), BLACK, ink=1)
+    for q in range(7):                                                                          # звенья цепи
+        cx, cy = C0 - 96 + q * 26, 196 + q * 4
+        link = np.abs(ell(cx, cy, 13 if q % 2 == 0 else 6, 7 if q % 2 == 0 else 9)) - 2.6
+        p.shape(link, rgb(0.62, 0.64, 0.7), ink=2)
+    p.shape(np.maximum(np.abs(X - (C0 + 88)) - 16, np.abs(Y - 230) - 13), rgb(1.0, 0.75, 0.2), ink=3, cel=(0, 0, 0))
+    p.shape(np.abs(ell(C0 + 88, 214, 9, 10)) - 2.5, rgb(0.62, 0.64, 0.7), ink=2)
+    p.flat(ell(C0 + 88, 230, 3, 4), BLACK)
     return p.image()
 
 
 def avatar_witch():
-    """Ведьма: остроконечная шляпа с пряжкой, зелёная кожа, ухмылка, бородавка, рыжие волосы."""
+    """Ведьма: шляпа с загнутым кончиком и пряжкой, рыжие космы, нос крючком, хохочущий рот с одним зубом."""
     skin = rgb(0.55, 0.78, 0.45)
-    p = Portrait(rgb(0.4, 0.15, 0.55), rgb(0.12, 0.02, 0.2))
+    p = Portrait(rgb(0.42, 0.15, 0.58), rgb(0.12, 0.02, 0.2))
     for s in (-1, 1):
-        p.shape(union(*[ell(C0 + s * (58 + q * 10), 150 + q * 22, 22, 26) for q in range(3)]), rgb(0.95, 0.4, 0.1), ink=4)
-    p.shape(ell(C0, 156, 64, 72), skin, cel=(C0, 156, 22))
-    p.shape(ell(C0 + 8, 112, 104, 18), rgb(0.15, 0.12, 0.2), ink=4)                              # поля
-    p.shape(poly((C0 - 50, 108), (C0 + 56, 108), (C0 + 40, 30), (C0 + 70, 14), (C0 + 6, 20)), rgb(0.15, 0.12, 0.2), ink=4,
-            cel=(C0, 70, 20))
+        p.shape(union(*[ell(C0 + s * (58 + q * 10), 150 + q * 22, 22, 26) for q in range(3)]), rgb(0.95, 0.4, 0.1), ink=4,
+                cel=(0, 0, 0))
+    p.shape(ell(C0, 156, 64, 72), skin, cel=(0, 0, 0))
+    p.shape(ell(C0 + 8, 112, 104, 18), rgb(0.15, 0.12, 0.2), ink=4)
+    p.shape(union(poly((C0 - 50, 108), (C0 + 56, 108), (C0 + 30, 40)), poly((C0 + 18, 50), (C0 + 40, 36), (C0 + 84, 34), (C0 + 92, 52))),
+            rgb(0.15, 0.12, 0.2), ink=4, cel=(0, 0, 0))
     p.flat(np.maximum(np.abs(Y - 98) - 7, poly((C0 - 46, 110), (C0 + 52, 110), (C0 + 44, 86), (C0 - 36, 86))),
            rgb(0.55, 0.2, 0.7))
     p.shape(np.abs(np.maximum(np.abs(X - C0) - 10, np.abs(Y - 98) - 8)) - 2.5, rgb(1.0, 0.8, 0.25), ink=1.5)
     for s in (-1, 1):
-        p.eye(C0 + s * 24, 146, 14, lid=0.4, brow=20, iris=rgb(0.95, 0.75, 0.1), side=s)
-    p.shape(poly((C0 - 11, 144), (C0 + 9, 144), (C0 + 34, 188), (C0 + 6, 184)), skin, ink=3.5, cel=(C0, 160, 6))  # нос крючком
-    p.shape(ell(C0 + 18, 172, 5, 5), rgb(0.4, 0.55, 0.3), ink=2)
-    p.grin(C0 - 4, 202, 22, 10)
+        p.eye(C0 + s * 26, 140, 13, lid=0.3, brow=-24, iris=rgb(0.95, 0.75, 0.1), side=s)
+    p.shape(poly((C0 - 8, 160), (C0 + 8, 160), (C0 + 30, 192), (C0 + 6, 188)), skin, ink=3.5, cel=(0, 0, 0))
+    p.shape(ell(C0 + 17, 178, 5, 5), rgb(0.4, 0.55, 0.3), ink=2)
+    p.shape(np.maximum(ell(C0 - 6, 204, 24, 16), 196 - Y), rgb(0.35, 0.05, 0.1), ink=3.5)       # хохочет
+    p.flat(np.maximum(ell(C0 - 6, 214, 12, 6), 210 - Y), rgb(0.9, 0.35, 0.4))
+    p.shape(poly((C0 - 14, 197), (C0 - 4, 197), (C0 - 9, 208)), rgb(0.95, 0.9, 0.6), ink=1.5)
     return p.image()
 
 
 def avatar_demon():
-    """Демон: красная кожа, рога, жёлтые глаза, клыкастый оскал, бородка, огонь за спиной."""
+    """Демон: угловатая челюсть с бородкой, изогнутые рога с кольцами, злые жёлтые глаза, пасть клыками, огонь."""
     skin = rgb(0.85, 0.15, 0.12)
     p = Portrait(rgb(0.25, 0.05, 0.05), rgb(0.06, 0.0, 0.0))
-    flame_tongues(p, C0, 230, 240, 150, 11, rgb(1.0, 0.4, 0.05), rgb(1.0, 0.75, 0.2))
+    flame_tongues(p, C0, 250, 250, 150, 11, rgb(1.0, 0.4, 0.05), rgb(1.0, 0.75, 0.2), count=8)
+    for s in (-1, 1):                                                                           # изогнутые рога
+        horn = union(*[ell(C0 + s * (46 + q * 9), 94 - q * 15 + q * q * 1.2, 15 - q * 2.2, 13 - q * 1.8) for q in range(6)])
+        p.shape(horn, rgb(0.25, 0.18, 0.16), ink=4, cel=(0, 0, 0))
+        for q in range(1, 5):
+            p.ink(np.maximum(np.abs(X - (C0 + s * (46 + q * 9))) - 1.5, ell(C0 + s * (46 + q * 9), 94 - q * 15 + q * q * 1.2, 16, 14)))
+    face = union(ell(C0, 138, 70, 62), poly((C0 - 66, 150), (C0 + 66, 150), (C0 + 30, 210), (C0, 238), (C0 - 30, 210)))
+    p.shape(face, skin, cel=(0, 0, 0))
+    p.flat(poly((C0 - 16, 212), (C0 + 16, 212), (C0, 238)), rgb(0.2, 0.05, 0.05))                 # бородка
     for s in (-1, 1):
-        p.shape(poly((C0 + s * 40, 96), (C0 + s * 62, 104), (C0 + s * 96, 28), (C0 + s * 70, 60)), rgb(0.2, 0.15, 0.15), ink=4,
-                cel=(C0 + s * 70, 70, 0))
-    p.shape(union(ell(C0, 148, 72, 76), poly((C0 - 20, 206), (C0 + 20, 206), (C0, 236))), skin, cel=(C0, 148, 25))
-    for s in (-1, 1):
-        p.shape(poly((C0 + s * 64, 140), (C0 + s * 96, 120), (C0 + s * 70, 160)), skin, ink=3)
-        p.eye(C0 + s * 28, 140, 16, lid=0.42, brow=30, iris=rgb(1.0, 0.85, 0.1), side=s)
-    p.ink(line(C0 - 6, 162, C0 + 6, 162, 2.5))
-    p.grin(C0, 190, 34, 15)
-    for s in (-1, 1):
-        p.shape(poly((C0 + s * 22 - 5, 188), (C0 + s * 22 + 5, 188), (C0 + s * 22, 206)), WHITE, ink=2)
+        p.shape(poly((C0 + s * 60, 136), (C0 + s * 100, 112), (C0 + s * 70, 158)), skin, ink=3)
+        p.eye(C0 + s * 27, 136, 16, lid=0.2, brow=-32, iris=rgb(1.0, 0.85, 0.1), side=s)
+    p.ink(union(line(C0 - 8, 160, C0 - 2, 164, 2.5), line(C0 + 8, 160, C0 + 2, 164, 2.5)))
+    fang_mouth(p, C0, 188, 34, 13, top=7, bottom=4)
     return p.image()
 
 
 def avatar_werewolf():
-    """Оборотень: серая шерсть клочьями, луна за спиной, жёлтые глаза, оскал с клыками."""
+    """Оборотень: шерсть клочьями, луна, злые глаза, шрам через глаз, рык с клыками сверху и снизу."""
     fur, dark = rgb(0.5, 0.5, 0.56), rgb(0.3, 0.3, 0.36)
     p = Portrait(rgb(0.12, 0.15, 0.35), rgb(0.03, 0.04, 0.14))
-    p.shape(ell(C0 + 60, 70, 40, 40), rgb(1.0, 0.95, 0.75), ink=3)
+    p.shape(ell(C0 + 60, 66, 40, 40), rgb(1.0, 0.95, 0.75), ink=3)
+    p.flat(ell(C0 + 48, 58, 8, 6), rgb(0.88, 0.82, 0.6))
     for s in (-1, 1):
-        p.shape(poly((C0 + s * 24, 96), (C0 + s * 72, 28), (C0 + s * 92, 110)), fur, cel=(C0, 90, 30))
-    spikes = union(*[poly((C0 + s * 70, 120 + q * 26), (C0 + s * 112, 130 + q * 26), (C0 + s * 74, 146 + q * 26))
+        p.shape(poly((C0 + s * 24, 96), (C0 + s * 72, 28), (C0 + s * 92, 110)), fur, cel=(0, 0, 0), dark=dark)
+        p.flat(poly((C0 + s * 40, 96), (C0 + s * 70, 50), (C0 + s * 82, 104)), rgb(0.7, 0.55, 0.55))
+    spikes = union(*[poly((C0 + s * 70, 120 + q * 26), (C0 + s * 114, 130 + q * 26), (C0 + s * 74, 146 + q * 26))
                      for s in (-1, 1) for q in range(3)])
-    p.shape(union(ell(C0, 146, 80, 72), spikes), fur, cel=(C0, 146, 25), dark=dark)
-    p.shape(ell(C0, 188, 46, 34), rgb(0.72, 0.72, 0.76), ink=4, cel=(C0, 188, 10), dark=dark)
+    p.shape(union(ell(C0, 146, 80, 72), spikes), fur, cel=(0, 0, 0), dark=dark)
+    p.shape(ell(C0, 190, 48, 36), rgb(0.72, 0.72, 0.76), ink=4, cel=(0, 0, 0), dark=dark)
     for s in (-1, 1):
-        p.eye(C0 + s * 32, 134, 16, lid=0.4, brow=28, iris=rgb(1.0, 0.8, 0.1), side=s)
-    p.shape(ell(C0, 168, 14, 9), BLACK, ink=2)
-    p.grin(C0, 196, 30, 13)
-    for s in (-1, 1):
-        p.shape(poly((C0 + s * 18 - 5, 194), (C0 + s * 18 + 5, 194), (C0 + s * 18, 212)), WHITE, ink=2)
+        p.eye(C0 + s * 32, 134, 16, lid=0.15, brow=-30, iris=rgb(1.0, 0.8, 0.1), side=s)
+    scar(p, C0 + 18, 108, C0 + 46, 160)
+    p.shape(ell(C0, 166, 15, 9), BLACK, ink=2)
+    p.flat(ell(C0 - 5, 163, 4, 2.5), WHITE)
+    fang_mouth(p, C0, 198, 32, 15, top=6, bottom=5)
     return p.image()
 
 
 def avatar_pumpkin():
-    """Тыква-голова: рёбра, вырезанные треугольные глаза и зубастая улыбка со свечением, шляпа-котелок."""
+    """Тыква-голова: рёбра по бокам, злые скошенные глаза, зубастая улыбка со свечением, котелок."""
     orange = rgb(1.0, 0.52, 0.1)
     p = Portrait(rgb(0.28, 0.18, 0.38), rgb(0.08, 0.04, 0.14))
     body = union(ell(C0, 160, 96, 72), ell(C0 - 46, 160, 52, 66), ell(C0 + 46, 160, 52, 66))
-    p.shape(body, orange, cel=(C0, 160, 30), dark=rgb(0.75, 0.3, 0.04))
-    for rx in (22, 50):                                                                         # рёбра
-        p.ink(np.maximum(np.abs(ell(C0, 160, rx, 70)) - 2.2, body + 4))
-    p.shape(np.maximum(np.abs(X - C0) - 8, np.abs(Y - 88) - 12), rgb(0.35, 0.5, 0.2), ink=3)       # хвостик
+    p.shape(body, orange, cel=(0, 0, 0), dark=rgb(0.75, 0.3, 0.04))
+    for s in (-1, 1):                                                                           # рёбра только по бокам
+        p.ink(np.maximum(np.abs(ell(C0 + s * 58, 160, 34, 66)) - 2.2, np.maximum(body + 4, s * (C0 + s * 60 - X))))
+    p.shape(np.maximum(np.abs(X - C0) - 8, np.abs(Y - 88) - 12), rgb(0.35, 0.5, 0.2), ink=3)
     glow, hot = rgb(1.0, 0.85, 0.2), rgb(1.0, 0.98, 0.7)
-    for s in (-1, 1):
-        p.shape(poly((C0 + s * 14, 156), (C0 + s * 56, 156), (C0 + s * 30, 124)), glow, ink=3)
-        p.flat(poly((C0 + s * 24, 152), (C0 + s * 44, 152), (C0 + s * 32, 138)), hot)
-    mouth = np.maximum(ell(C0, 190, 54, 20), 182 - Y)
-    teeth = union(*[poly((C0 - 40 + q * 20, 182), (C0 - 30 + q * 20, 182), (C0 - 35 + q * 20, 194)) for q in range(5)])
+    for s in (-1, 1):                                                                           # злые глаза
+        p.shape(poly((C0 + s * 12, 150), (C0 + s * 58, 130), (C0 + s * 42, 160)), glow, ink=3)
+        p.flat(poly((C0 + s * 22, 150), (C0 + s * 48, 140), (C0 + s * 40, 154)), hot)
+    p.shape(poly((C0 - 8, 172), (C0 + 8, 172), (C0, 162)), glow, ink=2.5)
+    mouth = np.maximum(ell(C0, 194, 58, 22), 184 - Y)
+    teeth = union(*[poly((C0 - 44 + q * 22, 184), (C0 - 33 + q * 22, 184), (C0 - 38 + q * 22, 197)) for q in range(5)],
+                  *[poly((C0 - 30 + q * 22, 216), (C0 - 20 + q * 22, 216), (C0 - 25 + q * 22, 205)) for q in range(3)])
     p.shape(np.maximum(mouth, -teeth), glow, ink=3)
-    p.shape(ell(C0, 100, 70, 12), rgb(0.12, 0.1, 0.12), ink=4)                                    # котелок
-    p.shape(np.maximum(ell(C0, 82, 42, 30), Y - 100), rgb(0.12, 0.1, 0.12), ink=4, cel=(C0, 82, 10))
+    p.shape(ell(C0, 100, 70, 12), rgb(0.12, 0.1, 0.12), ink=4)
+    p.shape(np.maximum(ell(C0, 82, 42, 30), Y - 100), rgb(0.12, 0.1, 0.12), ink=4, cel=(0, 0, 0))
     p.flat(np.maximum(np.abs(Y - 94) - 4, ell(C0, 82, 41, 29)), rgb(0.85, 0.1, 0.12))
     return p.image()
 
