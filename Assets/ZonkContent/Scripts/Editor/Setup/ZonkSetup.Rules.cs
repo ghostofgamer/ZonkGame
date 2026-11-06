@@ -201,8 +201,17 @@ namespace Zonk.Editor.Setup
                 var title = UiText("Title", panel, ui.BoldFont, 54, palette.Gold);
                 Anchor(title.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -50f), new Vector2(-240f, 90f));
 
-                var close = TextButton("Close", panel, ui.BoldFont, "×", 60, palette.ButtonMuted, palette.Text);
-                Anchor((RectTransform)close.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-60f, -55f), new Vector2(84f, 84f));
+                // Крестик — картинка (zonk_ui.py, UI_Icon_Close): символ «×» шрифтом стоял не по центру и был мелким.
+                var close = TextButton("Close", panel, ui.BoldFont, string.Empty, 60, Color.white, palette.Text);
+                var closeIcon = SpriteAt(Sprites + "/UI_Icon_Close.png");
+                if (closeIcon != null && close.image != null)
+                {
+                    close.image.sprite = closeIcon;
+                    close.image.type = Image.Type.Simple;
+                    close.image.preserveAspect = true;
+                }
+
+                Anchor((RectTransform)close.transform, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-68f, -64f), new Vector2(112f, 112f));
 
                 // Слева: комбинации.
                 var left = UiRect("Combos", panel);

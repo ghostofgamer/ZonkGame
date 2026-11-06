@@ -78,10 +78,12 @@ namespace Zonk.UI.Rules
             _previous.onClick.AddListener(() => TurnAsync(-1).Forget());
             _next.onClick.AddListener(() => TurnAsync(1).Forget());
             _close.onClick.AddListener(RequestClose);
-            // Старые префабы собраны с пустой подписью кнопки.
+            // Крестик нарисован в картинке кнопки (UI_Icon_Close): символ «×» шрифтом стоял не по центру. Символ —
+            // только для старых префабов, где у кнопки подложка без значка.
             var closeLabel = _close.GetComponentInChildren<TMP_Text>(true);
-            if (closeLabel != null && string.IsNullOrEmpty(closeLabel.text))
-                closeLabel.text = "\u00D7";
+            var drawn = _close.image != null && _close.image.sprite != null && _close.image.sprite.name.StartsWith("UI_Icon");
+            if (closeLabel != null)
+                closeLabel.text = drawn ? string.Empty : string.IsNullOrEmpty(closeLabel.text) ? "×" : closeLabel.text;
             _rowTemplate.gameObject.SetActive(false);
         }
 

@@ -279,6 +279,23 @@ def rules_book():
                    (INK, smooth(0, mark - 7)), (gold_rgb, smooth(0, mark)))
 
 
+def close_icon():
+    """Кнопка «закрыть» 128×128: красный круг с контуром и жёсткой тенью, белый крест с контуром, блик. Без текста."""
+    size = 128
+    x, y = grid(size, size)
+    circle = np.hypot(x - 61, y - 59) - 50
+    drop = np.hypot(x - 67, y - 66) - 50
+    a, b = 17, 17
+    cross = np.minimum(capsule(x, y, 61 - a, 59 - b, 61 + a, 59 + b, 7.5), capsule(x, y, 61 - a, 59 + b, 61 + a, 59 - b, 7.5))
+    shine = np.abs(np.hypot(x - 61, y - 59) - 38) - 3.5
+    shine = np.where((np.arctan2(y - 59, x - 61) > -2.7) & (np.arctan2(y - 59, x - 61) < -1.9), shine, 1e3)
+    red = np.where((((x - 61) + (y - 59)) > 30)[..., None] & (dots(x, y, 7, 1.9) > 0.5)[..., None],
+                   np.array([0.62, 0.12, 0.09]), np.array([0.88, 0.2, 0.15]))
+    return compose((INK, smooth(0, drop)), (INK, smooth(0, circle)), (red, smooth(-6, circle)),
+                   (np.array([1.0, 0.75, 0.68]), smooth(0, shine)),
+                   (INK, smooth(0, cross - 5)), (np.array([1.0, 1.0, 1.0]), smooth(0, cross)))
+
+
 def main():
     comic = os.path.join(SPRITES, "Comic")
     os.makedirs(comic, exist_ok=True)
@@ -291,10 +308,11 @@ def main():
     flame_frames()
     save("UI_Spark", spark())
     save("Icon_RulesBook", rules_book())          # знак вопроса в самой картинке: кнопка без текста
+    save("UI_Icon_Close", close_icon())          # закрыть окно: рисунок вместо символа «×» (он стоял не по центру)
 
 
 if "--only" in sys.argv:
     _only = sys.argv[sys.argv.index("--only") + 1]
-    save(_only, globals()[{"Icon_RulesBook": "rules_book"}[_only]]())
+    save(_only, globals()[{"Icon_RulesBook": "rules_book", "UI_Icon_Close": "close_icon"}[_only]]())
 else:
     main()
