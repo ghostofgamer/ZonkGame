@@ -128,6 +128,56 @@ def at(k, s, t, edge, grow=1.06, extra=0.0, drop=0.0, folds=0.008, thin=None):
     return p + n * extra, n, along, across
 
 
+class Wrap:
+    """
+    Всё, что построено внутри блока, ложится на поверхность (как нашивка на рукав): высота вершины над плоскостью детали
+    сохраняется, а сама плоскость заменяется поверхностью height(s, t) — высотой над кожей с ростом grow и провисом drop.
+    Иначе плоская деталь касается выпуклого рукава одной точкой, а края уходят в ткань (отзыв автора 06.11).
+    """
+    EPS = 0.0015    # зазор над тканью: без него грань детали мерцает вместе с тканью
+
+    def __init__(self, k, frame, height, grow, drop):
+        self.k, self.frame, self.height, self.grow, self.drop = k, frame, height, grow, drop
+
+    def __enter__(self):
+        self.start = len(self.k.bm.verts)
+        return self.frame
+
+    def __exit__(self, kind, value, trace):
+        if kind:
+            return False
+        p, n = self.frame[0], self.frame[1]
+        bm = self.k.bm
+        bm.verts.ensure_lookup_table()
+        for v in bm.verts[self.start:]:
+            h = (v.co - p).dot(n)
+            s = (v.co - ARM.palm).dot(ARM.axis)
+            c, a, b = ARM.ellipse(s)
+            q = v.co - (c - ARM.up * self.drop)
+            x, z = q.dot(ARM.side), q.dot(ARM.up)
+            t = math.atan2(z / (b * self.grow), x / (a * self.grow))
+            add = self.height(s, t)
+            t = math.atan2(z / (b * self.grow + add), x / (a * self.grow + add))
+            v.co = ARM.point(s, t, self.height(s, t) + self.EPS, self.grow, self.drop) + ARM.normal(s, t) * h
+        return False
+
+
+def on(k, s, t, edge, grow=1.06, extra=0.0, drop=0.0, folds=0.008, thin=None):
+    """Деталь на ткани рукава (with on(...) as (p, n, along, across): ...): ложится по рукаву со складками."""
+    frame = at(k, s, t, edge, grow, extra, drop, folds, thin)
+    if drop and thin:
+        drop = min(drop, ARM.max_drop(s, surf(s, edge) - thin, grow))
+    return Wrap(k, frame, lambda ss, tt: surf(ss, edge) + fold(tt, ss, folds) + extra, grow, drop)
+
+
+def on_ring(k, s, t, add, grow=1.0, drop=0.0, wave=None):
+    """Деталь на ремешке или манжете (hk.band с верхом add): ложится по их кругу."""
+    frame = hk.frame_at(k, s, t, add + (wave(t) if wave else 0.0), grow, drop)
+    if drop:
+        drop = min(drop, ARM.max_drop(s, add, grow))
+    return Wrap(k, frame, lambda ss, tt: add + (wave(tt) if wave else 0.0), grow, drop)
+
+
 def flat_shape(k, c, n, e1, radius_at, count, h, color, side=None):
     """Плоская фигура (звезда, цветок, луна) толщиной h: radius_at(угол) — контур вокруг центра c, count — точек."""
     e2 = n.cross(e1).normalized()
@@ -190,8 +240,8 @@ def strap(k, s, width, edge, grow, color, extra=0.012, buckle_t=None, buckle_col
     lift = surf(s, edge)
     hk.band(k, s - width / 2, s + width / 2, lift - 0.004, lift + extra, color, grow=grow, rows=1)
     if buckle_t is not None:
-        p, n, along, across = hk.frame_at(k, s, buckle_t, lift + extra, grow)
-        buckle(k, p, n, across, along, width * 1.25, width * 1.1, buckle_color)
+        with on_ring(k, s, buckle_t, lift + extra, grow) as (p, n, along, across):
+            buckle(k, p, n, across, along, width * 1.25, width * 1.1, buckle_color)
 
 
 # ---------------------------------------------------------------------------
@@ -199,7 +249,7 @@ def strap(k, s, width, edge, grow, color, extra=0.012, buckle_t=None, buckle_col
 # ---------------------------------------------------------------------------
 
 def make_knit():
-    """Свитер: коса-аран по тыльной стороне (две пряди крест-накрест), полоски и резинка."""
+    """Свитер: коса-аран полосой по тыльной стороне, полоски и резинка."""
     k = hk.Kit("Sleeve_Knit", ARM)
     green, dark, cream = C(0.2, 0.42, 0.33), C(0.13, 0.29, 0.22), C(0.93, 0.88, 0.74)
     edge = EDGE + 0.09
@@ -207,19 +257,22 @@ def make_knit():
     ribs = lambda t, r: 0.008 * max(0.0, math.cos(t * 16)) * (1 if r else 0)
     hk.band(k, EDGE - 0.005, EDGE + 0.1, GAP * 0.4, GAP + 0.012,
             lambda r, j: dark if j % 2 else shade(dark, 1.25), grow=1.03, wave=ribs, rows=1)
-    # коса: каждая прядь — гладкая трубка змейкой, пряди в противофазе; по бокам — валики
-    for strand in (-1, 1):
-        path = []
-        for q in range(25):
-            s = edge + 0.07 + q * 0.013
-            t = T(90 + strand * 9 * math.sin(q * math.pi / 6))
-            p, n, along, across = at(k, s, t, edge, folds=0.006)
-            lift = 0.012 + 0.006 * strand * math.cos(q * math.pi / 6)                      # сверху то одна, то другая
-            path.append(p + n * lift)
-        hk.tube(k, path, 0.014, shade(green, 1.22), sides=7)
-    for side in (-1, 1):
-        path = [at(k, edge + 0.07 + q * 0.026, T(90 + side * 21), edge, folds=0.006) for q in range(13)]
-        hk.tube(k, [p + n * 0.008 for p, n, _, _ in path], 0.008, shade(green, 1.12), sides=6)
+    # коса-аран после полосок: ровная основа, на ней косые валики с фаской — наклон то влево, то вправо (перекрут)
+    s0, s1 = edge + 0.2, ARM.back - 0.06
+    mid = (s0 + s1) / 2
+    base, twist = shade(green, 0.92), shade(green, 1.3)
+    # полосы уже лежат по изгибу рукава (без обёртки); над складками (до 0.006) — с запасом
+    hk.strip(k, s0, s1, T(80), T(100), surf(mid, edge) + 0.009, 0.005, base, rows=8, cols=4, grow=1.06)
+    for t0 in (T(73), T(104)):
+        hk.strip(k, s0, s1, t0, t0 + T(3), surf(mid, edge) + 0.007, 0.008, shade(green, 1.2), rows=8, cols=1, grow=1.06)
+    with on(k, mid, T(90), edge, 1.06, 0.013, folds=0.0) as (p, n, along, across):
+        steps = int((s1 - s0) / 0.034)
+        for q in range(steps):
+            c = p + along * (s0 + 0.017 + q * 0.034 - mid) + n * 0.007
+            lean = 1 if q % 2 else -1
+            e1 = (across * 0.8 * lean + along * 0.6).normalized()
+            e2 = n.cross(e1).normalized()
+            zw.chamfer_box(k, c, e1, e2, n, 0.03, 0.011, 0.007, 0.005, twist, shade(twist, 0.85))
     k.roughness = 0.9
     return k
 
@@ -235,16 +288,17 @@ def make_shirt():
     for s in (EDGE + 0.008, EDGE + 0.082):
         hk.band(k, s, s + 0.005, GAP + 0.02, GAP + 0.026, stitch, rows=1)
     for t in (T(40), T(62)):                                                                   # две пуговицы
-        p, n, along, across = hk.frame_at(k, EDGE + 0.045, t, GAP + 0.022)
-        zw.lathe(k, p, n, along, across, [(0, 0), (0.017, 0), (0.017, 0.006), (0.012, 0.008), (0, 0.007)], pearl, seg=10)
-        for x in (-1, 1):
-            zw.disc(k, p + n * 0.0075 + across * x * 0.005, n, along, 0.0025, 0.001, shade(pearl, 0.6), seg=5)
+        with on_ring(k, EDGE + 0.045, t, GAP + 0.022) as (p, n, along, across):
+            zw.lathe(k, p, n, along, across, [(0, 0), (0.017, 0), (0.017, 0.006), (0.012, 0.008), (0, 0.007)], pearl,
+                     seg=10)
+            for x in (-1, 1):
+                zw.disc(k, p + n * 0.0075 + across * x * 0.005, n, along, 0.0025, 0.001, shade(pearl, 0.6), seg=5)
     hk.strip(k, edge, edge + 0.13, T(150), T(162), surf(edge, edge) + 0.004, 0.006, shade(blue, 0.93), rows=2, cols=1,
              grow=1.07)                                                                         # планка
-    p, n, along, across = at(k, edge + 0.08, T(156), edge, 1.07, 0.01)
-    zw.disc(k, p, n, along, 0.014, 0.006, pearl, seg=8)
-    p, n, along, across = hk.frame_at(k, EDGE + 0.045, T(90), GAP + 0.022)                    # запонка-кость
-    zw.die(k, p + n * 0.02, n, along, across, 0.04, C(0.95, 0.8, 0.35), C(0.75, 0.55, 0.15), BLACK, [(n, 5)])
+    with on(k, edge + 0.08, T(156), edge, 1.07, 0.01) as (p, n, along, across):
+        zw.disc(k, p, n, along, 0.014, 0.006, pearl, seg=8)
+    with on_ring(k, EDGE + 0.045, T(90), GAP + 0.022) as (p, n, along, across):              # запонка-кость
+        zw.die(k, p + n * 0.02, n, along, across, 0.04, C(0.95, 0.8, 0.35), C(0.75, 0.55, 0.15), BLACK, [(n, 5)])
     k.roughness = 0.7
     return k
 
@@ -273,13 +327,13 @@ def make_cowboy():
         s = edge + 0.07 + q * 0.024
         hk.hang(k, s, T(8), surf(s, edge) + 0.008, 0.014, 0.085 + 0.02 * (q % 2), suede if q % 2 else shade(suede, 0.85),
                 thick=0.006, grow=1.07)
-    p, n, along, across = at(k, edge + 0.12, T(92), edge, 1.07, 0.004)                         # звезда шерифа
-    star(k, p, n, -along, 0.068, C(1.0, 0.8, 0.3), h=0.01)
-    for q in range(5):
-        a = 2 * math.pi * q / 5
-        d = -along * math.cos(a) + across * math.sin(a)
-        hk.ball(k, p + d * 0.069 + n * 0.008, 0.01, C(1.0, 0.88, 0.5), seg=5, rings=3)
-    zw.disc(k, p + n * 0.01, n, along, 0.022, 0.003, C(0.85, 0.6, 0.2), seg=10)
+    with on(k, edge + 0.12, T(92), edge, 1.07, 0.002) as (p, n, along, across):              # звезда шерифа
+        star(k, p, n, -along, 0.068, C(1.0, 0.8, 0.3), h=0.01)
+        for q in range(5):
+            a = 2 * math.pi * q / 5
+            d = -along * math.cos(a) + across * math.sin(a)
+            hk.ball(k, p + d * 0.069 + n * 0.008, 0.01, C(1.0, 0.88, 0.5), seg=5, rings=3)
+        zw.disc(k, p + n * 0.01, n, along, 0.022, 0.003, C(0.85, 0.6, 0.2), seg=10)
     k.roughness = 0.8
     return k
 
@@ -296,22 +350,23 @@ def make_denim():
     hk.band(k, EDGE + 0.006, EDGE + 0.012, GAP + 0.02, GAP + 0.028, stitch, rows=1)
     hk.band(k, EDGE + 0.058, EDGE + 0.064, GAP + 0.02, GAP + 0.028, stitch, rows=1)
     for s in (EDGE + 0.035,):
-        hk.cyl_on(k, s, T(150), GAP + 0.024, 0.022, 0.012, copper, seg=8, bevel=0.004)
+        with on_ring(k, s, T(150), GAP + 0.024):
+            hk.cyl_on(k, s, T(150), GAP + 0.024, 0.022, 0.012, copper, seg=8, bevel=0.004)
     # нашивка-кость
-    p, n, along, across = at(k, edge + 0.1, T(98), edge, 1.1)
-    stitched_patch(k, p, n, along, across, 0.14, 0.14, C(0.85, 0.15, 0.15), WHITE)
-    zw.pips(k, p + n * 0.0075, n, along, 0.15, 5, WHITE)
+    with on(k, edge + 0.1, T(98), edge, 1.1) as (p, n, along, across):
+        stitched_patch(k, p, n, along, across, 0.14, 0.14, C(0.85, 0.15, 0.15), WHITE)
+        zw.pips(k, p + n * 0.0075, n, along, 0.15, 5, WHITE)
     # нашивка-звезда
-    p, n, along, across = at(k, edge + 0.22, T(62), edge, 1.1)
-    zw.disc(k, p, n, along, 0.07, 0.004, C(0.12, 0.12, 0.14), seg=16)
-    star(k, p + n * 0.004, n, -along, 0.06, C(1.0, 0.82, 0.2), h=0.004)
+    with on(k, edge + 0.22, T(62), edge, 1.1) as (p, n, along, across):
+        zw.disc(k, p, n, along, 0.07, 0.004, C(0.12, 0.12, 0.14), seg=16)
+        star(k, p + n * 0.004, n, -along, 0.06, C(1.0, 0.82, 0.2), h=0.004)
     # значки: «восьмёрка» и сердечко
-    p, n, along, across = at(k, edge + 0.03, T(70), edge, 1.1)
-    zw.lathe(k, p, n, along, across, [(0, 0), (0.026, 0), (0.026, 0.006), (0.02, 0.01), (0, 0.011)], BLACK, seg=12)
-    zw.disc(k, p + n * 0.01, n, along, 0.012, 0.002, WHITE, seg=10)
-    zw.glint(k, p + n * 0.011 - along * 0.01 + across * 0.012, n, along, 0.012, 0.004)
-    p, n, along, across = at(k, edge + 0.2, T(118), edge, 1.1)
-    heart(k, p, n, -along, 0.06, C(0.95, 0.25, 0.4), h=0.008)
+    with on(k, edge + 0.03, T(70), edge, 1.1) as (p, n, along, across):
+        zw.lathe(k, p, n, along, across, [(0, 0), (0.026, 0), (0.026, 0.006), (0.02, 0.01), (0, 0.011)], BLACK, seg=12)
+        zw.disc(k, p + n * 0.01, n, along, 0.012, 0.002, WHITE, seg=10)
+        zw.glint(k, p + n * 0.011 - along * 0.01 + across * 0.012, n, along, 0.012, 0.004)
+    with on(k, edge + 0.2, T(118), edge, 1.1) as (p, n, along, across):
+        heart(k, p, n, -along, 0.06, C(0.95, 0.25, 0.4), h=0.008)
     k.roughness = 0.85
     return k
 
@@ -327,15 +382,15 @@ def make_croupier():
     hk.band(k, EDGE - 0.01, EDGE + 0.1, GAP * 0.5, GAP + 0.022, WHITE, rows=1)
     hk.roll(k, EDGE - 0.006, GAP + 0.012, 0.006, shade(WHITE, 0.92), sides=6)
     for t in (T(48), T(72)):                                                                   # запонки-фишки
-        p, n, along, across = hk.frame_at(k, EDGE + 0.045, t, GAP + 0.022)
-        zw.lathe(k, p, n, along, across, [(0, 0), (0.024, 0), (0.024, 0.01), (0, 0.01)],
-                 lambda i, q: (WHITE if q % 3 == 0 else red) if i == 1 else red, seg=12)
-        zw.disc(k, p + n * 0.01, n, along, 0.013, 0.002, WHITE, seg=10)
+        with on_ring(k, EDGE + 0.045, t, GAP + 0.022) as (p, n, along, across):
+            zw.lathe(k, p, n, along, across, [(0, 0), (0.024, 0), (0.024, 0.01), (0, 0.01)],
+                     lambda i, q: (WHITE if q % 3 == 0 else red) if i == 1 else red, seg=12)
+            zw.disc(k, p + n * 0.01, n, along, 0.013, 0.002, WHITE, seg=10)
     lift = surf(garter, edge) + puff(garter)
     hk.band(k, garter - 0.04, garter + 0.04, lift - 0.006, lift + 0.02,
             lambda r, j: red if r in (0, 2) else BLACK, grow=1.12, rows=3, wave=lambda t, r: 0.004 * math.sin(t * 6))
-    p, n, along, across = hk.frame_at(k, garter, T(95), lift + 0.022, 1.12)
-    buckle(k, p, n, across, along, 0.09, 0.07, SILVER)
+    with on_ring(k, garter, T(95), lift + 0.022, 1.12, wave=lambda t: 0.004 * math.sin(t * 6)) as (p, n, along, across):
+        buckle(k, p, n, across, along, 0.09, 0.07, SILVER)
     k.roughness = 0.6
     return k
 
@@ -358,11 +413,11 @@ def make_sailor():
     edge = 0.27
     body(k, edge + 0.04, lambda r, j: WHITE if r % 2 else navy, rows=18, grow=1.05, folds=0.005)
     hk.roll(k, edge + 0.04, GAP + 0.006, 0.045, lambda r, j: navy if r % 2 else WHITE, sides=8)
-    p, n, along, across = at(k, 0.45, T(88), edge + 0.04, 1.05, folds=0.005)
-    zw.disc(k, p, n, along, 0.085, 0.004, navy, seg=18)
-    zw.lathe(k, p + n * 0.004, n, along, across, [(0.072, 0), (0.08, 0), (0.08, 0.003), (0.072, 0.003)],
-             C(1.0, 0.8, 0.3), seg=18)
-    anchor_badge(k, p + n * 0.004, n, -along, 0.11, C(1.0, 0.8, 0.3))
+    with on(k, 0.45, T(88), edge + 0.04, 1.05, folds=0.005) as (p, n, along, across):
+        zw.disc(k, p, n, along, 0.085, 0.004, navy, seg=18)
+        zw.lathe(k, p + n * 0.004, n, along, across, [(0.072, 0), (0.08, 0), (0.08, 0.003), (0.072, 0.003)],
+                 C(1.0, 0.8, 0.3), seg=18)
+        anchor_badge(k, p + n * 0.004, n, -along, 0.11, C(1.0, 0.8, 0.3))
     k.roughness = 0.85
     return k
 
@@ -374,13 +429,13 @@ def make_kimono():
     body(k, EDGE, lambda r, j: sky if r == 1 else indigo, grow=1.5, drop=0.14, rows=10, edge_color=WHITE, inside=red,
          thin=0.014, folds=0.006)
     hk.band(k, EDGE + 0.002, EDGE + 0.04, GAP + 0.002, GAP + 0.012, WHITE, grow=1.5, drop=0.14, rows=1)
-    p, n, along, across = at(k, EDGE + 0.17, T(92), EDGE, 1.5, 0.004, 0.14, folds=0.006, thin=0.014)
-    zw.disc(k, p, n, along, 0.075, 0.004, WHITE, seg=24)
-    for q in range(5):
-        a = 2 * math.pi * q / 5
-        d = -along * math.cos(a) + across * math.sin(a)
-        zw.disc(k, p + n * 0.004 + d * 0.03, n, along, 0.025, 0.003, red, seg=12)
-    zw.disc(k, p + n * 0.007, n, along, 0.013, 0.002, C(1.0, 0.82, 0.3), seg=10)
+    with on(k, EDGE + 0.17, T(92), EDGE, 1.5, 0.0, 0.14, folds=0.006, thin=0.014) as (p, n, along, across):
+        zw.disc(k, p, n, along, 0.075, 0.004, WHITE, seg=24)
+        for q in range(5):
+            a = 2 * math.pi * q / 5
+            d = -along * math.cos(a) + across * math.sin(a)
+            zw.disc(k, p + n * 0.004 + d * 0.03, n, along, 0.025, 0.003, red, seg=12)
+        zw.disc(k, p + n * 0.007, n, along, 0.013, 0.002, C(1.0, 0.82, 0.3), seg=10)
     k.roughness = 0.75
     return k
 
@@ -396,13 +451,13 @@ def make_mage():
     for q in range(9):                                                                         # руны на кайме
         hk.box_on(k, edge - 0.06, T(42 + q * 12), GAP + 0.098, 0.02, 0.028, 0.008, C(0.4, 0.95, 1.0) if q % 2 else gold,
                   grow=1.25, drop=0.05)
-    p, n, along, across = at(k, edge + 0.15, T(92), edge, 1.3, 0.004, 0.06, folds=0.006, thin=0.014)
-    zw.disc(k, p, n, along, 0.08, 0.006, gold, seg=24)
-    zw.disc(k, p + across * 0.036 - along * 0.016 + n * 0.0005, n, along, 0.069, 0.0068, purple, seg=24)
+    with on(k, edge + 0.15, T(92), edge, 1.3, 0.0, 0.06, folds=0.006, thin=0.014) as (p, n, along, across):
+        zw.disc(k, p, n, along, 0.08, 0.006, gold, seg=24)
+        zw.disc(k, p + across * 0.036 - along * 0.016 + n * 0.0005, n, along, 0.069, 0.0068, purple, seg=24)
     for s, t, r in ((0.3, 60, 0.026), (0.44, 118, 0.02), (0.5, 72, 0.018), (0.58, 104, 0.024), (0.36, 135, 0.016),
                     (0.66, 82, 0.018), (0.4, 40, 0.014), (0.62, 128, 0.015)):
-        p, n, along, across = at(k, s, T(t), edge, 1.3, 0.004, 0.06, folds=0.006, thin=0.014)
-        star(k, p, n, -along, r * 1.4, gold, points=4, h=0.005, inner=0.35)
+        with on(k, s, T(t), edge, 1.3, 0.0, 0.06, folds=0.006, thin=0.014) as (p, n, along, across):
+            star(k, p, n, -along, r * 1.4, gold, points=4, h=0.005, inner=0.35)
     for t in (T(70), T(100), T(130)):                                                          # кисточки на краю
         hk.hang(k, edge - 0.085, t, GAP + 0.11, 0.014, 0.07, gold, grow=1.25, drop=0.05)
     k.roughness = 0.7
@@ -420,17 +475,22 @@ def make_biker():
         hk.stud(k, EDGE + 0.035, T(20 + q * 15), GAP + 0.026, 0.017, 0.032, SILVER)
     for q in range(14):                                                                        # молния вдоль руки
         s = edge + 0.03 + q * 0.035
-        hk.box_on(k, s, T(130), surf(s, edge), 0.02, 0.022, 0.008, SILVER if q % 2 else shade(SILVER, 0.7), grow=1.12)
-    hk.box_on(k, edge + 0.02, T(130), surf(edge, edge) + 0.006, 0.032, 0.05, 0.014, SILVER, grow=1.12)
+        with on(k, s, T(130), edge, 1.12):
+            hk.box_on(k, s, T(130), surf(s, edge) + fold(T(130), s, 0.008), 0.02, 0.022, 0.008,
+                      SILVER if q % 2 else shade(SILVER, 0.7), grow=1.12)
+    with on(k, edge + 0.02, T(130), edge, 1.12, 0.004):
+        hk.box_on(k, edge + 0.02, T(130), surf(edge, edge) + fold(T(130), edge + 0.02, 0.008) + 0.004, 0.032, 0.05, 0.014,
+                  SILVER, grow=1.12)
     # нашивка: кость с крыльями
-    p, n, along, across = at(k, edge + 0.13, T(92), edge, 1.12)
-    zw.disc(k, p, n, along, 0.09, 0.004, C(0.75, 0.12, 0.1), seg=18)
-    zw.chamfer_box(k, p + n * 0.02, across, along, n, 0.03, 0.03, 0.016, 0.006, WHITE, shade(WHITE, 0.8))
-    zw.pips(k, p + n * 0.036, n, along, 0.06, 6, BLACK)
-    for x in (-1, 1):
-        for q in range(3):
-            d = (across * x * math.cos(T(15 + q * 22)) - along * math.sin(T(15 + q * 22))).normalized()
-            hk.slab(k, p + n * 0.006 + across * x * 0.028, d, d.cross(n).normalized(), n, 0.07 - q * 0.012, 0.016, 0.005, WHITE)
+    with on(k, edge + 0.13, T(92), edge, 1.12) as (p, n, along, across):
+        zw.disc(k, p, n, along, 0.09, 0.004, C(0.75, 0.12, 0.1), seg=18)
+        zw.chamfer_box(k, p + n * 0.02, across, along, n, 0.03, 0.03, 0.016, 0.006, WHITE, shade(WHITE, 0.8))
+        zw.pips(k, p + n * 0.036, n, along, 0.06, 6, BLACK)
+        for x in (-1, 1):
+            for q in range(3):
+                d = (across * x * math.cos(T(15 + q * 22)) - along * math.sin(T(15 + q * 22))).normalized()
+                hk.slab(k, p + n * 0.006 + across * x * 0.028, d, d.cross(n).normalized(), n, 0.07 - q * 0.012, 0.016,
+                        0.005, WHITE)
     strap(k, 0.5, 0.05, edge, 1.12, shade(leather, 1.4), buckle_t=T(95))
     k.roughness = 0.45
     return k
@@ -449,13 +509,14 @@ def make_mafia():
     hk.band(k, EDGE - 0.01, edge + 0.02, GAP * 0.5, GAP + 0.018, WHITE, rows=1)
     hk.roll(k, EDGE - 0.006, GAP + 0.01, 0.006, shade(WHITE, 0.92), sides=6)
     hk.roll(k, edge + 0.004, surf(edge, edge) + 0.004, 0.006, shade(wool, 1.5), sides=6, grow=1.12)  # кант рукава
-    p, n, along, across = hk.frame_at(k, EDGE + 0.02, T(62), GAP + 0.018)
-    zw.lathe(k, p, n, along, across, [(0, 0), (0.032, 0), (0.034, 0.008), (0.027, 0.012), (0, 0.012)],
-             lambda i, q: GOLD if i != 2 else shade(GOLD, 1.2), seg=12)
-    zw.gem_cut(k, p + n * 0.012, n, along, 0.021, WHITE, seg=8)
+    with on_ring(k, EDGE + 0.02, T(62), GAP + 0.018) as (p, n, along, across):
+        zw.lathe(k, p, n, along, across, [(0, 0), (0.032, 0), (0.034, 0.008), (0.027, 0.012), (0, 0.012)],
+                 lambda i, q: GOLD if i != 2 else shade(GOLD, 1.2), seg=12)
+        zw.gem_cut(k, p + n * 0.012, n, along, 0.021, WHITE, seg=8)
     for q in range(4):
-        p, n, along, across = at(k, edge + 0.035 + q * 0.032, T(118), edge, 1.12)
-        zw.lathe(k, p, n, along, across, [(0, 0), (0.019, 0), (0.019, 0.007), (0.014, 0.011), (0, 0.011)], BLACK, seg=8)
+        with on(k, edge + 0.035 + q * 0.032, T(118), edge, 1.12) as (p, n, along, across):
+            zw.lathe(k, p, n, along, across, [(0, 0), (0.019, 0), (0.019, 0.007), (0.014, 0.011), (0, 0.011)], BLACK,
+                     seg=8)
     k.roughness = 0.6
     return k
 
@@ -483,8 +544,8 @@ def make_ace():
     lift = surf(garter, edge)
     hk.band(k, garter - 0.03, garter + 0.03, lift - 0.004, lift + 0.016, red, grow=1.08, rows=1,
             wave=lambda t, r: 0.004 * math.sin(t * 6))
-    p, n, along, across = hk.frame_at(k, garter, T(95), lift + 0.018, 1.08)
-    buckle(k, p, n, across, along, 0.07, 0.055, GOLD)
+    with on_ring(k, garter, T(95), lift + 0.016, 1.08, wave=lambda t: 0.004 * math.sin(t * 6)) as (p, n, along, across):
+        buckle(k, p, n, across, along, 0.07, 0.055, GOLD)
     # Тузы выезжают из манжеты сбоку (у большого пальца) и отходят от руки: часы и браслеты не задевают.
     for t, pitch, suit, col in ((T(38), 0.5, "spade", BLACK), (T(54), 0.4, "heart", red)):
         p, out, across, up = hk.sticking_out(k, EDGE + 0.04, t, GAP + 0.03, pitch)
@@ -494,7 +555,7 @@ def make_ace():
 
 
 def make_pirate():
-    """Пиратская рубаха: оборка, шнуровка, кожаный наруч с пряжками."""
+    """Пиратская рубаха: оборка, красный кушак, кожаный наруч с пряжками и заклёпками."""
     k = hk.Kit("Sleeve_Pirate", ARM)
     linen, frill, lace = C(0.95, 0.92, 0.84), C(0.98, 0.97, 0.92), C(0.45, 0.28, 0.14)
     brown = C(0.42, 0.24, 0.12)
@@ -510,17 +571,12 @@ def make_pirate():
     hk.band(k, s0, s1, GAP + 0.02, GAP + 0.05, lambda r, j: brown if r != 1 else shade(brown, 1.25), grow=1.25, rows=2)
     for s in (s0 + 0.035, s1 - 0.035):
         hk.band(k, s - 0.012, s + 0.012, GAP + 0.04, GAP + 0.058, shade(brown, 0.6), grow=1.25, rows=1)
-        p, n, along, across = hk.frame_at(k, s, T(70), GAP + 0.058, 1.25)
-        buckle(k, p, n, across, along, 0.035, 0.032, C(0.85, 0.65, 0.3))
+        with on_ring(k, s, T(70), GAP + 0.058, 1.25) as (p, n, along, across):
+            buckle(k, p, n, across, along, 0.035, 0.032, C(0.85, 0.65, 0.3))
     for q in range(6):
-        p, n, along, across = hk.frame_at(k, (s0 + s1) / 2, T(95 + q * 12), GAP + 0.05, 1.25)
-        zw.lathe(k, p, n, along, across, [(0, 0), (0.009, 0), (0.007, 0.005), (0, 0.007)], C(0.85, 0.65, 0.3), seg=6)
-    for q in range(3):                                                                         # шнуровка выше наруча
-        a0, a1 = s1 + 0.02 + q * 0.05, s1 + 0.07 + q * 0.05
-        lift = surf(a0, edge) + 0.02
-        for a, b in ((T(78), T(102)), (T(102), T(78))):
-            path = [ARM.point(a0 + (a1 - a0) * i / 4, a + (b - a) * i / 4, lift, 1.2) for i in range(5)]
-            hk.tube(k, path, 0.008, lace, sides=5)
+        with on_ring(k, (s0 + s1) / 2, T(95 + q * 12), GAP + 0.05, 1.25) as (p, n, along, across):
+            zw.lathe(k, p, n, along, across, [(0, 0), (0.009, 0), (0.007, 0.005), (0, 0.007)], C(0.85, 0.65, 0.3),
+                     seg=6)
     k.roughness = 0.85
     return k
 
@@ -534,24 +590,26 @@ def make_fortune():
          grow=1.28, drop=0.06, rows=10, inside=shade(lining, 0.8), thin=0.012, folds=0.006)
     hk.band(k, edge - 0.02, edge + 0.05, GAP + 0.02, GAP + 0.04, trim, grow=1.3, drop=0.06, rows=1)
     for q in range(16):
-        p, n, along, across = hk.frame_at(k, edge + 0.015, T(q * 22.5), GAP + 0.04, 1.3, 0.06)
-        zw.lathe(k, p, n, along, across, [(0, 0), (0.021, 0), (0.021, 0.006), (0.014, 0.006), (0.014, 0.008), (0, 0.008)],
-                 lambda i, qq: GOLD if i != 3 else shade(GOLD, 0.75), seg=10)
+        with on_ring(k, edge + 0.015, T(q * 22.5), GAP + 0.04, 1.3, 0.06) as (p, n, along, across):
+            zw.lathe(k, p, n, along, across, [(0, 0), (0.021, 0), (0.021, 0.006), (0.014, 0.006), (0.014, 0.008),
+                                              (0, 0.008)],
+                     lambda i, qq: GOLD if i != 3 else shade(GOLD, 0.75), seg=10)
     for q in range(20):
         t = T(185 + q * 9)
         hk.hang(k, edge - 0.015, t, GAP + 0.03, 0.014, 0.09 + 0.03 * (q % 2), GOLD if q % 3 == 0 else trim,
                 grow=1.3, drop=0.06)
-    p, n, along, across = at(k, edge + 0.16, T(92), edge, 1.28, 0.004, 0.06, folds=0.006, thin=0.012)
     m = 1.45
-    for q in range(10):
-        a = math.pi * q / 9
-        d = (across * math.cos(a) - along * math.sin(a)).normalized()
-        hk.slab(k, p + d * 0.045 * m, d, d.cross(n).normalized(), n, 0.025 * m, 0.007 * m, 0.004, GOLD)
-    flat_shape(k, p, n, across, lambda a: 0.048 * m * (1.0 if abs(math.sin(a)) < 0.2 else 0.5 + 0.5 * abs(math.cos(a))),
-               16, 0.004, C(0.97, 0.95, 0.9), side=GOLD)
-    zw.disc(k, p + n * 0.004, n, along, 0.02 * m, 0.002, C(0.2, 0.55, 0.9), seg=12)
-    zw.disc(k, p + n * 0.006, n, along, 0.009 * m, 0.002, BLACK, seg=8)
-    zw.glint(k, p + n * 0.008 - along * 0.006 + across * 0.008, n, along, 0.008, 0.003)
+    with on(k, edge + 0.16, T(92), edge, 1.28, 0.0, 0.06, folds=0.006, thin=0.012) as (p, n, along, across):
+        for q in range(10):
+            a = math.pi * q / 9
+            d = (across * math.cos(a) - along * math.sin(a)).normalized()
+            hk.slab(k, p + d * 0.045 * m, d, d.cross(n).normalized(), n, 0.025 * m, 0.007 * m, 0.004, GOLD)
+        flat_shape(k, p, n, across,
+                   lambda a: 0.048 * m * (1.0 if abs(math.sin(a)) < 0.2 else 0.5 + 0.5 * abs(math.cos(a))),
+                   16, 0.004, C(0.97, 0.95, 0.9), side=GOLD)
+        zw.disc(k, p + n * 0.004, n, along, 0.02 * m, 0.002, C(0.2, 0.55, 0.9), seg=12)
+        zw.disc(k, p + n * 0.006, n, along, 0.009 * m, 0.002, BLACK, seg=8)
+        zw.glint(k, p + n * 0.008 - along * 0.006 + across * 0.008, n, along, 0.008, 0.003)
     k.roughness = 0.75
     return k
 
@@ -582,14 +640,14 @@ def make_robe():
                 t = T(90) + d * (s - edge) / cell_s * cell_t * 0.5 + q * cell_t
                 if not (T(-10) <= t <= T(190)) or s > ARM.back - 0.03:
                     continue
-                path.append(ARM.point(s, t, surf(s, edge) + 0.003, 1.14))
+                path.append(ARM.point(s, t, surf(s, edge) + 0.0045 + 0.004 * abs(math.sin(t * 7)), 1.14))   # над волной ткани
             if len(path) >= 3:
                 ink(k, path, 0.0045, shade(pink, 0.72), sides=3)
     hk.band(k, EDGE - 0.01, EDGE + 0.1, GAP * 0.5, GAP + 0.04, cream, grow=1.04, rows=2,
             wave=lambda t, r: 0.012 * max(0.0, math.sin(t * 9)) * (r == 1))
     for s, t in ((0.32, 80), (0.42, 120), (0.52, 70), (0.38, 40), (0.6, 105), (0.68, 60), (0.48, 98)):
-        p, n, along, across = hk.frame_at(k, s, T(t), surf(s, edge) + 0.008, 1.14)
-        flower(k, p, n, along, WHITE if (s * 100) % 2 < 1 else C(1.0, 0.9, 0.95), yellow, size=0.03)
+        with on(k, s, T(t), edge, 1.14, 0.002, folds=0.0) as (p, n, along, across):
+            flower(k, p, n, along, WHITE if (s * 100) % 2 < 1 else C(1.0, 0.9, 0.95), yellow, size=0.03)
     p, n, along, across = hk.frame_at(k, EDGE + 0.05, T(95), GAP + 0.045, 1.04)               # бантик на манжете
     red = C(0.85, 0.2, 0.3)
     for x in (-1, 1):
@@ -613,8 +671,8 @@ def make_tavern():
         hk.flap(k, 0.17, 0.29, t, GAP + 0.011, 0.13, towel)
         hk.flap(k, 0.19, 0.205, t, GAP + 0.019, 0.13, stripe, thick=0.004)
         hk.flap(k, 0.255, 0.27, t, GAP + 0.019, 0.13, stripe, thick=0.004)
-    p, n, along, across = at(k, edge + 0.13, T(96), edge, 1.08, folds=0.006)                   # заплатка
-    stitched_patch(k, p, n, along, across, 0.13, 0.12, C(0.55, 0.35, 0.2), C(0.95, 0.85, 0.6))
+    with on(k, edge + 0.13, T(96), edge, 1.08, folds=0.006) as (p, n, along, across):          # заплатка
+        stitched_patch(k, p, n, along, across, 0.13, 0.12, C(0.55, 0.35, 0.2), C(0.95, 0.85, 0.6))
     k.roughness = 0.85
     return k
 
