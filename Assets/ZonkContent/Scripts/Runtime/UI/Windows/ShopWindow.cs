@@ -62,6 +62,13 @@ namespace Zonk.UI.Windows
         private CosmeticSlotConfig _slot;
         private int _spot;
 
+        // Вкладки и их ключи: слот либо метка особой вкладки. Выбранная красится как «включено».
+        private static readonly object DiceTabKey = new object();
+        private static readonly object ThemesTabKey = new object();
+        private static readonly object CoinsTabKey = new object();
+        private readonly List<UiButtonView> _tabButtons = new List<UiButtonView>();
+        private readonly List<object> _tabKeys = new List<object>();
+
         /// <summary>Слот последней примерки: примерка вещи другого слота той же вкладки возвращает его экипировку.</summary>
         private CosmeticSlotConfig _previewSlot;
 
@@ -147,6 +154,7 @@ namespace Zonk.UI.Windows
                 tab.SetText(T(slot.NameKey));
                 FitTab(tab);
                 tab.OnClick(() => SelectSlot(captured));
+                AddTab(tab, captured);
             }
 
             // Вкладка особых костей: за монеты, рекламу, покупку или победу над соперником.
@@ -158,6 +166,7 @@ namespace Zonk.UI.Windows
                 diceTab.SetText(T("shop.dice"));
                 FitTab(diceTab);
                 diceTab.OnClick(SelectDice);
+                AddTab(diceTab, DiceTabKey);
             }
 
             if (_themes.Count > 0)
@@ -166,6 +175,7 @@ namespace Zonk.UI.Windows
                 themes.SetText(T("shop.themes"));
                 FitTab(themes);
                 themes.OnClick(() => SelectSlot(null));
+                AddTab(themes, ThemesTabKey);
             }
 
             // Пакеты монет за деньги: только там, где на площадке есть покупки.
@@ -175,9 +185,23 @@ namespace Zonk.UI.Windows
                 coinsTab.SetText(T("shop.coins"));
                 FitTab(coinsTab);
                 coinsTab.OnClick(SelectCoins);
+                AddTab(coinsTab, CoinsTabKey);
             }
 
             _back.transform.SetAsLastSibling();
+        }
+
+        private void AddTab(UiButtonView tab, object key)
+        {
+            _tabButtons.Add(tab);
+            _tabKeys.Add(key);
+        }
+
+        /// <summary>Выбранная вкладка — цвет «включено», остальные приглушены.</summary>
+        private void HighlightTab(object key)
+        {
+            for (var i = 0; i < _tabButtons.Count; i++)
+                _tabButtons[i].SetColor(_tabKeys[i] == key ? UiColors.ButtonAccent : UiColors.ButtonMuted);
         }
 
         /// <summary>
@@ -297,6 +321,7 @@ namespace Zonk.UI.Windows
             _slot = slot;
             _diceTab = diceTab;
             _coinsTab = coinsTab;
+            HighlightTab(coinsTab ? CoinsTabKey : diceTab ? DiceTabKey : slot != null ? (object)slot : ThemesTabKey);
             _title.text = title;
             _table.Camera.MoveToAsync(cameraShot, 0.6f, _ct).Forget();
             ClearCards();

@@ -29,6 +29,7 @@ import zonk_models as zm
 import zonk_arms as za
 
 SEG = 32                          # граней по окружности
+POLAR = 96                        # лучей замера кожи по окружности (Arm.hug)
 GAP = za.SLEEVE_GAP * za.SCALE    # зазор ткани над кожей
 LINING = 0.05                     # глубина подкладки внутрь от края рукава
 BACK_PAST_CUT = 0.35              # рукав заходит за срез к локтю: его конец у нижнего края кадра партии, а не в кадре
@@ -79,6 +80,12 @@ class Arm:
         cut = bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], plane_co=p, plane_no=self.axis)
         pts = [((v.co - p).dot(self.side), (v.co - p).dot(self.up))
                for v in cut["geom_cut"] if isinstance(v, bmesh.types.BMVert)]
+        segs = []
+        for e in cut["geom_cut"]:
+            if isinstance(e, bmesh.types.BMEdge):
+                q0, q1 = [((v.co - p).dot(self.side), (v.co - p).dot(self.up)) for v in e.verts]
+                if math.hypot(*q0) < 0.6 and math.hypot(*q1) < 0.6:
+                    segs.append((q0, q1))
         bm.free()
         pts = [q for q in pts if math.hypot(*q) < 0.6]
         xs, zs = [q[0] for q in pts], [q[1] for q in pts]
@@ -86,7 +93,49 @@ class Arm:
         a, b = (max(xs) - min(xs)) * 0.5, (max(zs) - min(zs)) * 0.5
         # эллипс через крайние точки может срезать углы сечения: растянуть, чтобы все точки были внутри
         k = max(math.sqrt(((x - cx) / a) ** 2 + ((z - cz) / b) ** 2) for x, z in pts)
-        return cx, cz, a * max(k, 1.0), b * max(k, 1.0)
+        a, b = a * max(k, 1.0), b * max(k, 1.0)
+        return cx, cz, a, b, self._polar(segs, cx, cz, a, b)
+
+    @staticmethod
+    def _polar(segs, cx, cz, a, b):
+        """Расстояние от центра до кожи по лучу к точке эллипса угла t (POLAR лучей): по нему вещи облегают гранёную руку."""
+        out = []
+        for j in range(POLAR):
+            t = angle(j, POLAR)
+            dx, dz = math.cos(t) * a, math.sin(t) * b
+            n = math.hypot(dx, dz)
+            dx, dz = dx / n, dz / n
+            best = 0.0
+            for (x0, z0), (x1, z1) in segs:
+                ex, ez = x1 - x0, z1 - z0
+                den = dx * ez - dz * ex
+                if abs(den) < 1e-9:
+                    continue
+                ox, oz = x0 - cx, z0 - cz
+                r = (ox * ez - oz * ex) / den
+                u = (ox * dz - oz * dx) / den
+                if r > 0 and -1e-6 <= u <= 1 + 1e-6:
+                    best = max(best, r)
+            out.append(best if best > 0 else n)
+        # чуть сгладить углы граней, но не уходить внутрь кожи
+        return [max(out[j], 0.5 * (out[j - 1] + out[(j + 1) % POLAR])) for j in range(POLAR)]
+
+    def hug(self, s, t, add=0.0):
+        """Точка на высоте add над кожей по лучу угла t: вплотную к граням руки, без зазора эллипса."""
+        sm = self.samples
+        i = min(max(int(s / (sm[1][0] - sm[0][0])), 0), len(sm) - 2)
+        f = (s - sm[i][0]) / (sm[i + 1][0] - sm[i][0])
+        cx, cz, a, b = [sm[i][j] + (sm[i + 1][j] - sm[i][j]) * f for j in range(1, 5)]
+        x = ((t + math.pi / 2) / (2 * math.pi) * POLAR) % POLAR
+        j0 = int(x)
+        g = x - j0
+        j1 = (j0 + 1) % POLAR
+        r = 0.0
+        for q, w in ((i, 1 - f), (i + 1, f)):
+            polar = sm[q][5]
+            r += w * (polar[j0] * (1 - g) + polar[j1] * g)
+        d = self.side * (math.cos(t) * a) + self.up * (math.sin(t) * b)
+        return self.palm + self.axis * s + self.side * cx + self.up * cz + d.normalized() * (r + add)
 
     def ellipse(self, s):
         """(центр, полуось к большому пальцу, полуось вверх) на расстоянии s; за краями замера — по прямой."""
@@ -522,8 +571,11 @@ def hang(k, s, t, add, width, length, color, thick=0.008, grow=1.0, drop=0.0):
 # Проверка, превью, выгрузка
 # ---------------------------------------------------------------------------
 
-def inside_count(obj, arm, s_max=None):
-    """Сколько вершин вещи внутри руки (кроме центров донц — они внутри по построению)."""
+def inside_count(obj, arm, s_max=None, hugged=False):
+    """
+    Сколько вершин вещи внутри руки (кроме центров донц — они внутри по построению).
+    hugged — сверять с настоящими гранями кожи (Arm.hug), а не с описанным эллипсом: для вещей вплотную к руке.
+    """
     s_max = arm.cut if s_max is None else s_max
     inside = 0
     for v in obj.data.vertices:
@@ -532,7 +584,14 @@ def inside_count(obj, arm, s_max=None):
             continue
         c, a, b = arm.ellipse(s)
         q = v.co - c
-        if (q.dot(arm.side) / a) ** 2 + (q.dot(arm.up) / b) ** 2 < 0.995:
+        x, z = q.dot(arm.side), q.dot(arm.up)
+        if hugged:
+            t = math.atan2(z / b, x / a)
+            skin = arm.hug(s, t, 0.0) - (arm.palm + arm.axis * s)
+            centre = c - (arm.palm + arm.axis * s)
+            if math.hypot(x, z) < (skin - centre).length * 0.99:
+                inside += 1
+        elif (x / a) ** 2 + (z / b) ** 2 < 0.995:
             inside += 1
     return inside
 

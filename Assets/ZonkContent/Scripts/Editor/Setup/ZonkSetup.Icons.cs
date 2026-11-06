@@ -20,6 +20,23 @@ namespace Zonk.Editor.Setup
         private const int IconRender = 384;
         private const int IconMaxSize = 192;
 
+        private const string EnvironmentPrefix = "env_";
+        private const float ItemIconFov = 22f;
+        private static readonly int BakedDarkenId = Shader.PropertyToID("_ZonkBakedDarken");
+
+        // Локация снимается изнутри, как открытка: самое узнаваемое место сцены. Сцена огромна (небо, холмы), поэтому общий кадр вышел бы пустым.
+        // Варианты (env_tavern_night и другие) снимаются с того же места: начало имени совпадает. Стола в префабе нет, центр свободен.
+        private static readonly (string Id, Vector3 Position, Vector3 Target, float Fov)[] EnvironmentShots =
+        {
+            ("env_home", new Vector3(-0.8f, 1.5f, -5.6f), new Vector3(1.2f, -0.1f, 4.2f), 52f),
+            ("env_tavern", new Vector3(0.6f, 1.5f, -5.6f), new Vector3(-0.2f, -0.1f, 4.2f), 54f),
+            ("env_beach", new Vector3(2.8f, 1.3f, -7.2f), new Vector3(-1.5f, -0.1f, 3.4f), 50f),
+            ("env_ship", new Vector3(0.6f, 1.3f, -5.2f), new Vector3(0.4f, 0.5f, 6f), 60f),
+            ("env_garden", new Vector3(1.4f, 0.9f, -6.2f), new Vector3(0.6f, -0.1f, 6.5f), 54f),
+            ("env_attic", new Vector3(0f, 0.7f, -5.2f), new Vector3(0f, 0.75f, 5.5f), 60f),
+            ("env_basement", new Vector3(0f, 0.6f, -5.2f), new Vector3(0f, 0.75f, 5.5f), 62f),
+        };
+
         [MenuItem("Zonk/Art/Bake Shop Icons", priority = 45)]
         public static void BakeShopIconsMenu()
         {
@@ -27,7 +44,15 @@ namespace Zonk.Editor.Setup
             Debug.Log("[Zonk] Shop icons baked: " + baked + ". Without a model (no icon): " + string.Join(", ", skipped));
         }
 
-        public static int BakeShopIcons(out List<string> skipped)
+        /// <summary>Только локации: принятые иконки предметов не переснимаются.</summary>
+        [MenuItem("Zonk/Art/Bake Location Icons", priority = 45)]
+        public static void BakeLocationIconsMenu()
+        {
+            var baked = BakeShopIcons(out var skipped, EnvironmentPrefix);
+            Debug.Log("[Zonk] Location icons baked: " + baked + ". Without a model (no icon): " + string.Join(", ", skipped));
+        }
+
+        public static int BakeShopIcons(out List<string> skipped, string onlyPrefix = null)
         {
             skipped = new List<string>();
             EnsureFolder(IconsFolder);
@@ -45,7 +70,7 @@ namespace Zonk.Editor.Setup
                 foreach (var guid in AssetDatabase.FindAssets("t:ContentConfig", new[] { ConfigsFolder }))
                 {
                     var config = AssetDatabase.LoadAssetAtPath<ContentConfig>(AssetDatabase.GUIDToAssetPath(guid));
-                    if (!NeedsIcon(config))
+                    if (!NeedsIcon(config) || (onlyPrefix != null && !config.Id.StartsWith(onlyPrefix)))
                         continue;
 
                     var subject = IconSubject(config, dieMesh, scene, out var flat);
@@ -58,8 +83,11 @@ namespace Zonk.Editor.Setup
 
                     try
                     {
-                        Frame(camera, subject, flat);
+                        if (!FrameEnvironment(camera, subject, config))
+                            Frame(camera, subject, flat);
+
                         camera.Render();
+                        ResetIconCamera(camera);
                         var path = IconsFolder + "/" + config.Id + ".png";
                         WriteRender(target, path);
                         written.Add(new KeyValuePair<Object, string>(config, path));
@@ -108,7 +136,7 @@ namespace Zonk.Editor.Setup
             camera.targetTexture = target;
             camera.clearFlags = CameraClearFlags.SolidColor;
             camera.backgroundColor = new Color(0f, 0f, 0f, 0f);
-            camera.fieldOfView = 22f;
+            camera.fieldOfView = ItemIconFov;
             camera.allowHDR = false;
             camera.allowMSAA = false;
             camera.nearClipPlane = 0.01f;
@@ -182,6 +210,43 @@ namespace Zonk.Editor.Setup
             // Единица, двойка и тройка видны сразу: узнаётся как кость.
             go.transform.rotation = Quaternion.Euler(-12f, 28f, -8f);
             return go;
+        }
+
+        /// <summary>
+        /// Ракурс локации изнутри. Свет профиля: ночной вариант темнее на той же модели, поэтому иконки отличаются.
+        /// Пятна-ореолы огня прячем: их цвет выставляет компонент в игре, в снимке они были бы белыми кругами.
+        /// </summary>
+        private static bool FrameEnvironment(Camera camera, GameObject subject, ContentConfig config)
+        {
+            if (!(config is CosmeticItemConfig cosmetic) || !config.Id.StartsWith(EnvironmentPrefix))
+                return false;
+
+            foreach (var shot in EnvironmentShots)
+            {
+                if (!config.Id.StartsWith(shot.Id))
+                    continue;
+
+                foreach (var glow in subject.GetComponentsInChildren<Zonk.Presentation.WorldGlowPulse>(true))
+                    glow.gameObject.SetActive(false);
+
+                var lighting = cosmetic.Payload is PrefabPayload prefab ? prefab.Lighting : null;
+                Shader.SetGlobalColor(BakedDarkenId, lighting != null ? Color.white - lighting.BakedTint : Color.clear);
+                camera.backgroundColor = lighting != null ? new Color(lighting.Background.r, lighting.Background.g, lighting.Background.b, 1f) : Color.black;
+                camera.fieldOfView = shot.Fov;
+                camera.transform.position = shot.Position;
+                camera.transform.rotation = Quaternion.LookRotation(shot.Target - shot.Position, Vector3.up);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>Вернуть настройки предметов и обычный вид запечённых комнат в редакторе.</summary>
+        private static void ResetIconCamera(Camera camera)
+        {
+            camera.fieldOfView = ItemIconFov;
+            camera.backgroundColor = new Color(0f, 0f, 0f, 0f);
+            Shader.SetGlobalColor(BakedDarkenId, Color.clear);
         }
 
         /// <summary>Камера так, чтобы весь предмет вошёл в кадр с небольшим полем.</summary>

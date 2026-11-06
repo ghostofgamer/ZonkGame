@@ -20,7 +20,7 @@
     Hand_Robot     рука робота                                  замена
     Hand_Gold      золотая рука с перстнями                     замена
     Hand_Demon     рука демона: когти, шипы, лава               замена
-    Hand_Claw      клешня краба (Мадам Клешня)                  замена
+    Hand_Claw      крабовая перчатка: панцирь, глазки, клешни (Мадам Клешня)  замена
     Hand_Fortune   рука Фортуны: перламутр, золото, звезда      замена
     Hand_Gardener  садовая перчатка с розой (Графиня Роза)      перчатка
 
@@ -47,6 +47,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import zonk_models as zm  # noqa: E402
 import zonk_arms as za  # noqa: E402
 import zonk_handkit as hk  # noqa: E402
+import zonk_wrist as zw  # noqa: E402
 from zonk_handkit import C, shade  # noqa: E402
 
 MODELS_DIR = os.path.join(zm.PROJECT_ROOT, "Assets", "ZonkContent", "Art", "Models", "HandLooks")
@@ -499,32 +500,73 @@ def taper(k, pts, radii, color, sides=8, flat=1.0):
 
 
 def make_claw():
+    """
+    Крабовая перчатка (награда за Мадам Клешню): краба выиграли и сшили из него перчатку. Рука обычной формы —
+    стакан держится как у всех; панцирь на тыльной стороне с глазками на стебельках, пальцы в сегментах, как лапки,
+    ладонь светлая, как брюшко, по бокам запястья — маленькие клешни-трофеи.
+    """
     k = HandKit("Hand_Claw")
-    shell, light, dark = C(0.9, 0.32, 0.16), C(1.0, 0.55, 0.32), C(0.55, 0.15, 0.08)
+    shell, light, dark, belly = C(0.92, 0.3, 0.14), C(1.0, 0.56, 0.3), C(0.5, 0.1, 0.05), C(0.99, 0.86, 0.66)
+    copy_hand(k, shell, inflate=0.016, keep=lambda f, s, b: s < 0.04,
+              shade_by=lambda f: belly if f.normal.z < -0.35 else shell)
     forearm_skin(k, 0.04)
     k.bone = "Forearm"
-    for q in range(3):                                                         # панцирь до рукава
-        hk.band(k, 0.0 + q * 0.1, 0.09 + q * 0.1, 0.004, 0.04 - q * 0.008, shell if q % 2 == 0 else light, rows=1)
-    palm, mid, along, side = palm_frame()
-    k.bone = "Palm"
-    body = [palm - along * 0.06, palm.lerp(mid, 0.35), palm.lerp(mid, 0.75), mid + along * 0.06]
-    taper(k, body, [0.16, 0.23, 0.22, 0.15], shell, sides=10, flat=0.75)      # тело клешни
-    for q in range(4):
-        hk.ball(k, back_point(palm.lerp(mid, 0.25 + q * 0.17), 0.0) + side * (0.06 if q % 2 else -0.05), 0.026, light,
-                seg=6, rings=4)
-    # Две половины клешни: верхняя на указательном пальце, нижняя на большом — сжимаются вместе с пальцами.
-    for f, sign, color, radii in (("Index", 1, shell, (0.13, 0.11, 0.075, 0.012)),
-                                  ("Thumb", -1, light, (0.1, 0.085, 0.06, 0.012))):
+    zw.sweep(k, 0.022, zw.band_prof(0.056, 0.004, 0.026, 0.008),                    # манжета полосами
+             lambda ri, j: (shell if j % 2 else light) if ri in (2, 3, 4) else dark)
+
+    # пальцы — сегменты лапок: пластина сверху каждой фаланги, на кончике тёмный коготок
+    for f in FINGERS:
         pts = chain(f)
-        lift = UP * 0.03 * sign
+        r = finger_radius(f)
         for i in range(3):
             k.bone = f + str(i + 1)
-            taper(k, [pts[i] + lift, pts[i + 1] + lift], [radii[i], radii[i + 1] if i < 2 else radii[3]], color,
-                  sides=8, flat=0.8)
-            for t in (0.3, 0.75):                                              # зубцы внутрь, к другой половине
-                p = pts[i].lerp(pts[i + 1], t) + lift
-                cone(k, p - UP * sign * radii[i] * 0.6, p - UP * sign * (radii[i] * 0.6 + 0.045), 0.02, dark)
+            a, b = pts[i].lerp(pts[i + 1], 0.1), pts[i].lerp(pts[i + 1], 0.88)
+            beam(k, a + UP * r * 0.95, b + UP * r * 0.95, r * 1.75, 0.03, shell if i % 2 == 0 else light)
+            if i == 2:
+                d = (pts[3] - pts[2]).normalized()
+                cone(k, pts[3] + UP * r * 0.6 - d * 0.02, pts[3] + d * 0.05 + UP * r * 0.75, 0.02, dark)
+
+    # панцирь на тыльной стороне: купол с гребнем, шипы по переднему краю, пятна, глазки на стебельках
+    palm, mid, along, side = palm_frame()
     k.bone = "Palm"
+    c0 = palm.lerp(mid, 0.5)
+    L = (mid - palm).length
+    pts = []
+    for q in range(14):
+        a = 2 * math.pi * q / 14
+        for scale, lift in ((1.0, 0.014), (0.82, 0.075), (0.45, 0.115)):
+            p = c0 + (along * math.cos(a) * 0.62 * L + side * math.sin(a) * 0.19) * scale
+            pts.append(back_point(p, 0.0) + UP * lift)
+    zw.hull(k, pts, lambda nrm: light if nrm.z > 0.85 else shell if nrm.z > 0.2 else dark)
+    top = max(p.z for p in pts)
+    for q in range(-2, 3):                                                    # шипы спереди
+        p = c0 + along * 0.55 * L * math.cos(q * 0.32) + side * 0.17 * math.sin(q * 0.32)
+        p = Vector((p.x, p.y, top - 0.035))
+        cone(k, p, p + along * 0.05 + side * q * 0.012 + UP * 0.02, 0.016, dark)
+    for e in (-1, 1):                                                         # шипы по бокам
+        for t in (0.2, -0.25):
+            p = c0 + side * e * 0.19 + along * t * L
+            p = back_point(p, 0.02)
+            cone(k, p, p + side * e * 0.045 + UP * 0.012, 0.014, dark)
+    for e in (-1, 1):                                                         # глазки
+        base = c0 + along * 0.42 * L + side * e * 0.055
+        base = Vector((base.x, base.y, top - 0.012))
+        eye = base + UP * 0.06 + along * 0.015 + side * e * 0.01
+        hk.tube(k, [base, eye], 0.011, shell, sides=6)
+        hk.ball(k, eye, 0.022, BLACK, seg=8, rings=5)
+        hk.ball(k, eye + UP * 0.012 + along * 0.008 - side * e * 0.004, 0.007, WHITE, seg=6, rings=4)
+
+    # маленькие клешни по бокам запястья, смотрят к пальцам
+    for e in (-1, 1):
+        root = back_point(palm + side * e * 0.2 - along * 0.02, -0.03)
+        d = (along - side * e * 0.15).normalized()
+        taper(k, [root, root + d * 0.05, root + d * 0.1], [0.032, 0.04, 0.03], shell, sides=8, flat=0.7)
+        tip = root + d * 0.1
+        for half, col in ((1, shell), (-1, light)):
+            fin = (d + UP * 0.25 * half).normalized()
+            taper(k, [tip, tip + fin * 0.045, tip + fin * 0.075 - UP * 0.012 * half], [0.022, 0.016, 0.004], col,
+                  sides=6, flat=0.7)
+    k.roughness = 0.45
     return k
 
 
@@ -606,6 +648,7 @@ def main():
     only = argv[argv.index("--only") + 1].split(",") if "--only" in argv else None
 
     ARMATURE, HAND, ARM = hk.load_arm()
+    zw.ARM = ARM
     os.makedirs(MODELS_DIR, exist_ok=True)
     os.makedirs(TEXTURES_DIR, exist_ok=True)
     objs, ok = [], True
