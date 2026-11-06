@@ -306,23 +306,51 @@ def seam(k, a, b, color, lift=0.012, radius=0.007, steps=6):
     hk.tube(k, [top_point(a.lerp(b, i / (steps - 1)), lift) for i in range(steps)], radius, color, sides=5)
 
 
+def finger_line(k, f, color, lift=0.0, radius=0.006, start=0.0, end=1.0, side=0.0):
+    """Линия по верху пальца (трещина, кант): по фалангам, каждая часть на своей кости — гнётся вместе с пальцем."""
+    pts = chain(f)
+    r = finger_radius(f)
+    across = (head("Pinky1") - head("Index1")).normalized()
+    for i in range(3):
+        a0, a1 = i / 3, (i + 1) / 3
+        if a1 <= start or a0 >= end:
+            continue
+        u0, u1 = (max(a0, start) - a0) * 3, (min(a1, end) - a0) * 3
+        k.bone = f + str(i + 1)
+        a = pts[i].lerp(pts[i + 1], u0) + UP * (r + lift) + across * side * (1 if i % 2 else -1)
+        b = pts[i].lerp(pts[i + 1], u1) + UP * (r + lift) - across * side * (1 if i % 2 else -1)
+        hk.tube(k, [a, a.lerp(b, 0.5) + UP * 0.002, b], radius, color, sides=4)
+
+
 def make_leather():
-    """Водительские перчатки: коньячная кожа, манжета с кнопкой, выпуклые швы, вырезы на костяшках."""
+    """Гоночная перчатка: чёрная кожа, красные вставки, жёсткие накладки на костяшках и пальцах, ремешок на липучке."""
     k = HandKit("Hand_Leather")
-    leather, dark, stitch = C(0.58, 0.32, 0.14), C(0.3, 0.15, 0.06), C(0.95, 0.82, 0.55)
-    glove(k, leather, inflate=0.014)
-    cuff(k, -0.02, 0.04, 0.012, 0.018, dark)
-    p, n, along, across = zw.frame(0.01, math.pi / 2, 0.03)
-    zw.lathe(k, p, n, along, across, [(0, 0), (0.026, 0), (0.026, 0.006), (0.018, 0.011), (0, 0.012)],
-             lambda i, q: C(0.9, 0.7, 0.35) if i < 2 else C(1.0, 0.85, 0.5), seg=12)
+    black, red, carbon, light = C(0.12, 0.12, 0.13), C(0.8, 0.1, 0.1), C(0.26, 0.27, 0.3), C(0.5, 0.52, 0.56)
+    glove(k, black, inflate=0.014)
     palm, mid, along, side = palm_frame()
-    for f in ("Index", "Middle", "Ring"):
-        seam(k, palm.lerp(head(f + "1"), 0.12), palm.lerp(head(f + "1"), 0.72), dark, lift=0.02)
     k.bone = "Palm"
-    for f in ("Index", "Middle", "Ring", "Pinky"):                                   # вырезы на костяшках
-        p = top_point(head(f + "1").lerp(palm, 0.08), 0.016)
-        zw.disc(k, p, UP, along, 0.026, 0.002, dark, seg=8)
-    k.roughness = 0.55
+    shell = []                                                                    # накладка на костяшках
+    for f in ("Index", "Middle", "Ring", "Pinky"):
+        p = head(f + "1")
+        for d in (-0.035, 0.035):
+            shell.append(top_point(p + along * d, 0.016))
+            shell.append(top_point(p + along * d, 0.05))
+    zw.hull(k, shell, lambda nrm: light if nrm.z > 0.9 else carbon)
+    for x in (-0.1, 0.0, 0.1):                                                    # рёбра на накладке
+        p = top_point(mid + side * x, 0.052)
+        hk.slab(k, p - along * 0.03, along, side, UP, 0.06, 0.012, 0.006, light)
+    for f in ("Index", "Middle", "Ring", "Pinky"):                                # накладки на средних фалангах
+        pts = chain(f)
+        k.bone = f + "2"
+        c = pts[1].lerp(pts[2], 0.5) + UP * (finger_radius(f) + 0.016)
+        zw.chamfer_box(k, c, side, (pts[2] - pts[1]).normalized(), UP, 0.05, 0.035, 0.008, 0.005, carbon, light)
+    seam(k, palm.lerp(head("Index1"), 0.05), palm.lerp(head("Index1"), 0.7), red, lift=0.018, radius=0.012)
+    seam(k, palm.lerp(head("Pinky1"), 0.05), palm.lerp(head("Pinky1"), 0.7), red, lift=0.018, radius=0.012)
+    cuff(k, -0.025, 0.045, 0.012, 0.02, lambda ri, j: red if ri == 3 else black)
+    p, n, al, ac = zw.frame(0.01, math.pi / 2, 0.032)                            # ремешок на липучке с нашивкой
+    zw.chamfer_box(k, p, ac, al, n, 0.06, 0.03, 0.005, 0.004, black, carbon)
+    zw.disc(k, p + n * 0.005, n, al, 0.018, 0.002, red, seg=10)
+    k.roughness = 0.5
     return k
 
 
@@ -338,17 +366,23 @@ def make_fingerless():
 
 
 def make_butler():
-    """Белая перчатка дворецкого: плотная манжета, жемчужная пуговица, три выпуклых шва."""
+    """Белая перчатка дворецкого: манжета с чёрным кантом и жемчужной пуговицей, три шва, вышитая золотая корона."""
     k = HandKit("Hand_Butler")
-    white, line = C(0.98, 0.98, 0.97), C(0.66, 0.68, 0.76)
+    white, line, gold = C(0.98, 0.98, 0.97), C(0.66, 0.68, 0.76), C(1.0, 0.8, 0.3)
     glove(k, white, inflate=0.012)
-    cuff(k, -0.025, 0.045, 0.01, 0.02, lambda ri, j: white if ri in (2, 3, 4) else line)
+    cuff(k, -0.025, 0.045, 0.01, 0.02, lambda ri, j: BLACK if ri in (2, 4) else white if ri == 3 else line)
     p, n, along, across = zw.frame(0.01, math.radians(70), 0.03)
     zw.lathe(k, p, n, along, across, [(0, 0), (0.02, 0), (0.02, 0.006), (0.014, 0.01), (0, 0.01)],
              C(0.95, 0.93, 0.88), seg=10)
     palm, mid, along, side = palm_frame()
     for f in ("Index", "Middle", "Ring"):
-        seam(k, palm.lerp(head(f + "1"), 0.1), palm.lerp(head(f + "1"), 0.65), line, lift=0.018, radius=0.007)
+        seam(k, palm.lerp(head(f + "1"), 0.5), palm.lerp(head(f + "1"), 0.85), line, lift=0.018, radius=0.007)
+    k.bone = "Palm"
+    c = top_point(palm.lerp(mid, 0.28), 0.016)                                    # корона
+    hk.slab(k, c - side * 0.05 - along * 0.012, side, along, UP, 0.1, 0.024, 0.006, gold)
+    for x in (-0.04, 0.0, 0.04):
+        hk.slab(k, c + side * x - along * 0.0, -along, side, UP, 0.04 if x == 0 else 0.03, 0.014, 0.006, gold)
+        hk.ball(k, c + side * x + along * (0.04 if x == 0 else 0.03) * -1 + UP * 0.004, 0.009, gold, seg=6, rings=4)
     return k
 
 
@@ -422,37 +456,48 @@ def make_hook():
 
 
 def make_gauntlet():
-    """Латная перчатка: тёмная основа, сегменты пальцев с заклёпками, выпуклая пластина, раструб по руке."""
+    """Рука рыцаря: пальцы в стальных сегментах, пластины внахлёст, шипы на костяшках, раструб с золотым кантом и гербом."""
     k = HandKit("Hand_Gauntlet")
-    under, rivet = C(0.2, 0.2, 0.23), C(0.95, 0.78, 0.35)
-    copy_hand(k, under, inflate=0.008, keep=lambda f, s, b: s < 0.04)
+    gold, red = C(0.95, 0.76, 0.3), C(0.75, 0.1, 0.12)
+    steel, steel_l, steel_d = C(0.74, 0.77, 0.82), C(0.9, 0.92, 0.95), C(0.45, 0.47, 0.52)
+    copy_hand(k, steel_d, inflate=0.01, keep=lambda f, s, b: s < 0.04)          # основа — тёмная сталь, не чернота
     forearm_skin(k, 0.04)
-    fingers_parts(k, lambda f, i: STEEL if i % 2 == 0 else shade(STEEL, 0.85), width=1.12)
+    for f in FINGERS:                                                              # сегменты: шире у основания, внахлёст
+        pts = chain(f)
+        r = finger_radius(f) * 1.18
+        for i in range(3):
+            k.bone = f + str(i + 1)
+            a, b = pts[i] - (pts[i + 1] - pts[i]) * 0.1, pts[i + 1]
+            taper(k, [a + UP * 0.008, a.lerp(b, 0.15) + UP * 0.01, a.lerp(b, 0.85) + UP * 0.01, b + UP * 0.006],
+                  [r * 0.95, r * 1.05, r, r * 0.9], steel if i % 2 == 0 else shade(steel, 1.08), sides=10, flat=0.85)
+        k.bone = f + "3"
+        hk.ball(k, pts[3] + UP * 0.006, r * 0.88, steel, seg=8, rings=5, squash=(UP, 0.8))   # скруглённый кончик
     palm, mid, along, side = palm_frame()
     k.bone = "Palm"
-    plate = []                                                                    # выпуклая пластина тыльной стороны
-    for f in (0.05, 0.45, 0.92):
-        for x in (-0.17, -0.06, 0.06, 0.17):
-            lift = 0.02 + (0.03 if abs(x) < 0.1 else 0.0) + (0.008 if f == 0.45 else 0.0)
-            plate.append(back_point(palm.lerp(mid, f) + side * x, lift))
-            plate.append(back_point(palm.lerp(mid, f) + side * x, 0.004))
-    zw.hull(k, plate, lambda nrm: shade(STEEL, 1.2) if nrm.z > 0.9 else STEEL if nrm.z > 0.3 else STEEL_DARK)
-    beam(k, back_point(head("Index1"), 0.03) - side * 0.04, back_point(head("Pinky1"), 0.03) + side * 0.04,
-         0.07, 0.05, STEEL_DARK, up=UP)                                          # костяшки
-    for f in (0.15, 0.85):
-        for x in (-0.14, 0.14):
-            p = back_point(palm.lerp(mid, f) + side * x, 0.022)
-            hk.ball(k, p, 0.012, rivet, seg=6, rings=4)
-    # раструб: вплотную у запястья, расходится к локтю, золотой кант и заклёпки
+    for q, (f0, f1) in enumerate(((0.0, 0.42), (0.32, 0.72), (0.62, 1.02))):      # три пластины внахлёст
+        pts = []
+        for f in (f0, f1):
+            for x in (-0.2, -0.1, 0.0, 0.1, 0.2):
+                lift = 0.026 + 0.012 * q + (0.016 if abs(x) < 0.15 else 0.0)
+                pts.append(top_point(palm.lerp(mid, f) + side * x, lift))
+                pts.append(top_point(palm.lerp(mid, f) + side * x, 0.006))
+        zw.hull(k, pts, lambda nrm: steel_l if nrm.z > 0.93 else steel if nrm.z > 0.3 else steel_d)
+    for f in ("Index", "Middle", "Ring", "Pinky"):                                # шипы на костяшках
+        p = top_point(head(f + "1"), 0.06)
+        cone(k, p - UP * 0.02, p + UP * 0.035 - along * 0.01, 0.022, steel_d, seg=4)
+    for f, x in ((0.15, -0.16), (0.15, 0.16), (0.5, -0.17), (0.5, 0.17)):          # заклёпки
+        hk.ball(k, top_point(palm.lerp(mid, f) + side * x, 0.04), 0.011, gold, seg=6, rings=4)
     k.bone = "Forearm"
-    zw.sweep(k, 0.06, [(-0.07, 0.006), (0.09, 0.006), (0.09, 0.07), (0.075, 0.08), (-0.07, 0.024), (-0.075, 0.016)],
-             lambda ri, j: rivet if ri == 2 else STEEL if ri == 3 else shade(STEEL, 1.15) if ri == 4 else STEEL_DARK)
-    for j in range(0, 48, 4):
-        t = hk.angle(j, 48)
-        if math.sin(t) < -0.3:
-            continue
-        p, n, al, ac = zw.frame(0.12, t, 0.06)
-        zw.lathe(k, p, n, al, ac, [(0, 0), (0.009, 0), (0.008, 0.004), (0, 0.008)], rivet, seg=6)
+    zw.sweep(k, 0.07, [(-0.075, 0.006), (0.1, 0.006), (0.1, 0.075), (0.085, 0.086), (-0.075, 0.03), (-0.08, 0.02)],
+             lambda ri, j: gold if ri == 2 else steel if ri == 3 else steel_l if ri == 4 else steel_d)
+    p, n, al, ac = zw.frame(0.075, math.pi / 2, 0.062)                           # щит-герб на раструбе
+    tilt = (n + al * 0.55).normalized()
+    e1 = -al
+    zw.lathe(k, p, tilt, e1, tilt.cross(e1).normalized(), [(0, 0), (0.052, 0), (0.052, 0.006), (0, 0.006)], gold, seg=16)
+    zw.lathe(k, p + tilt * 0.006, tilt, e1, tilt.cross(e1).normalized(), [(0, 0), (0.042, 0), (0.042, 0.003), (0, 0.003)],
+             red, seg=16)
+    for d in (e1, tilt.cross(e1).normalized()):
+        hk.slab(k, p + tilt * 0.009 - d * 0.036, d, d.cross(tilt).normalized(), tilt, 0.072, 0.012, 0.003, gold)
     k.metallic, k.roughness = 0.7, 0.35
     return k
 
@@ -489,24 +534,58 @@ def make_skeleton():
 
 
 def make_zombie():
-    """Рука зомби: ровная серо-зелёная кожа, пятна гнили, крестики швов, бинт, торчащая косточка."""
+    """Рваная рука зомби: лоскуты кожи разной зелени со швами, вырванный кусок с костями, косточка вместо кончика мизинца."""
     k = HandKit("Hand_Zombie")
-    rot, dark, bone_c, thread = C(0.55, 0.66, 0.45), C(0.36, 0.45, 0.3), C(0.95, 0.92, 0.82), C(0.12, 0.1, 0.1)
-    copy_hand(k, rot, shade_by=lambda f: shade(rot, 0.85) if f.normal.z < -0.35 else rot)
+    rot, rot2, rot3 = C(0.55, 0.66, 0.45), C(0.62, 0.72, 0.5), C(0.45, 0.56, 0.4)
+    flesh, bone_c, thread = C(0.2, 0.1, 0.14), C(0.95, 0.92, 0.82), C(0.12, 0.1, 0.1)
+    # лоскуты: цвет куска зависит от того, по какую сторону шва (косые полосы) лежит грань
+    def patch(f):
+        c = f.calc_center_median()
+        band = int((c.x * 2.2 + c.y * 3.0 + 3) * 1.6) % 3
+        tone = (rot, rot2, rot3)[band]
+        return shade(tone, 0.85) if f.normal.z < -0.35 else tone
+    copy_hand(k, rot, keep=lambda f, s, b: b != "Pinky3", shade_by=patch)
     palm, mid, along, side = palm_frame()
     k.bone = "Palm"
-    for f, x, r in ((0.3, 0.08, 0.06), (0.62, -0.1, 0.045), (0.15, -0.12, 0.035)):   # пятна гнили
-        p = top_point(palm.lerp(mid, f) + side * x, 0.008)
-        zw.disc(k, p, UP, along, r, 0.005, dark, seg=9)
-    p = top_point(head("Middle1").lerp(palm, 0.05), 0.0)                          # косточка из костяшки
-    hk.ball(k, p + UP * 0.025, 0.04, bone_c, seg=7, rings=5)
-    k.bone = "Forearm"
-    for q in range(8):                                                           # шов поперёк запястья: крестики
-        t = math.radians(35 + q * 15)
-        p, n, al, ac = zw.frame(0.05, t, 0.004)
+    # швы между лоскутами: крестики по косой линии через тыльную сторону
+    for q in range(9):
+        u = q / 8
+        p = top_point(palm.lerp(mid, 0.1 + 0.8 * u) + side * (0.2 - 0.4 * u), 0.004)
         for d in (-1, 1):
-            e = (al + ac * d).normalized()
-            hk.slab(k, p - e * 0.016, e, e.cross(n).normalized(), n, 0.032, 0.007, 0.006, thread)
+            e = (along + side * d).normalized()
+            hk.slab(k, p - e * 0.016, e, e.cross(UP).normalized(), UP, 0.032, 0.007, 0.006, thread)
+    # вырванный кусок: тёмная плоть, видны две пястные кости, по краю — торчащие лоскуты
+    c = top_point(palm.lerp(mid, 0.55) + side * 0.09, 0.004)
+    flat = lambda a: 0.1 * (1.0 + 0.22 * math.sin(a * 3) + 0.1 * math.cos(a * 5))
+    k.fan([k.vert(c + (along * math.cos(2 * math.pi * q / 14) + side * math.sin(2 * math.pi * q / 14)) *
+                  flat(2 * math.pi * q / 14) * 0.95) for q in range(14)], c - UP * 0.004, flesh)
+    zw.disc(k, c - UP * 0.006, UP, along, 0.085, 0.006, flesh, seg=14)
+    for x in (-0.04, 0.04):
+        hk.tube(k, [c + side * x - along * 0.08 + UP * 0.002, c + side * x + along * 0.08 + UP * 0.002], 0.017, bone_c,
+                sides=6)
+    for q in range(7):
+        a = 2 * math.pi * q / 7 + 0.3
+        d = along * math.cos(a) + side * math.sin(a)
+        base = c + d * flat(a) * 0.9
+        zw.hull(k, [base + d.cross(UP) * 0.02, base - d.cross(UP) * 0.02, base + d * 0.035 + UP * 0.018,
+                    base + UP * 0.006], rot2 if q % 2 else rot)
+    # мизинец: вместо кончика косточка
+    pts = chain("Pinky")
+    k.bone = "Pinky3"
+    hk.tube(k, [pts[2], pts[3]], 0.022, bone_c, sides=6)
+    hk.ball(k, pts[3], 0.026, bone_c, seg=6, rings=4)
+    zw.lathe(k, pts[2], (pts[3] - pts[2]).normalized(), side, UP,
+             [(0, 0), (finger_radius("Pinky") * 1.02, 0), (finger_radius("Pinky") * 0.9, 0.02), (0, 0.02)], flesh, seg=8)
+    # предплечье: рваный край кожи, из-под него видна кость
+    k.bone = "Forearm"
+    p, n, al, ac = zw.frame(0.08, math.radians(70), 0.0)
+    zw.disc(k, p + n * 0.002, n, al, 0.05, 0.004, flesh, seg=10)
+    hk.tube(k, [p + n * 0.008 - al * 0.04, p + n * 0.008 + al * 0.04], 0.016, bone_c, sides=6)
+    for q in range(6):
+        a = 2 * math.pi * q / 6
+        d = al * math.cos(a) + ac * math.sin(a)
+        zw.hull(k, [p + d * 0.05 + d.cross(n) * 0.015, p + d * 0.05 - d.cross(n) * 0.015, p + d * 0.075 + n * 0.012,
+                    p + d * 0.045 + n * 0.004], rot if q % 2 else rot3)
     pts = chain("Middle")
     k.bone = "Middle2"
     for q in range(3):                                                           # бинт на пальце
@@ -540,23 +619,36 @@ def make_cat_paw():
 
 
 def make_robot():
+    """Рука робота: светлые панели, светящиеся кольца в суставах, ядро на тыльной стороне, поршни."""
     k = HandKit("Hand_Robot")
-    metal, dark, glow = C(0.62, 0.66, 0.72), C(0.25, 0.27, 0.3), C(0.25, 0.9, 1.0)
+    metal, dark, glow, panel = C(0.7, 0.74, 0.8), C(0.22, 0.24, 0.28), C(0.25, 0.95, 1.0), C(0.86, 0.89, 0.93)
     forearm_skin(k, 0.45)
-    fingers_parts(k, lambda f, i: metal if i != 1 else shade(metal, 0.9), width=0.95,
+    fingers_parts(k, lambda f, i: panel if i != 1 else metal, width=0.95,
                   joints=lambda p, f, i: hk.ball(k, p, 0.07 if f != "Thumb" else 0.075, dark, seg=8, rings=4))
+    for f in FINGERS:                                                            # светящиеся кольца в суставах
+        pts = chain(f)
+        for i in range(3):
+            k.bone = f + str(i + 1)
+            ring_around(k, pts[i], (pts[i + 1] - pts[i]).normalized(), (0.07 if f != "Thumb" else 0.075) + 0.004, 0.009,
+                        glow)
     palm, mid, along, side = palm_frame()
     k.bone = "Palm"
     beam(k, palm.lerp(mid, -0.1), mid, 0.42, 0.24, metal)                      # ладонь-короб
-    beam(k, back_point(palm.lerp(mid, 0.2), 0.0), back_point(palm.lerp(mid, 0.75), 0.0), 0.16, 0.02, glow)
-    for x in (-0.14, 0.14):
-        hk.ball(k, back_point(palm.lerp(mid, 0.1), 0.0) + side * x, 0.018, dark, seg=6, rings=4)
+    top = palm.lerp(mid, 0.45) + UP * 0.12
+    for x in (-0.15, 0.15):                                                      # полосы панелей
+        beam(k, top + side * x - along * 0.2, top + side * x + along * 0.2, 0.012, 0.012, dark)
+    zw.lathe(k, top, UP, along, side, [(0, 0), (0.07, 0), (0.07, 0.012), (0.05, 0.018), (0, 0.018)],
+             lambda i, q: dark if i < 2 else panel, seg=16)                     # ядро
+    zw.lathe(k, top + UP * 0.016, UP, along, side, [(0, 0), (0.042, 0), (0.036, 0.012), (0, 0.016)], glow, seg=12)
+    zw.glint(k, top + UP * 0.033 - along * 0.012 + side * 0.012, UP, along, 0.022, 0.006)
     k.bone = "Forearm"
     c0, c1 = ARM.centre(0.02), ARM.centre(0.5)
-    hk.tube(k, [c0, c1], 0.15, metal, sides=8)                                # предплечье
+    hk.tube(k, [c0, c1], 0.15, metal, sides=10)                                  # предплечье
     for x in (-0.12, 0.12):
         hk.tube(k, [c0 + ARM.side * x + UP * 0.12, c1 + ARM.side * x + UP * 0.12], 0.025, dark, sides=6)   # поршни
-    hk.ball(k, c0, 0.17, dark, seg=10, rings=6)                                # шарнир запястья
+        hk.tube(k, [c0 + ARM.side * x + UP * 0.12, c0.lerp(c1, 0.45) + ARM.side * x + UP * 0.12], 0.034, panel, sides=6)
+    hk.ball(k, c0, 0.17, dark, seg=12, rings=6)                                  # шарнир запястья
+    ring_around(k, c0 - ARM.axis * 0.0, ARM.axis, 0.172, 0.012, glow, seg=16)
     k.metallic, k.roughness = 0.6, 0.35
     return k
 
@@ -711,28 +803,37 @@ def make_claw():
 
 
 def make_fortune():
-    """Рука Фортуны: перламутр, золотые узоры, звезда с камнем, тонкие кольца."""
+    """Рука Фортуны — фарфоровая рука статуи: синяя роспись цветком, золотые трещины (кинцуги) по руке и пальцам."""
     k = HandKit("Hand_Fortune")
-    pearl, gold, gem = C(0.97, 0.95, 1.0), GOLD, C(0.45, 0.3, 0.95)
-    copy_hand(k, pearl, shade_by=lambda f: C(0.9, 0.86, 0.97) if f.normal.z < -0.35 else pearl)
-    for f in FINGERS:
+    porcelain, blue, gold = C(0.97, 0.96, 0.93), C(0.18, 0.32, 0.72), C(1.0, 0.78, 0.25)
+    copy_hand(k, porcelain, shade_by=lambda f: C(0.9, 0.89, 0.86) if f.normal.z < -0.35 else porcelain)
+    palm, mid, along, side = palm_frame()
+    k.bone = "Palm"
+    c = top_point(palm.lerp(mid, 0.4) - side * 0.04, 0.003)                       # роспись: цветок и завитки
+    for q in range(6):
+        a = 2 * math.pi * q / 6
+        d = along * math.cos(a) + side * math.sin(a)
+        zw.disc(k, c + d * 0.034, UP, along, 0.026, 0.003, blue, seg=10)
+    zw.disc(k, c + UP * 0.002, UP, along, 0.018, 0.003, porcelain, seg=10)
+    for a0 in (0.4, 2.6, 4.4):
+        pts = [top_point(c + (along * math.cos(a0 + u * 0.9) + side * math.sin(a0 + u * 0.9)) * (0.07 + u * 0.06), 0.004)
+               for u in (0.0, 0.3, 0.6, 1.0)]
+        hk.tube(k, pts, 0.007, blue, sides=4)
+    # кинцуги: ветвистые золотые трещины по тыльной стороне и дальше по пальцам
+    cracks = [((0.0, 0.18), (0.3, 0.1), (0.55, 0.15), (0.85, 0.06)), ((0.3, 0.1), (0.5, -0.12), (0.8, -0.16)),
+              ((0.62, 0.15), (0.9, 0.2))]
+    for path in cracks:
+        pts = [top_point(palm.lerp(mid, f) + side * x, 0.005) for f, x in path]
+        for a, b in zip(pts, pts[1:]):
+            hk.tube(k, [a, a.lerp(b, 0.5) + UP * 0.003 + side * 0.008, b], 0.009, gold, sides=5)
+    finger_line(k, "Index", gold, lift=0.004, radius=0.008, start=0.0, end=0.75, side=0.012)
+    finger_line(k, "Ring", gold, lift=0.004, radius=0.008, start=0.2, end=1.0, side=0.01)
+    finger_line(k, "Thumb", gold, lift=0.004, radius=0.008, start=0.0, end=0.6, side=0.01)
+    for f in ("Middle", "Pinky"):                                                # тонкие золотые кольца
         pts = chain(f)
         k.bone = f + "1"
         ring_around(k, pts[0].lerp(pts[1], 0.6), (pts[1] - pts[0]).normalized(), finger_radius(f) + 0.008, 0.012, gold)
-    palm, mid, along, side = palm_frame()
-    k.bone = "Palm"
-    c = top_point(palm.lerp(mid, 0.45), 0.006)
-    for q in range(8):                                                           # звезда-компас
-        a = q * math.pi / 4
-        d = side * math.cos(a) + along * math.sin(a)
-        e = d.cross(UP).normalized()
-        L = 0.19 if q % 2 == 0 else 0.1
-        zw.hull(k, [c + d * L, c + e * 0.03, c - e * 0.03, c + UP * 0.016 + d * 0.012], gold)
-    zw.bezel_setting(k, c + UP * 0.008, UP, along, 0.044, 0.016, gold)
-    zw.gem_cut(k, c + UP * 0.022, UP, along, 0.037, gem, seg=8)
-    for f in ("Index", "Ring"):                                                  # завитки к пальцам
-        seam(k, palm.lerp(head(f + "1"), 0.55), palm.lerp(head(f + "1"), 0.85), gold, lift=0.006, radius=0.006, steps=4)
-    k.metallic, k.roughness = 0.2, 0.3
+    k.metallic, k.roughness = 0.15, 0.25
     return k
 
 
