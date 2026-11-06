@@ -802,38 +802,57 @@ def make_claw():
     return k
 
 
+def sparkle(k, p, n, e1, size, color, h=0.004):
+    """Звезда-искра: четыре луча крестом (два тонких ромба) и середина."""
+    e2 = n.cross(e1).normalized()
+    for d in (e1, e2):
+        w = d.cross(n).normalized()
+        zw.hull(k, [p + d * size, p - d * size, p + w * size * 0.22, p - w * size * 0.22,
+                    p + d * size * 0.3 + n * h, p - d * size * 0.3 + n * h], color)
+
+
 def make_fortune():
-    """Рука Фортуны — фарфоровая рука статуи: синяя роспись цветком, золотые трещины (кинцуги) по руке и пальцам."""
+    """Рука Фортуны — звёздная: кожа как ночное небо, искры звёзд, золотое созвездие, полумесяц, золотые кончики."""
     k = HandKit("Hand_Fortune")
-    porcelain, blue, gold = C(0.97, 0.96, 0.93), C(0.18, 0.32, 0.72), C(1.0, 0.78, 0.25)
-    copy_hand(k, porcelain, shade_by=lambda f: C(0.9, 0.89, 0.86) if f.normal.z < -0.35 else porcelain)
+    night, deep, violet = C(0.12, 0.14, 0.38), C(0.07, 0.07, 0.22), C(0.3, 0.16, 0.5)
+    star_w, gold = C(1.0, 0.97, 0.85), C(1.0, 0.8, 0.3)
+
+    def sky(f):
+        if f.normal.z < -0.35:
+            return deep
+        s = s_of(f.calc_center_median())
+        return night if s < 0.06 else violet if s > 0.16 else C(0.2, 0.15, 0.44)   # к локтю ночь переходит в фиолет
+
+    copy_hand(k, night, shade_by=sky)
     palm, mid, along, side = palm_frame()
     k.bone = "Palm"
-    c = top_point(palm.lerp(mid, 0.4) - side * 0.04, 0.003)                       # роспись: цветок и завитки
-    for q in range(6):
-        a = 2 * math.pi * q / 6
-        d = along * math.cos(a) + side * math.sin(a)
-        zw.disc(k, c + d * 0.034, UP, along, 0.026, 0.003, blue, seg=10)
-    zw.disc(k, c + UP * 0.002, UP, along, 0.018, 0.003, porcelain, seg=10)
-    for a0 in (0.4, 2.6, 4.4):
-        pts = [top_point(c + (along * math.cos(a0 + u * 0.9) + side * math.sin(a0 + u * 0.9)) * (0.07 + u * 0.06), 0.004)
-               for u in (0.0, 0.3, 0.6, 1.0)]
-        hk.tube(k, pts, 0.007, blue, sides=4)
-    # кинцуги: ветвистые золотые трещины по тыльной стороне и дальше по пальцам
-    cracks = [((0.0, 0.18), (0.3, 0.1), (0.55, 0.15), (0.85, 0.06)), ((0.3, 0.1), (0.5, -0.12), (0.8, -0.16)),
-              ((0.62, 0.15), (0.9, 0.2))]
-    for path in cracks:
-        pts = [top_point(palm.lerp(mid, f) + side * x, 0.005) for f, x in path]
-        for a, b in zip(pts, pts[1:]):
-            hk.tube(k, [a, a.lerp(b, 0.5) + UP * 0.003 + side * 0.008, b], 0.009, gold, sides=5)
-    finger_line(k, "Index", gold, lift=0.004, radius=0.008, start=0.0, end=0.75, side=0.012)
-    finger_line(k, "Ring", gold, lift=0.004, radius=0.008, start=0.2, end=1.0, side=0.01)
-    finger_line(k, "Thumb", gold, lift=0.004, radius=0.008, start=0.0, end=0.6, side=0.01)
-    for f in ("Middle", "Pinky"):                                                # тонкие золотые кольца
+    # созвездие: звёзды и золотые линии между ними
+    points = [(0.12, 0.1), (0.35, 0.16), (0.55, 0.06), (0.72, 0.14), (0.5, -0.12), (0.82, -0.08)]
+    stars = [top_point(palm.lerp(mid, f) + side * x, 0.004) for f, x in points]
+    for a, b in ((0, 1), (1, 2), (2, 3), (2, 4), (4, 5)):
+        hk.tube(k, [stars[a] + UP * 0.002, stars[b] + UP * 0.002], 0.005, gold, sides=4)
+    for q, p in enumerate(stars):
+        sparkle(k, p + UP * 0.003, UP, along, 0.042 if q in (1, 3) else 0.03, star_w)
+    # мелкие звёзды россыпью
+    for f, x, s in ((0.2, -0.15, 0.012), (0.3, -0.05, 0.01), (0.65, -0.2, 0.012), (0.9, 0.2, 0.01), (0.05, -0.1, 0.01),
+                    (0.42, 0.22, 0.011), (0.62, 0.3, 0.01)):
+        sparkle(k, top_point(palm.lerp(mid, f) + side * x, 0.005), UP, along, s * 1.5, star_w if s > 0.01 else gold, h=0.003)
+    # полумесяц у запястья
+    c = top_point(palm.lerp(mid, 0.05) - side * 0.12, 0.004)
+    zw.disc(k, c, UP, along, 0.06, 0.005, gold, seg=18)
+    zw.disc(k, c + side * 0.027 + along * 0.016 + UP * 0.0006, UP, along, 0.053, 0.0056, night, seg=18)
+    # звёзды на пальцах и золотые кончики
+    for f in FINGERS:
         pts = chain(f)
-        k.bone = f + "1"
-        ring_around(k, pts[0].lerp(pts[1], 0.6), (pts[1] - pts[0]).normalized(), finger_radius(f) + 0.008, 0.012, gold)
-    k.metallic, k.roughness = 0.15, 0.25
+        r = finger_radius(f)
+        k.bone = f + "2"
+        sparkle(k, pts[1].lerp(pts[2], 0.5) + UP * (r + 0.004), UP, (pts[2] - pts[1]).normalized(), 0.022, star_w,
+                h=0.003)
+        k.bone = f + "3"
+        d = (pts[3] - pts[2]).normalized()
+        zw.lathe(k, pts[2].lerp(pts[3], 0.72), d, UP, d.cross(UP).normalized(),
+                 [(0, 0), (r * 1.02, 0), (r * 0.98, 0.018), (r * 0.6, 0.032), (0, 0.036)], gold, seg=10)   # золотой ноготь
+    k.metallic, k.roughness = 0.2, 0.35
     return k
 
 
