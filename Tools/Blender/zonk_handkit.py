@@ -28,7 +28,7 @@ from mathutils import Matrix, Vector
 import zonk_models as zm
 import zonk_arms as za
 
-SEG = 32                          # граней по окружности
+SEG = 48                          # граней по окружности (32 — рукава гранёные, видно полосы на свету)
 POLAR = 96                        # лучей замера кожи по окружности (Arm.hug)
 GAP = za.SLEEVE_GAP * za.SCALE    # зазор ткани над кожей
 LINING = 0.05                     # глубина подкладки внутрь от края рукава
