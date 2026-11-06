@@ -441,11 +441,11 @@ def main():
     save("UI_Badge_Level", level_badge())       # подложка номера уровня (Parts/PlayerLevel)
 
 
-if "--only" in sys.argv:
+if __name__ == "__main__" and "--only" in sys.argv:
     # Только названные спрайты (через запятую): остальные не перерисовываются.
     _map = {"Icon_RulesBook": rules_book, "UI_Icon_Close": close_icon, "UI_Icon_Plus": plus_icon, "Star_Gold": gold_star,
             "Star_Gray": gray_star, "Coin": coin_icon, "Trophy": trophy_icon, "Chest": chest_icon, "UI_Badge_Level": level_badge}
     for _name in sys.argv[sys.argv.index("--only") + 1].split(","):
         save(_name, _map[_name]())
-else:
+elif __name__ == "__main__":
     main()
