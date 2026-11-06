@@ -284,9 +284,9 @@ class Kit:
 # Детали на руке
 # ---------------------------------------------------------------------------
 
-def ring_at(k, s, add, grow=1.0, drop=0.0, wave=None, seg=SEG):
+def ring_at(k, s, add, grow=1.0, drop=0.0, wave=None, seg=SEG, clip=True):
     a = k.arm
-    if drop > 0:
+    if drop > 0 and clip:
         drop = min(drop, a.max_drop(s, add, grow))
     return [k.vert(a.point(s, angle(j, seg), add + (wave(angle(j, seg)) if wave else 0.0), grow, drop))
             for j in range(seg)]
@@ -301,8 +301,12 @@ def sleeve(k, rings, color, edge_color=None, inside=INSIDE, lining_add=None, thi
     а не плоское кольцо торца.
     """
     if thin:
-        outer = [ring_at(k, r["s"], r.get("add", GAP), r.get("grow", 1.0), r.get("drop", 0.0), r.get("wave")) for r in rings]
-        inner = [ring_at(k, r["s"], r.get("add", GAP) - thin, r.get("grow", 1.0), r.get("drop", 0.0), r.get("wave"))
+        # ткань и подкладка провисают одинаково (по пределу подкладки): иначе подкладка проступает сквозь рукав
+        def sag(r):
+            return min(r.get("drop", 0.0), k.arm.max_drop(r["s"], r.get("add", GAP) - thin, r.get("grow", 1.0)))
+
+        outer = [ring_at(k, r["s"], r.get("add", GAP), r.get("grow", 1.0), sag(r), r.get("wave"), clip=False) for r in rings]
+        inner = [ring_at(k, r["s"], r.get("add", GAP) - thin, r.get("grow", 1.0), sag(r), r.get("wave"), clip=False)
                  for r in rings]
         k.quads(outer, color)
         k.quads([inner[0], outer[0]], edge_color or (color(0, 0) if callable(color) else color))
