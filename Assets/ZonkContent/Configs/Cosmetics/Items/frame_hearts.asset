@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3758024ff1cf4ad4caa14cc6c86d79b3, type: 3}
+  m_Name: frame_hearts
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticItemConfig
+  Id: frame_hearts
+  NameKey: item.frame_hearts
+  Slot: {fileID: 11400000, guid: 1c9650b5ae89c9d4792040d174ae3a9c, type: 2}
+  Icon: {fileID: 21300000, guid: 7d7cebe2486d43668898df14964f8db2, type: 3}
+  Order: 101
+  Rarity: 0
+  Payload:
+    rid: 7700000000000001010
+  Price:
+    Options:
+    - rid: 7700000000000001011
+  HiddenInShop: 0
+  ShopTab: {fileID: 0}
+  references:
+    version: 2
+    RefIds:
+    - rid: 7700000000000001010
+      type: {class: SpritePayload, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Sprite: {fileID: 21300000, guid: 7d7cebe2486d43668898df14964f8db2, type: 3}
+    - rid: 7700000000000001011
+      type: {class: CurrencyPriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Currency: {fileID: 11400000, guid: 4c4a02ad27a191748b7714f63387dbab, type: 2}
+        Amount: 1500

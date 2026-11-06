@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3758024ff1cf4ad4caa14cc6c86d79b3, type: 3}
+  m_Name: avatar_boss_fortuna
+  m_EditorClassIdentifier: Zonk::Zonk.Configs.CosmeticItemConfig
+  Id: avatar_boss_fortuna
+  NameKey: item.avatar_boss_fortuna
+  Slot: {fileID: 11400000, guid: 6973b7495d1b75841b5c896b13a875a5, type: 2}
+  Icon: {fileID: 21300000, guid: 19171af1dda44ee4b287257c5cdb3e1a, type: 3}
+  Order: 139
+  Rarity: 3
+  Payload:
+    rid: 7700000000000001390
+  Price:
+    Options:
+    - rid: 7700000000000001391
+  HiddenInShop: 0
+  ShopTab: {fileID: 0}
+  references:
+    version: 2
+    RefIds:
+    - rid: 7700000000000001390
+      type: {class: SpritePayload, ns: Zonk.Configs, asm: Zonk}
+      data:
+        Sprite: {fileID: 21300000, guid: 19171af1dda44ee4b287257c5cdb3e1a, type: 3}
+    - rid: 7700000000000001391
+      type: {class: ProgressPriceOption, ns: Zonk.Configs, asm: Zonk}
+      data:
+        HintKey: hint.beat_fortuna

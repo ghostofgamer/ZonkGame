@@ -185,9 +185,11 @@ namespace Zonk.Editor.Setup
         private static CosmeticSlotConfig LookSlot(string id, string nameKey, int order)
         {
             var slot = Slot(id, nameKey, order, CameraShots.Menu, new NoSceneApplier());
-            if (slot.ShowInShop)
+            // Аватарки и рамки — вкладки магазина (решение автора 06.11.2026): часть за монеты, рекламу и деньги,
+            // часть только игрой (сундук, уровень, достижения, боссы). Раньше генератор выключал их из магазина.
+            if (!slot.ShowInShop)
             {
-                slot.ShowInShop = false;
+                slot.ShowInShop = true;
                 EditorUtility.SetDirty(slot);
             }
 
