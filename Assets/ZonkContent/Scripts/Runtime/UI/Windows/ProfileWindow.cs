@@ -177,7 +177,8 @@ namespace Zonk.UI.Windows
             ShowingTalents();
             ShowingLevels();
             Build();
-            ShowPage(_page);
+            // Есть свободные очки талантов (значок «+» у уровня в меню) — сразу на вкладку талантов.
+            ShowPage(HasTalents && _talents.FreePoints > 0 ? Page.Talents : _page);
         }
 
         // ---------- Вкладки ----------

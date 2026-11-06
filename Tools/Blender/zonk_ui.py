@@ -296,6 +296,22 @@ def close_icon():
                    (INK, smooth(0, cross - 5)), (np.array([1.0, 1.0, 1.0]), smooth(0, cross)))
 
 
+def plus_icon():
+    """Значок «есть свободные очки» 128×128: зелёный круг с контуром и тенью, белый плюс с контуром, блик."""
+    size = 128
+    x, y = grid(size, size)
+    circle = np.hypot(x - 61, y - 59) - 50
+    drop = np.hypot(x - 67, y - 66) - 50
+    plus = np.minimum(capsule(x, y, 61, 59 - 25, 61, 59 + 25, 9), capsule(x, y, 61 - 25, 59, 61 + 25, 59, 9))
+    shine = np.abs(np.hypot(x - 61, y - 59) - 38) - 3.5
+    shine = np.where((np.arctan2(y - 59, x - 61) > -2.7) & (np.arctan2(y - 59, x - 61) < -1.9), shine, 1e3)
+    green = np.where((((x - 61) + (y - 59)) > 30)[..., None] & (dots(x, y, 7, 1.9) > 0.5)[..., None],
+                     np.array([0.12, 0.45, 0.2]), np.array([0.25, 0.72, 0.3]))
+    return compose((INK, smooth(0, drop)), (INK, smooth(0, circle)), (green, smooth(-6, circle)),
+                   (np.array([0.75, 1.0, 0.75]), smooth(0, shine)),
+                   (INK, smooth(0, plus - 5)), (np.array([1.0, 1.0, 1.0]), smooth(0, plus)))
+
+
 def main():
     comic = os.path.join(SPRITES, "Comic")
     os.makedirs(comic, exist_ok=True)
@@ -309,10 +325,11 @@ def main():
     save("UI_Spark", spark())
     save("Icon_RulesBook", rules_book())          # знак вопроса в самой картинке: кнопка без текста
     save("UI_Icon_Close", close_icon())          # закрыть окно: рисунок вместо символа «×» (он стоял не по центру)
+    save("UI_Icon_Plus", plus_icon())            # свободные очки талантов у уровня игрока
 
 
 if "--only" in sys.argv:
     _only = sys.argv[sys.argv.index("--only") + 1]
-    save(_only, globals()[{"Icon_RulesBook": "rules_book", "UI_Icon_Close": "close_icon"}[_only]]())
+    save(_only, globals()[{"Icon_RulesBook": "rules_book", "UI_Icon_Close": "close_icon", "UI_Icon_Plus": "plus_icon"}[_only]]())
 else:
     main()

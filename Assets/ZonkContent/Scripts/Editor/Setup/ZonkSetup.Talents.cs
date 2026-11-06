@@ -357,12 +357,20 @@ namespace Zonk.Editor.Setup
                 if (field == null || field.objectReferenceValue != null)
                     return;
 
-                var badge = Box("TalentBadge", root.transform, _ui.Palette.Bad);
-                Corner(badge, new Vector2(0f, 1f), new Vector2(26f, 26f), new Vector2(44f, 6f));
-                badge.GetComponent<Image>().raycastTarget = false;
-                var mark = Text("Mark", badge, _ui.BoldFont, 20, _ui.Palette.Text);
-                mark.text = "+";
-                Stretch(mark.rectTransform);
+                // Уровень — кнопка: PlayerLevelView.Clicked открывает профиль (при свободных очках — вкладку талантов).
+                if (root.GetComponent<Button>() == null)
+                    root.AddComponent<Button>().targetGraphic = root.GetComponent<Image>();
+
+                // Значок — рисунок (zonk_ui.py, UI_Icon_Plus: зелёный круг с плюсом), пульсирует; символ «+» шрифтом
+                // в красном квадрате выглядел дёшево и был не по центру.
+                var badge = Box("TalentBadge", root.transform, Color.white);
+                Corner(badge, new Vector2(0f, 1f), new Vector2(44f, 44f), new Vector2(30f, 16f));
+                var badgeImage = badge.GetComponent<Image>();
+                badgeImage.raycastTarget = false;
+                badgeImage.sprite = SpriteAt(Sprites + "/UI_Icon_Plus.png");
+                badgeImage.type = Image.Type.Simple;
+                badgeImage.preserveAspect = true;
+                badge.gameObject.AddComponent<UiSway>().EditorSetup(0f, 0f, 0.12f, 1.2f, 0f);
                 badge.gameObject.SetActive(false);
 
                 field.objectReferenceValue = badge.gameObject;
