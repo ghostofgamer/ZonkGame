@@ -60,8 +60,12 @@ namespace Zonk.Editor.Setup
                 element.preferredHeight = 64f;
                 element.flexibleWidth = 1f;
 
+                // Медаль (zonk_ui.py, UI_Badge_Level, белая — золото задаёт цвет), а не голый квадрат.
                 var badge = Box("Badge", root, _ui.Palette.Gold);
-                Corner(badge, new Vector2(0f, 0.5f), new Vector2(56f, 56f), new Vector2(4f, 0f));
+                Corner(badge, new Vector2(0f, 0.5f), new Vector2(64f, 64f), new Vector2(4f, 0f));
+                var medal = badge.GetComponent<Image>();
+                medal.sprite = SpriteAt(Sprites + "/UI_Badge_Level.png");
+                medal.preserveAspect = true;
                 var number = Text("Level", badge, _ui.BoldFont, 30, _ui.Palette.Panel);
                 AutoSize(number, 16, 30);
                 Stretch(number.rectTransform);

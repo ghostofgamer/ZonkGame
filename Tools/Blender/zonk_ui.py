@@ -312,6 +312,113 @@ def plus_icon():
                    (INK, smooth(0, plus - 5)), (np.array([1.0, 1.0, 1.0]), smooth(0, plus)))
 
 
+def regular_star(cx, cy, r_out, r_in, rays=5, rot=-math.pi / 2):
+    pts = []
+    for i in range(rays * 2):
+        r = r_out if i % 2 == 0 else r_in
+        a = rot + math.pi * i / rays
+        pts.append((cx + math.cos(a) * r, cy + math.sin(a) * r))
+    return pts
+
+
+def star_icon(fill, dark, light):
+    """Звезда 64×64: острые лучи, чернильный контур, жёсткая тень, светлая грань сверху-слева."""
+    size = 64
+    x, y = grid(size, size)
+    star = polygon_sdf(x, y, regular_star(31, 33, 28, 12))
+    drop = polygon_sdf(x, y, regular_star(34, 36, 28, 12))
+    left = (x - 31) * 0.8 + (y - 33) < -2                                      # верхне-левая половина светлее
+    rgb = np.where(left[..., None], light, fill)
+    rgb = np.where(((x - 31) + (y - 33) > 10)[..., None] & (dots(x, y, 5, 1.2) > 0.5)[..., None], dark, rgb)
+    return compose((INK, smooth(0, drop)), (INK, smooth(0, star)), (rgb, smooth(-3.5, star)))
+
+
+def gold_star():
+    return star_icon(GOLD, GOLD * 0.7, np.array([1.0, 0.92, 0.55]))
+
+
+def gray_star():
+    return star_icon(np.array([0.58, 0.58, 0.62]), np.array([0.42, 0.42, 0.46]), np.array([0.74, 0.74, 0.78]))
+
+
+def coin_icon():
+    """Монета 64×64: золотой круг с контуром, внутренний ободок, звезда-чекан, блик, жёсткая тень."""
+    size = 64
+    x, y = grid(size, size)
+    r = np.hypot(x - 30, y - 30)
+    disc, drop = r - 26, np.hypot(x - 33, y - 33) - 26
+    rim = np.abs(r - 18) - 1.6
+    mark = polygon_sdf(x, y, regular_star(30, 31, 11, 5))
+    shine = capsule(x, y, 17, 25, 22, 16, 2.4)
+    gold = np.where(((x - 30) + (y - 30) > 14)[..., None] & (dots(x, y, 5, 1.2) > 0.5)[..., None], GOLD * 0.72, GOLD)
+    return compose((INK, smooth(0, drop)), (INK, smooth(0, disc)), (gold, smooth(-3.5, disc)),
+                   (GOLD * 0.62, smooth(0, rim)), (GOLD * 0.62, smooth(0, mark)), (np.array([1.0, 0.97, 0.8]), smooth(0, shine)))
+
+
+def trophy_icon():
+    """Кубок 128×128 белый (цвет редкости задаёт Image.color): чаша, ручки, ножка, подставка, контур, растр в тени."""
+    size = 128
+    x, y = grid(size, size)
+    bowl = np.maximum(rounded_box(x, y, 34, 14, 94, 74, 26), y - 72)                 # чаша, сверху срезана ровно
+    bowl = np.minimum(bowl, rounded_box(x, y, 34, 14, 94, 40, 4))
+    handles = np.minimum(np.abs(np.hypot(x - 32, y - 36) - 13) - 4, np.abs(np.hypot(x - 96, y - 36) - 13) - 4)
+    stem = rounded_box(x, y, 56, 70, 72, 96, 3)
+    base = rounded_box(x, y, 38, 94, 90, 110, 5)
+    body = np.minimum(np.minimum(np.minimum(bowl, handles), stem), base)
+    drop = np.minimum(np.minimum(np.minimum(rounded_box(x - 5, y - 5, 34, 14, 94, 74, 26), stem + 0), base), handles)
+    shade = (x > 70)
+    grey = np.where((shade & (dots(x, y, 6, 1.6) > 0.5))[..., None], np.array([0.72, 0.72, 0.72]), np.array([1.0, 1.0, 1.0]))
+    shine = capsule(x, y, 46, 24, 46, 52, 3.5)
+    star = polygon_sdf(x, y, regular_star(64, 42, 12, 5))
+    return compose((INK, smooth(0, np.minimum(body, rounded_box(x, y, 40, 99, 96, 116, 5)))), (INK, smooth(0, body)),
+                   (grey, smooth(-4.5, body)), (np.array([0.8, 0.8, 0.8]), smooth(0, star)),
+                   (np.array([1.0, 1.0, 1.0]), smooth(0, shine)))
+
+
+def chest_icon():
+    """Сундук 256×256: доски с линиями, золотые полосы, замок, крышка дугой, контур, жёсткая тень, растр в тени."""
+    size = 256
+    x, y = grid(size, size)
+    wood, wood_dark, gold, gold_dark = np.array([0.6, 0.34, 0.16]), np.array([0.4, 0.21, 0.09]), GOLD, GOLD * 0.7
+    box = rounded_box(x, y, 30, 110, 226, 222, 10)
+    lid = np.maximum(np.hypot((x - 128) / 1.0, (y - 118) * 1.55) - 100, y - 112)
+    body = np.minimum(box, lid)
+    drop = np.minimum(rounded_box(x, y, 40, 120, 236, 232, 10), np.maximum(np.hypot(x - 138, (y - 128) * 1.55) - 100, y - 122))
+    planks = (((y - 110).astype(int) // 28) % 2 == 0) & (y > 112)
+    rgb = np.where(planks[..., None], wood, wood * 0.88)
+    rgb = np.where(((x > 150) & (dots(x, y, 9, 2.4) > 0.5))[..., None], wood_dark, rgb)
+    seams = np.abs(((y - 110) % 28) - 14) > 12.8
+    rgb = np.where((seams & (y > 112))[..., None], wood_dark, rgb)
+    bands = np.minimum(np.abs(x - 70) - 11, np.abs(x - 186) - 11)
+    rim = np.abs(y - 112) - 7
+    lock = rounded_box(x, y, 108, 98, 148, 146, 6)
+    hole = np.minimum(np.hypot(x - 128, y - 116) - 6, rounded_box(x, y, 125, 116, 131, 132, 2))
+    band_rgb = np.where((x > 150)[..., None], gold_dark, gold)
+    inside = smooth(-6, body)
+    return compose((INK, smooth(0, drop)), (INK, smooth(0, body)), (rgb, inside),
+                   (INK, smooth(0, np.maximum(bands - 3, body))), (band_rgb, smooth(0, np.maximum(bands, body + 6))),
+                   (INK, smooth(0, np.maximum(rim - 3, body))), (gold, smooth(0, np.maximum(rim, body + 6))),
+                   (INK, smooth(0, lock + 4)), (gold, smooth(0, lock)), (INK, smooth(0, hole)))
+
+
+def level_badge():
+    """Медаль уровня 128×128 белая (золото задаёт Image.color): зубчатый край, контур, ободок, растр в тени, тень."""
+    size = 128
+    x, y = grid(size, size)
+    a = np.arctan2(y - 61, x - 61)
+    r = np.hypot(x - 61, y - 61)
+    edge = 52 + 4.5 * np.cos(a * 14)
+    medal = r - edge
+    drop = np.hypot(x - 66, y - 66) - (52 + 4.5 * np.cos(np.arctan2(y - 66, x - 66) * 14))
+    ring = np.abs(r - 38) - 2.5
+    grey = np.where((((x - 61) + (y - 61)) > 34)[..., None] & (dots(x, y, 7, 1.9) > 0.5)[..., None],
+                    np.array([0.7, 0.7, 0.7]), np.array([1.0, 1.0, 1.0]))
+    shine = np.abs(r - 45) - 2.5
+    shine = np.where((a > -2.6) & (a < -1.9), shine, 1e3)
+    return compose((INK, smooth(0, drop)), (INK, smooth(0, medal)), (grey, smooth(-5, medal)),
+                   (np.array([0.72, 0.72, 0.72]), smooth(0, ring)), (np.array([1.0, 1.0, 1.0]), smooth(0, shine)))
+
+
 def main():
     comic = os.path.join(SPRITES, "Comic")
     os.makedirs(comic, exist_ok=True)
@@ -326,10 +433,19 @@ def main():
     save("Icon_RulesBook", rules_book())          # знак вопроса в самой картинке: кнопка без текста
     save("UI_Icon_Close", close_icon())          # закрыть окно: рисунок вместо символа «×» (он стоял не по центру)
     save("UI_Icon_Plus", plus_icon())            # свободные очки талантов у уровня игрока
+    save("Star_Gold", gold_star())
+    save("Star_Gray", gray_star())
+    save("Coin", coin_icon())
+    save("Trophy", trophy_icon())                # белый: цвет редкости задаёт Image.color
+    save("Chest", chest_icon())
+    save("UI_Badge_Level", level_badge())       # подложка номера уровня (Parts/PlayerLevel)
 
 
 if "--only" in sys.argv:
-    _only = sys.argv[sys.argv.index("--only") + 1]
-    save(_only, globals()[{"Icon_RulesBook": "rules_book", "UI_Icon_Close": "close_icon", "UI_Icon_Plus": "plus_icon"}[_only]]())
+    # Только названные спрайты (через запятую): остальные не перерисовываются.
+    _map = {"Icon_RulesBook": rules_book, "UI_Icon_Close": close_icon, "UI_Icon_Plus": plus_icon, "Star_Gold": gold_star,
+            "Star_Gray": gray_star, "Coin": coin_icon, "Trophy": trophy_icon, "Chest": chest_icon, "UI_Badge_Level": level_badge}
+    for _name in sys.argv[sys.argv.index("--only") + 1].split(","):
+        save(_name, _map[_name]())
 else:
     main()
